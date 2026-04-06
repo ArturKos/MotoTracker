@@ -10,8 +10,8 @@ Motorcycle GPS tracker — LilyGO T-SIM7000G (ESP32 + SIM7000G) firmware with li
 ### LilyGO T-SIM7000G Module
 ![LilyGO T-SIM7000G board](img/lilygo_module.png)
 
-### 3D-Printed Case (Power Button Cap)
-![3D printed power button cap](img/case_3d.png)
+### 3D-Printed Case
+![3D printed enclosure](img/case.webp)
 
 ## Project Structure
 
@@ -35,8 +35,6 @@ Motorcycle GPS tracker — LilyGO T-SIM7000G (ESP32 + SIM7000G) firmware with li
 │   └── composer.json            # PHP dependencies (google/protobuf)
 ├── hardware/
 │   └── T-SIM7000G_Box_-_Box_PWR_Button.stl  # 3D-printable power button cap
-├── docs/
-│   └── LilyGO-T-SIM7000G/      # Manufacturer documentation (README, examples, 3D files)
 ├── tools/
 │   └── gen_demo_ride.py         # Generate demo GPS data and insert into MySQL
 └── img/                         # Screenshots for this README
@@ -134,6 +132,11 @@ Edit waypoints, date, and time at the top of the script.
 ## 3D Case
 
 `hardware/T-SIM7000G_Box_-_Box_PWR_Button.stl` — a 3D-printable power button cap that fits over the LilyGO T-SIM7000G board's power switch and passes through a custom enclosure lid. Print in PLA or PETG.
+
+## Hardware Documentation
+
+LilyGO T-SIM7000G official documentation, schematics, examples, and 3D files:
+[github.com/Xinyuan-LilyGO/LilyGO-T-SIM7000G](https://github.com/Xinyuan-LilyGO/LilyGO-T-SIM7000G)
 
 ## Dependencies
 

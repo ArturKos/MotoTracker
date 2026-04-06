@@ -1,0 +1,4 @@
+LILYGO TTGO T-SIM7000G SLy Case by IamSLy on Thingiverse: https://www.thingiverse.com/thing:5861376
+
+Summary:
+LILYGO TTGO T-SIM7000G SLy CaseA case for the LILYGO TTGO T-SIM7000G v1.1 its GNSS antenna its LTE antennabatteryµSD cardFeatures:Easy to print without supportsSturdy caseOn/Off switchAll LEDs visibleButtons accessibleUSB-C accessible Optional: Solar panel plug accessibleYou will need :2 * M2x6 screws with Hex Socket Heads (or longer)2 * M2x2.5x3.2 Threaded InsertsOnShape.com link:https://cad.onshape.com/documents/21d94df4b59cba46a7758a20/v/3f57048dc4a67d845377164f/e/7316f14517f0aebb5da372f2?renderMode=0&amp;uiState=63f016bdc3f2905eaed670b4Enjoy :)

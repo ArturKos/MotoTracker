@@ -131,7 +131,15 @@ Edit waypoints, date, and time at the top of the script.
 
 ## 3D Case
 
-`hardware/T-SIM7000G_Box_-_Box_PWR_Button.stl` — a 3D-printable power button cap that fits over the LilyGO T-SIM7000G board's power switch and passes through a custom enclosure lid. Print in PLA or PETG.
+Custom enclosure for the LilyGO T-SIM7000G board with a power button. Print in PLA or PETG.
+
+Model: [T-SIM7000G Box on Thingiverse](https://www.thingiverse.com/thing:5861376)
+
+| | |
+|---|---|
+| ![](hardware/images/2d98756b-fa4c-4a8d-a03d-933488f03d17.png) | ![](hardware/images/2d26794b-8ff8-430b-88e0-b554c3e34e09.png) |
+| ![](hardware/images/402d80ad-6236-4377-9320-3c44aa6f9966.png) | ![](hardware/images/9e6a754d-0c97-4fc2-bd2a-2eb2f42b4318.png) |
+| ![](hardware/images/6b63b9a1-991f-4cfa-b119-7ca4c4992cac.png) | ![](hardware/images/1f9defc5-68fc-46bc-8f19-4b3d2081aad7.png) |
 
 ## Hardware Documentation
 

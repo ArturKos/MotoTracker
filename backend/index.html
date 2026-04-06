@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>MotoTracker</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header id="topbar">
+    <div class="logo">
+        <i class="fas fa-motorcycle"></i>
+        <span>MotoTracker</span>
+    </div>
+    <div class="topbar-controls">
+        <label for="datePicker">Date:</label>
+        <input type="date" id="datePicker">
+        <button id="btnRefresh" onclick="refreshMap()" title="Refresh map">
+            <i class="fas fa-sync-alt"></i> Load
+        </button>
+        <button id="btnExport" onclick="exportGPX()" title="Download GPX">
+            <i class="fas fa-download"></i> GPX
+        </button>
+        <button id="btnFullscreen" onclick="toggleFullscreen()" title="Toggle fullscreen">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+</header>
+
+<div id="main-container">
+    <aside id="sidebar">
+        <div id="stats-panel">
+            <h3><i class="fas fa-tachometer-alt"></i> Ride Stats</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-road"></i></div>
+                    <div class="stat-value" id="statDistance">--</div>
+                    <div class="stat-label">Distance</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value" id="statDuration">--</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-gauge-high"></i></div>
+                    <div class="stat-value" id="statAvgSpeed">--</div>
+                    <div class="stat-label">Avg Speed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="stat-value" id="statMaxSpeed">--</div>
+                    <div class="stat-label">Max Speed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-temperature-half"></i></div>
+                    <div class="stat-value" id="statTemp">--</div>
+                    <div class="stat-label">Temperature</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-battery-half"></i></div>
+                    <div class="stat-value" id="statBattery">--</div>
+                    <div class="stat-label">Battery</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="replay-panel">
+            <h3><i class="fas fa-play-circle"></i> Ride Replay</h3>
+            <div class="replay-controls">
+                <button id="btnReplay" onclick="toggleReplay()" title="Play/Pause">
+                    <i class="fas fa-play" id="replayIcon"></i>
+                </button>
+                <button onclick="stopReplay()" title="Stop">
+                    <i class="fas fa-stop"></i>
+                </button>
+                <input type="range" id="replaySpeed" min="1" max="20" value="5">
+                <span class="speed-label" id="speedLabel">5x</span>
+            </div>
+            <div class="replay-progress">
+                <div class="progress-bar" id="replayProgress"></div>
+            </div>
+        </div>
+
+        <div id="history-panel">
+            <h3><i class="fas fa-history"></i> Ride History</h3>
+            <div id="rideList" class="ride-list"></div>
+        </div>
+    </aside>
+
+    <div id="map-container">
+        <div id="map"></div>
+        <div id="map-layer-switcher">
+            <button class="layer-btn active" data-layer="street" title="Street">
+                <i class="fas fa-road"></i>
+            </button>
+            <button class="layer-btn" data-layer="satellite" title="Satellite">
+                <i class="fas fa-satellite"></i>
+            </button>
+            <button class="layer-btn" data-layer="terrain" title="Terrain">
+                <i class="fas fa-mountain"></i>
+            </button>
+            <button class="layer-btn" data-layer="dark" title="Dark">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+        <div id="speed-legend">
+            <span class="legend-title">Speed</span>
+            <div class="legend-bar"></div>
+            <div class="legend-labels">
+                <span>0</span>
+                <span id="legendMax">km/h</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button id="sidebar-toggle" onclick="toggleSidebar()">
+    <i class="fas fa-chevron-left" id="sidebarIcon"></i>
+</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="map.js"></script>
+
+</body>
+</html>

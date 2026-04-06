@@ -1,0 +1,555 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-dark: #1a1a2e;
+    --bg-panel: #16213e;
+    --bg-card: #0f3460;
+    --accent: #e94560;
+    --accent-hover: #ff6b81;
+    --text-primary: #eee;
+    --text-secondary: #aab;
+    --text-muted: #667;
+    --border: #2a2a4a;
+    --green: #2ed573;
+    --yellow: #ffa502;
+    --red: #e94560;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* === TOP BAR === */
+#topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 56px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    z-index: 1000;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.logo i {
+    font-size: 1.5em;
+}
+
+.topbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.topbar-controls label {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.topbar-controls input[type="date"] {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+.topbar-controls input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+}
+
+.topbar-controls button {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.topbar-controls button:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/* === MAIN LAYOUT === */
+#main-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* === SIDEBAR === */
+#sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    transition: margin-left 0.3s ease;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+}
+
+#sidebar.collapsed {
+    margin-left: -320px;
+}
+
+#sidebar h3 {
+    padding: 14px 16px 10px;
+    font-size: 0.95em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#sidebar h3 i {
+    color: var(--accent);
+}
+
+#sidebar-toggle {
+    position: fixed;
+    left: 320px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 600;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-left: none;
+    color: var(--text-secondary);
+    padding: 12px 6px;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    transition: left 0.3s ease, background 0.2s;
+}
+
+#sidebar-toggle:hover {
+    background: var(--accent);
+    color: white;
+}
+
+#sidebar-toggle.collapsed {
+    left: 0;
+}
+
+/* === STATS === */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    color: var(--accent);
+    font-size: 1.1em;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+/* === REPLAY === */
+#replay-panel {
+    border-top: 1px solid var(--border);
+}
+
+.replay-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+}
+
+.replay-controls button {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.replay-controls button:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.replay-controls input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 4px;
+}
+
+.speed-label {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    min-width: 30px;
+}
+
+.replay-progress {
+    height: 3px;
+    background: var(--bg-dark);
+    margin: 0 16px 12px;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+    transition: width 0.3s;
+    border-radius: 3px;
+}
+
+/* === RIDE HISTORY === */
+#history-panel {
+    border-top: 1px solid var(--border);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.ride-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.ride-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid var(--border);
+}
+
+.ride-item:hover {
+    background: var(--bg-card);
+}
+
+.ride-item.active {
+    background: var(--bg-card);
+    border-left: 3px solid var(--accent);
+}
+
+.ride-item .ride-icon {
+    color: var(--accent);
+    font-size: 1.2em;
+}
+
+.ride-item .ride-info {
+    flex: 1;
+}
+
+.ride-item .ride-date {
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+.ride-item .ride-meta {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* === MAP === */
+#map-container {
+    flex: 1;
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+/* === MAP LAYER SWITCHER === */
+#map-layer-switcher {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.layer-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 0.9em;
+}
+
+.layer-btn:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.layer-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+/* === SPEED LEGEND === */
+#speed-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 400;
+    background: rgba(22, 33, 62, 0.9);
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+    display: none;
+}
+
+#speed-legend.visible {
+    display: block;
+}
+
+.legend-title {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.legend-bar {
+    height: 8px;
+    width: 200px;
+    border-radius: 4px;
+    margin: 6px 0 4px;
+    background: linear-gradient(90deg, #2ed573, #ffa502, #e94560);
+}
+
+.legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75em;
+    color: var(--text-secondary);
+}
+
+/* === FULLSCREEN === */
+body.fullscreen #topbar {
+    display: none;
+}
+
+body.fullscreen #sidebar {
+    position: absolute;
+    height: 100%;
+    z-index: 600;
+}
+
+body.fullscreen #main-container {
+    height: 100vh;
+}
+
+/* === CUSTOM LEAFLET OVERRIDES === */
+.leaflet-popup-content-wrapper {
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.leaflet-popup-tip {
+    background: var(--bg-panel);
+}
+
+.leaflet-popup-content {
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.leaflet-control-zoom a {
+    background: var(--bg-panel) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+.leaflet-control-zoom a:hover {
+    background: var(--bg-card) !important;
+}
+
+.leaflet-control-attribution {
+    background: rgba(26, 26, 46, 0.8) !important;
+    color: var(--text-muted) !important;
+}
+
+.leaflet-control-attribution a {
+    color: var(--text-secondary) !important;
+}
+
+/* Marker labels */
+.marker-label {
+    background: var(--bg-panel);
+    border: 1px solid var(--accent);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Start/finish custom icons */
+.custom-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+}
+
+.start-marker {
+    color: var(--green);
+    text-shadow: 0 0 6px rgba(46, 213, 115, 0.5);
+}
+
+.finish-marker {
+    color: var(--accent);
+    text-shadow: 0 0 6px rgba(233, 69, 96, 0.5);
+}
+
+/* Motorcycle replay icon */
+.moto-icon {
+    font-size: 1.8em;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(233, 69, 96, 0.6);
+}
+
+/* === LOADING SPINNER === */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.loading i {
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+    #sidebar {
+        position: absolute;
+        height: calc(100% - 56px);
+        z-index: 600;
+        width: 280px;
+        min-width: 280px;
+    }
+
+    #sidebar.collapsed {
+        margin-left: -280px;
+    }
+
+    #sidebar-toggle {
+        left: 0;
+    }
+
+    #sidebar-toggle.expanded {
+        left: 280px;
+    }
+
+    .topbar-controls label {
+        display: none;
+    }
+
+    .topbar-controls button span {
+        display: none;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 8px;
+    }
+
+    #speed-legend {
+        bottom: 10px;
+    }
+
+    .legend-bar {
+        width: 150px;
+    }
+}

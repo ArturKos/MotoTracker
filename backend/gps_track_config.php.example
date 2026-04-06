@@ -1,0 +1,18 @@
+<?php
+// Copy this file to gps_track_config.php and fill in your values.
+
+// MySQL server host
+$gps_db_host = 'localhost';
+
+// MySQL username
+$gps_db_user = 'your_db_user';
+
+// MySQL password
+$gps_db_pass = 'your_db_password';
+
+// MySQL database name
+$gps_db_name = 'gps_db_data';
+
+// API key — must match API_KEY in firmware config.h
+$gps_db_write_api_key = 'your_api_key_here';
+?>

@@ -1,0 +1,13 @@
+[Unit]
+Description=MotoTracker snap-to-road + route-interpolation worker
+After=mariadb.service docker.service
+Wants=mariadb.service
+
+[Service]
+Type=oneshot
+User=www-data
+EnvironmentFile=/etc/mototracker/snap.env
+ExecStart=/usr/bin/python3 /opt/mototracker/snap_interpolate.py
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=5

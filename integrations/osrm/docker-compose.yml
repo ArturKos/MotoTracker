@@ -1,0 +1,20 @@
+# OSRM backend for MotoTracker standalone (ubuntu).
+# Serves /match, /nearest, /route on http://localhost:5001 for the
+# snap-to-road + route-interpolation worker in ../../tools/snap_interpolate.py.
+#
+# Before `docker compose up`, preprocess the PBF once:
+#   see ./README.md for the three osrm-extract / partition / customize steps.
+
+services:
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: mototracker-osrm
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - ./data:/data
+    command: >
+      osrm-routed
+      --algorithm mld
+      /data/poland-latest.osrm

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run MotoTracker snap-to-road + interpolation every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=snap-interpolate.service
+
+[Install]
+WantedBy=timers.target

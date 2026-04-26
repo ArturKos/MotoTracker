@@ -1,3 +1,4 @@
+firmware/gps_tracker_optimized/config_local.h
 backend/gps_track_config.php
 backend/vendor/
 backend/log_file.log

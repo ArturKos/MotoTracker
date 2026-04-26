@@ -1,0 +1,552 @@
+================================================================================
+  MotoTracker Firmware — Setup & How-To
+  Hardware: LilyGO T-SIM7000G (ESP32 + SIM7070G modem)
+  Last updated: 2026-04-09
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1.  Hardware overview
+2.  File structure
+3.  Compile
+4.  Flash
+5.  Configuration (config.h / config_local.h)
+6.  WiFi AP configuration portal
+7.  Tracking modes (LIVE / BATCH)
+8.  Data pipeline: MQTT → Home Assistant → Traccar + RPi
+9.  Data pipeline: GT06 TCP direct to Traccar (optional)
+10. Data pipeline: H02 UDP direct to Traccar (optional)
+11. SD card — offline buffer & session logs
+12. GPS testing (dummy GPS flag)
+13. Network / SIM troubleshooting
+14. Known issues & fixes
+15. LED status codes
+
+
+================================================================================
+1. HARDWARE OVERVIEW
+================================================================================
+
+Board:      LilyGO T-SIM7000G
+MCU:        ESP32 (dual-core, 240 MHz)
+Modem:      SIM7070G — supports CAT-M, NB-IoT, 2G/GPRS ONLY (no 3G/HSPA)
+USB chip:   CH34x on cdc_acm driver (Linux) — auto-reset via RTS/DTR does NOT
+            work reliably; manual BOOT+RST required for flashing (see §3)
+
+Pin assignments (defined in config.h):
+  UART_BAUD 115200   PIN_TX 27   PIN_RX 26   PIN_DTR 25
+  PWR_PIN   4        LED_PIN 12  ADC_PIN 35  (battery voltage divider)
+  SD_MISO 2  SD_MOSI 15  SD_SCLK 14  SD_CS 13
+
+Antennas:
+  - LTE antenna:  SMA connector on board — connect external antenna for indoor use
+  - GPS antenna:  U.FL/IPEX connector on board — connect external GPS antenna
+
+
+================================================================================
+2. FILE STRUCTURE
+================================================================================
+
+  gps_tracker_optimized.ino  Main: setup, loop, sendPoint orchestrator, SD buffer
+  config.h                   All hardware pins, timing, feature flags
+  config_local.h             Credentials/overrides (gitignored)
+  types.h                    GpsPoint struct
+  sd_utils.h                 SD logging, battery, offline point buffer
+  modem_utils.h              Modem init, network connect, GPS control
+  protocol_mqtt.h            MQTT connect
+  protocol_gt06.h            GT06 binary TCP (CRC, frames, login, send)
+  protocol_h02.h             H02 text UDP
+  wifi_config.h              WiFi AP config portal + RuntimeConfig
+
+
+================================================================================
+3. COMPILE
+================================================================================
+
+Tool: arduino-cli (NOT arduino-builder — has ctags issues)
+
+Installed permanently at: ~/.local/bin/arduino-cli
+(~/.local/bin is on PATH, so just run `arduino-cli`.)
+
+Compile command:
+  arduino-cli compile \
+    --fqbn esp32:esp32:esp32 \
+    --libraries ~/Arduino/libraries \
+    --build-path /tmp/moto_build \
+    /path/to/firmware/gps_tracker_optimized/
+
+Required libraries (in ~/Arduino/libraries):
+  - TinyGSM
+  - PubSubClient
+  - ArduinoHttpClient
+  - StreamDebugger
+  - ArduinoJson (v6 or v7)   ← needed for WiFi config portal (wifi_config.h)
+
+
+================================================================================
+4. FLASH
+================================================================================
+
+esptool path:
+  ~/.arduino15/packages/esp32/tools/esptool_py/5.1.0/esptool
+
+Flash command (use merged binary — most reliable):
+  esptool --chip esp32 --port /dev/ttyACM0 --baud 115200 \
+    --connect-attempts 80 \
+    write-flash 0x0 /tmp/moto_build/gps_tracker_optimized.ino.merged.bin
+
+IMPORTANT — entering bootloader mode (manual, auto-reset does NOT work):
+  Method A (BOOT+RST while esptool is connecting):
+    1. Run the flash command
+    2. While esptool shows "Connecting........", hold BOOT and tap RST once
+    3. Release RST, then release BOOT after ~1s
+
+  Method B (power-cycle into bootloader):
+    1. Unplug USB
+    2. Hold BOOT button
+    3. Plug USB back in (keep holding BOOT)
+    4. Release BOOT after ~2s
+    5. Run flash command immediately
+
+
+================================================================================
+5. CONFIGURATION
+================================================================================
+
+config.h       — default settings, committed to git, no secrets
+config_local.h — your local overrides, GITIGNORED (never committed)
+
+Create config_local.h in the same directory as the .ino file.
+Minimum content for Play PL SIM + MQTT:
+
+  // ============================================================
+  // config_local.h — LOCAL OVERRIDES (gitignored)
+  // ============================================================
+  #define MQTT_MODE
+
+  #define MQTT_BROKER  "artur-kos.tplinkdns.com"
+  #define MQTT_PORT    1883
+  #define MQTT_USER    "homeassistant"
+  #define MQTT_PASS    "your_mqtt_password"
+  #define MQTT_TOPIC   "notification/GPS_tracker"
+
+  #define APN        "internet"   // Play PL
+  #define GPRS_USER  ""
+  #define GPRS_PASS  ""
+
+  // Comment out once real outdoor GPS testing is done:
+  #define TEST_DUMMY_GPS
+  #define TEST_LAT  53.4285f   // Szczecin
+  #define TEST_LON  14.5528f
+
+  // Verbose AT commands in Serial Monitor (comment out for production):
+  #define DUMP_AT_COMMANDS
+
+All overridable config.h values (use in config_local.h):
+  APN, GPRS_USER, GPRS_PASS
+  IOT_SERVER, IOT_SERVER_PORT, TABLE_NAME, API_KEY   (HTTP mode)
+  MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_TOPIC  (MQTT mode)
+  GT06_SERVER, GT06_PORT                              (GT06 mode)
+  H02_SERVER, H02_UDP_PORT, H02_DEVICE_ID             (H02 UDP mode)
+
+
+================================================================================
+6. WIFI AP CONFIGURATION PORTAL
+================================================================================
+
+Purpose:
+  Change APN, MQTT credentials, tracking intervals, and test flags WITHOUT
+  reflashing. Settings saved as /config.json on the SD card.
+  config.json values override config.h defaults at runtime.
+  config_local.h remains the compile-time fallback (used if SD absent).
+
+How to trigger config mode:
+  1. Power on the device normally (do NOT hold BOOT during power-on — that
+     enters the ESP32 bootloader instead of the firmware)
+  2. Within the first 5 seconds, press and HOLD the BOOT button (GPIO 0)
+     for 3 seconds continuously
+  3. Serial Monitor shows: "BOOT held -> WiFi config mode!"
+  4. LED blinks fast while portal is active
+
+Connecting:
+  - WiFi network: MotoTracker-Setup   Password: mototrack
+  - Open browser on phone or PC, go to: http://192.168.4.1
+  - The form pre-fills with current values (from config.json or defaults)
+  - Most phones/Android show a captive portal popup automatically
+
+Configurable settings:
+  - APN, GPRS credentials, network mode (13=GSM, 2=Auto, 38=CAT-M)
+  - MQTT broker, port, user, password, topic
+  - Send interval, min battery voltage, batch size, sleep time
+  - GT06 and H02 server/port/device ID
+  - Dummy GPS on/off + test coordinates
+
+Save & Reboot:
+  - Click "Save & Reboot" → writes /config.json → device reboots with new config
+  - Changes take effect immediately on next boot
+
+Reset to Defaults:
+  - Click "Reset to Defaults & Reboot" → DELETES /config.json → reboots
+  - On next boot, compile-time defaults (config.h / config_local.h) are used
+  - Use this to recover from bad settings or if you want a clean slate
+
+Auto-timeout:
+  - Portal shuts down after 5 minutes of inactivity (no client connected)
+  - Device continues normal boot with whatever config was last loaded
+  - WiFi AP is NOT active during normal tracker operation — only in config mode
+
+NOT configurable via web UI (require reflash):
+  - AT debug output (DUMP_AT_COMMANDS)
+  - Tracking mode: LIVE vs BATCH
+  - Hardware pin assignments
+
+New required library: ArduinoJson (v6 or v7)
+  Arduino Library Manager → search "ArduinoJson" by Benoit Blanchon → Install
+
+
+================================================================================
+7. TRACKING MODES
+================================================================================
+
+Select ONE mode by commenting/uncommenting in config.h:
+
+  #define TRACKING_MODE_LIVE    ← GPS always on, sends every LIVE_INTERVAL_MS
+  // #define TRACKING_MODE_BATCH ← deep sleep between fixes, batches N points
+
+LIVE mode settings (config.h):
+  LIVE_INTERVAL_MS   1000      send interval in ms (1000 = 1 point/sec)
+  LIVE_BATTERY_CHECK 60000     battery check + GPRS reconnect check interval
+  LIVE_MIN_VOLTAGE   3.3       stop tracking below this voltage (LiPo protection)
+  LIVE_SD_BATCH      10        flush SD buffer after N offline points
+
+BATCH mode settings:
+  TIME_TO_SLEEP      60        deep sleep interval in seconds
+  BATCH_SIZE         5         collect N fixes before sending
+
+
+================================================================================
+8. DATA PIPELINE: MQTT → HOME ASSISTANT → TRACCAR + RPi
+================================================================================
+
+Flow:
+  LilyGO → cellular → MQTT broker (HA Mosquitto, port 1883)
+          → HA automation "Send GPS to Traccar"
+          → Traccar (192.168.1.142:5055, OsmAnd protocol, device id=596327)
+          → RPi (192.168.1.145/gpstrack/..., PHP backend)
+
+Enable in config_local.h:
+  #define MQTT_MODE
+
+MQTT JSON payload format:
+  {
+    "latitude": 53.428501,
+    "longitude": 14.552800,
+    "speed": 0.0,
+    "temperature": 0.0,
+    "humidity": 0.0,
+    "battery": 3.85,
+    "timestamp": "2026-04-09 14:23:01"
+  }
+
+HA automation "Send GPS to Traccar" (already configured):
+  Trigger:  MQTT topic notification/GPS_tracker
+  Action 1: rest_command.send_to_traccar
+              → http://192.168.1.142:5055?id=596327&lat=...&lon=...
+  Action 2: rest_command.send_gps_data_to_rpi
+              → http://192.168.1.145/gpstrack/...?api_key=...&vehicle_id=S_02
+
+Router port forwarding required:
+  External port 1883 TCP → 192.168.1.142 (HA / Mosquitto)
+
+Confirmed working: 2026-04-09
+  Play PL SIM, GSM 2G, signal quality ~25-29, 25 successful sends observed.
+
+
+================================================================================
+9. DATA PIPELINE: GT06 TCP DIRECT TO TRACCAR (optional)
+================================================================================
+
+Sends binary GT06 protocol packets directly to Traccar, bypassing HA.
+Traccar auto-creates a device entry using the modem's real IMEI.
+Uses TCP socket 1 (socket 0 is MQTT). Connection is kept open between sends.
+
+Enable in config_local.h:
+  #define GT06_MODE
+  #define GT06_SERVER  "artur-kos.tplinkdns.com"
+  // GT06_PORT defaults to 5013
+
+Router port forwarding required:
+  External port 5013 TCP → 192.168.1.142 (Traccar)
+
+Traccar server.xml (confirm entry):
+  <entry key='gt06.port'>5013</entry>
+
+Packet format:
+  Login (0x01): sent once on connect — contains BCD-encoded modem IMEI (8 bytes)
+  Location (0x12): per GPS fix — date/time, lat/lon (×1800000), speed, course+flags
+  CRC: CRC16-IBM computed from length byte through serial number
+
+Notes:
+  - Device identifier in Traccar will be the modem's 15-digit IMEI
+  - Create a device in Traccar with that IMEI to see it on the map
+  - Course is always 0° until a real GPS fix with heading is available
+  - If GT06_MODE and MQTT_MODE are both defined, both run on each GPS point
+
+
+================================================================================
+10. DATA PIPELINE: H02 UDP DIRECT TO TRACCAR (optional)
+================================================================================
+
+Sends H02 text protocol datagrams to Traccar via UDP.
+Text-based, no binary encoding or CRC needed.
+Uses AT+CAOPEN/CASEND commands directly (socket 2). Open/send/close per point.
+
+Enable in config_local.h:
+  #define H02_UDP_MODE
+  #define H02_SERVER     "artur-kos.tplinkdns.com"
+  #define H02_DEVICE_ID  "596327"      // must match Traccar device identifier
+  // H02_UDP_PORT defaults to 5023
+
+Router port forwarding required:
+  External port 5023 UDP → 192.168.1.142 (Traccar)
+
+Traccar server.xml (confirm entry):
+  <entry key='h02.port'>5023</entry>
+
+Message format:
+  *HQ,{device_id},V1,{HHMMSS},A,{DDMM.MMMM},{N/S},{DDDMM.MMMM},{E/W},{speed},0,{DDMMYY}#
+
+Example:
+  *HQ,596327,V1,142301,A,5325.7100,N,01433.1680,E,0.00,0,090426#
+
+Notes:
+  - If MQTT_MODE, GT06_MODE, and H02_UDP_MODE are all defined, all three run per point
+  - GT06 and H02 failures are best-effort (do not affect MQTT return value)
+  - All results logged to SD card (see §9)
+
+
+================================================================================
+11. SD CARD — OFFLINE BUFFER & SESSION LOGS
+================================================================================
+
+SD card files:
+
+  /gps_buffer.csv   — offline buffer for points that failed to send
+                      CSV: lat,lon,speed,temp,humidity,battery,timestamp
+                      Auto-sent on next successful network connect
+                      Auto-deleted when fully flushed
+
+  /gpslog.txt       — human-readable session log (append-only across reboots)
+                      Each boot: === BOOT at millis=0, SD NNN MB ===
+                      Each line: [millis_ms] message
+
+Example gpslog.txt content:
+  === BOOT at millis=0, SD 29696 MB ===
+  [1234] Initializing modem...
+  [2891] Modem: SIM7070
+  [5102] SIM status: 1
+  [5203] Signal quality: 27
+  [5304] Waiting for network...
+  [18420] Network registered
+  [21500] GPRS OK, IP: 10.x.x.x, signal: 27
+  [22100] MQTT connecting to artur-kos.tplinkdns.com:1883...
+  [22680] MQTT connected
+  [22700] Battery: 0.28V
+  [22700] === LIVE TRACKING STARTED ===
+  [23701] MQTT OK: {"latitude":53.428501,...}
+  [24702] MQTT OK: {"latitude":53.428501,...}
+  [82700] [BATT] 0.28V | OK:59 FAIL:0 SD:0
+
+Read logs by pulling SD card and opening gpslog.txt on a PC,
+or mounting over USB with a card reader.
+
+
+================================================================================
+12. GPS TESTING (DUMMY GPS)
+================================================================================
+
+TEST_DUMMY_GPS flag bypasses waiting for a real GPS fix.
+Sends fixed Szczecin coordinates (53.4285, 14.5528) for pipeline testing.
+
+Enable in config_local.h:
+  #define TEST_DUMMY_GPS
+  #define TEST_LAT  53.4285f
+  #define TEST_LON  14.5528f
+
+Remove for real outdoor use:
+  Comment out or delete #define TEST_DUMMY_GPS from config_local.h.
+
+For real GPS fix:
+  - Use outdoors or near a window with clear sky view
+  - GPS antenna (U.FL connector) should be connected
+  - First fix typically takes 30-120 seconds (cold start)
+  - Subsequent fixes are faster (warm/hot start)
+
+
+================================================================================
+13. NETWORK / SIM TROUBLESHOOTING
+================================================================================
+
+SIM7070G modem supports: CAT-M, NB-IoT, 2G/GPRS ONLY
+NOT compatible with: 3G/HSPA/UMTS (e.g., Aero2 free plan)
+
+Confirmed working SIM:
+  Play PL — APN: internet (no username/password)
+  Registers on 2G/GSM (AcT=0) at indoor locations with external antenna.
+  Signal quality ~25-29 in good conditions.
+
+Network mode settings (initModem in .ino):
+  Current:  setNetworkMode(13) = GSM only
+            Works reliably indoors with Play PL 2G
+  Outdoor:  Try setNetworkMode(2) = Automatic + setPreferredMode(3) = CAT-M+NB-IoT
+            May get CAT-M registration with better signal outdoors
+
+SIM not detected (status 0):
+  The LilyGO SIM slot has unreliable contacts.
+  Fix: full power cycle (unplug USB, wait 10-15s, replug).
+  If persistent: reseat SIM card, add paper shim behind card for contact pressure.
+
+Registration stuck at 0,2 (searching):
+  - COPS scan: enabled by adding AT+COPS=? call (disabled in current firmware)
+  - Check: modem.getSimStatus() should return 1 (ready) not 0 (not found)
+  - Check: modem.getSignalQuality() should return 1-30 (not 99 = no signal)
+  - Move device closer to window or go outdoors
+
+AT debug output:
+  Enable:  #define DUMP_AT_COMMANDS in config_local.h
+  Disable: comment it out (reduces log noise for production)
+
+Key AT responses to watch for:
+  +CGREG: 0,1   ← registered on 2G (success)
+  +CEREG: 0,1   ← registered on CAT-M/NB-IoT (success)
+  +CGREG: 0,2   ← searching (waiting, may take up to 180s)
+  +CGREG: 0,0   ← not searching (SIM issue or wrong mode)
+  +CSQ: 25,0    ← good signal (1-30 = signal, 99 = no signal)
+  +CGNAPN: 0,"" ← network APN empty (usually fine, use configured APN)
+  +APP PDP: 0,DEACTIVE ← GPRS PDP context failed to activate
+                          (try power cycle + wait 30s before retry)
+
+
+================================================================================
+14. KNOWN ISSUES & FIXES (session 2026-04-09)
+================================================================================
+
+ISSUE: Device stops immediately with "LOW BATTERY" (battery reads ~0.28V)
+FIX:   Battery threshold changed from > 0 to > 1.0f
+       Reading below 1V = no LiPo connected, USB-powered → skip shutdown
+       Code: gps_tracker_optimized.ino, loop(), battery check block
+
+ISSUE: All sends show FAIL even though network connects fine
+FIX:   networkReady was never set to true in setupLive()
+       Only set inside battery check (every 60s), so first 60s all sends failed silently
+       Code: added networkReady = true after connectNetwork() in setupLive()
+
+ISSUE: GPRS PDP activation fails (+APP PDP: 0,DEACTIVE)
+FIX:   Added AT+CGDCONT=1,"IP","internet","0.0.0.0",0,0,0,0 before gprsConnect()
+       Added 3s delay after network registration before GPRS connect
+       Code: connectNetwork() in gps_tracker_optimized.ino
+
+ISSUE: Network registers fine first attempt, fails on retry (signal 99)
+ROOT CAUSE: AT+COPS=? (operator scan) takes 60s and disrupts registration
+FIX:   Removed COPS scan from connectNetwork() loop
+       COPS scan only useful once for diagnosis, not every retry
+
+ISSUE: CAT-M/NB-IoT not registering with Play PL indoors (even with antenna)
+FIX:   setNetworkMode(13) = GSM only
+       Play PL's 2G (GSM) is reachable at this location; CAT-M too weak indoors
+       COPS scan confirmed Play available as AcT=0 (GSM) not AcT=8 (CAT-M)
+
+ISSUE: arduino-builder fails with "ctags pattern is missing"
+FIX:   Use arduino-cli instead (download to /tmp/arduino-cli)
+       arduino-builder is deprecated and has Arduino IDE 2.x incompatibilities
+
+ISSUE: Flash fails "Wrong boot mode detected (0xb)"
+FIX:   CH34x USB chip on Linux cdc_acm driver doesn't support auto-reset
+       Must manually enter bootloader: hold BOOT + tap RST while esptool connects
+       Most reliable: start esptool with --connect-attempts 80, then do BOOT+RST
+
+
+================================================================================
+15. LED STATUS CODES
+================================================================================
+
+The onboard LED (GPIO 12, active LOW — HIGH in code = off, LOW = on) is the
+only visual indicator on the device. Use it to diagnose what the tracker is
+doing without a serial monitor.
+
++------------------------+----------------------------------------------------+
+| LED pattern            | Meaning                                            |
++------------------------+----------------------------------------------------+
+| OFF (dark)             | Idle between sends in LIVE mode, or device powered |
+|                        | off / in deep sleep (BATCH mode between wakeups).  |
++------------------------+----------------------------------------------------+
+| Short flash every      | LIVE mode normal operation — GPS fix acquired,     |
+| LIVE_INTERVAL_MS       | point is being sent (MQTT / HTTP / GT06 / H02).    |
+| (default ~1 s)         | LED is ON only for the duration of sendPoint();    |
+|                        | a very quick blink means "sending now".            |
++------------------------+----------------------------------------------------+
+| SOLID ON (steady)      | LIVE mode waiting for GPS fix. Modem is up but     |
+|                        | getGpsReading() returns no valid fix and dummy_gps |
+|                        | is disabled. Take the device outdoors / check      |
+|                        | antenna. LED stays on until the next interval.     |
++------------------------+----------------------------------------------------+
+| FAST BLINK (~3 Hz,     | WiFi configuration portal is ACTIVE.               |
+| 150 ms on / 150 ms off)| AP "MotoTracker-Setup" (pass: mototrack) is up at  |
+|                        | 192.168.4.1. Connect a phone and configure the     |
+|                        | tracker. Blink stops when you Save / Reset or      |
+|                        | after the 5-minute auto-timeout.                   |
++------------------------+----------------------------------------------------+
+| OFF at power-on,       | Early setup() — SD init, modem power-on sequence.  |
+| then behavior above    | LED is turned off immediately in setup() before    |
+|                        | any initialization runs.                           |
++------------------------+----------------------------------------------------+
+
+How to read typical boot sequences
+----------------------------------
+
+Normal LIVE boot, good signal, GPS fix:
+    OFF (boot/setup) -> OFF (modem+network connect) -> brief flash every 1 s
+    Interpretation: everything healthy, points flowing.
+
+Normal LIVE boot, no GPS fix yet:
+    OFF -> SOLID ON after a few seconds
+    Interpretation: modem and network OK, but no GPS lock. Move outdoors.
+
+First boot after flashing (no /config.json on SD):
+    OFF -> FAST BLINK (~3 Hz) indefinitely (up to 5 min)
+    Interpretation: auto-entered WiFi config portal. Connect phone to
+    "MotoTracker-Setup" and open http://192.168.4.1 to set credentials.
+
+After "Reset to Defaults" in the web UI:
+    FAST BLINK stops briefly -> device reboots -> OFF -> FAST BLINK again
+    Interpretation: config.json was deleted, so the next boot auto-enters
+    the portal again (loop until you Save a new config).
+
+Low battery shutdown (LIVE mode):
+    Brief flash pattern -> OFF permanently
+    Interpretation: battery dropped below LIVE_MIN_VOLTAGE (default 3.5 V).
+    The firmware disables GPS, powers off the modem and enters deep sleep.
+    Check the latest "[BATT]" line in /log.txt on the SD card to confirm.
+
+BATCH mode between wakeups:
+    OFF for TIME_TO_SLEEP seconds -> brief activity (short solid ON while
+    acquiring fix) -> OFF again
+    Interpretation: ESP32 is in deep sleep most of the time; wakes only to
+    take a fix and (every BATCH_SIZE points) flush the RTC buffer.
+
+Troubleshooting
+---------------
+
+LED never turns off after boot:
+  - Stuck waiting for GPS fix (most common) -> move outdoors.
+  - Or setupLive() is stuck in a retry loop (modem/network not coming up).
+    Check serial or /log.txt for "Modem init retry" / "Network retry".
+
+LED fast-blinks when you did NOT ask for config mode:
+  - /config.json is missing or unreadable on the SD card. Either save a
+    config via the web UI, or pre-place a valid config.json on the SD.
+
+LED does nothing at all (never lights):
+  - Power issue (check USB / battery), or wrong LED_PIN for your board
+    revision. LED_PIN is defined in config.h (default GPIO 12).
+

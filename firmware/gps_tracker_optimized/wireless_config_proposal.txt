@@ -1,0 +1,340 @@
+================================================================================
+  MotoTracker — Wireless Configuration: Design Proposal
+  Hardware: LilyGO T-SIM7000G (ESP32 + SIM7070G)
+  Date: 2026-04-09
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1.  Overview & recommended approach
+2.  Method A: WiFi AP + Web UI (first-time / home setup)
+3.  Method B: BLE GATT (field / phone app)
+4.  Method C: MQTT config topic (remote / over cellular)
+5.  Config storage: config.json on SD card
+6.  Boot flow with wireless config
+7.  Implementation plan (files, libraries, approximate line counts)
+8.  Security considerations
+9.  Phased rollout suggestion
+
+
+================================================================================
+1. OVERVIEW & RECOMMENDED APPROACH
+================================================================================
+
+The ESP32 on the LilyGO T-SIM7000G has WiFi and BLE built in — neither is
+currently used by the firmware. Adding wireless config removes the need to
+reflash the device whenever MQTT credentials, APN, or tracking intervals change.
+
+Recommended combination (three complementary methods):
+
+  Method A — WiFi AP web UI
+    Use case:  First-time setup at home, full config via browser
+    Trigger:   Hold BOOT button for 3s on power-up
+    No app required; works from any phone/laptop browser
+
+  Method B — BLE GATT
+    Use case:  Quick field changes on the motorcycle, live status check
+    Trigger:   Always-on BLE advertisement (low duty cycle)
+    Phone connects via Web BLE (Chrome) or a custom app
+
+  Method C — MQTT config topic
+    Use case:  Remote reconfiguration over cellular without physical access
+    Trigger:   Incoming MQTT message on mototracker/config/set
+    Builds on existing MQTT infrastructure — zero extra hardware
+
+All three methods write to the same /config.json on the SD card.
+On next boot, config.json values override config.h defaults.
+config_local.h remains the hardcoded fallback if SD is absent.
+
+
+================================================================================
+2. METHOD A: WIFI AP + WEB UI
+================================================================================
+
+Behaviour:
+  - On boot, if BOOT button held for 3s → enter config mode
+  - OR: if /config.json is missing from SD on first boot → auto-enter config mode
+  - ESP32 starts a soft AP: SSID "MotoTracker-Setup", password "mototrack"
+    (password changeable in config.json once set)
+  - DHCP server assigns 192.168.4.x to connecting clients
+  - HTTP server on port 80 at 192.168.4.1
+  - User opens browser → sees config web form
+  - On submit → saves /config.json → shows "Saved. Rebooting..." → reboots
+
+Web form fields (all with current values pre-filled):
+
+  CELLULAR
+    APN:           [ internet        ]
+    GPRS User:     [                 ]
+    GPRS Pass:     [                 ]
+
+  MQTT
+    Broker:        [ artur-kos.tplinkdns.com ]
+    Port:          [ 1883            ]
+    User:          [ homeassistant   ]
+    Password:      [ ************    ]
+    Topic:         [ notification/GPS_tracker ]
+
+  TRACKING
+    Mode:          [ LIVE  v ]   (LIVE / BATCH)
+    Live interval: [ 1000   ] ms
+    Batch size:    [ 5      ] fixes
+    Sleep time:    [ 60     ] s
+
+  OPTIONAL PIPELINES
+    GT06 server:   [                 ]  port: [ 5013 ]
+    H02 server:    [                 ]  port: [ 5023 ]
+    H02 device ID: [ mototracker     ]
+
+  TEST FLAGS
+    Dummy GPS:     [ ] enabled   lat: [ 53.4285 ]  lon: [ 14.5528 ]
+    AT debug:      [ ] enabled
+
+  [  SAVE & REBOOT  ]
+
+Libraries needed:
+  - WiFi.h          (built into ESP32 Arduino core)
+  - WebServer.h     (built into ESP32 Arduino core)
+  - DNSServer.h     (built into ESP32 Arduino core, for captive portal)
+  - ArduinoJson.h   (already used or easy to add — for config.json read/write)
+
+Approximate addition to firmware: ~250 lines
+
+
+================================================================================
+3. METHOD B: BLE GATT
+================================================================================
+
+Behaviour:
+  - BLE advertisement always on (25ms interval, stops after 5 min idle to save power)
+  - GATT service UUID: custom (e.g. 12345678-0000-1000-8000-00805F9B34FB)
+  - Characteristics:
+
+    CONFIG_READ  (read)  — returns current config as compact JSON string
+    CONFIG_WRITE (write) — accepts JSON string, parses, saves to /config.json,
+                           sends back ACK "OK" or "ERR: <reason>"
+    STATUS_READ  (notify/read) — live status JSON:
+                   {"bat":3.85,"sig":27,"fix":true,"ok":59,"fail":0}
+    REBOOT_CMD   (write) — write "reboot" → triggers ESP.restart()
+
+  Example config write payload (partial update supported):
+    {"apn":"internet","mqtt_broker":"artur-kos.tplinkdns.com","live_interval":2000}
+
+  Phone interaction options:
+    1. Chrome on Android/desktop → Web BLE API (no app install, just open a page)
+    2. nRF Connect app (free, developer tool, works without any custom app)
+    3. Future: custom Flutter/React Native app
+
+Libraries needed:
+  - NimBLE-Arduino  (much lighter than ESP32 official BLE, ~40KB vs ~200KB flash)
+    Install: Arduino Library Manager → "NimBLE-Arduino" by h2zero
+
+Approximate addition to firmware: ~180 lines
+
+
+================================================================================
+4. METHOD C: MQTT CONFIG TOPIC
+================================================================================
+
+Behaviour:
+  - Firmware subscribes to:  mototracker/config/set
+    (in addition to publishing on notification/GPS_tracker)
+  - Incoming JSON payload → parse → save to /config.json → optionally reboot
+  - Firmware publishes current config to:  mototracker/config/current
+    once on connect, so you can read it from HA or MQTT Explorer
+
+  Supported commands via mototracker/config/set:
+    {"live_interval": 5000}              — change send interval to 5s
+    {"dummy_gps": true, "test_lat": 53.4285, "test_lon": 14.5528}
+    {"reboot": true}                     — remote reboot
+    {"at_debug": false}                  — disable AT dump without reflash
+    {"apn": "internet"}                  — change APN on next reboot
+    {"network_mode": 2}                  — switch to auto mode (outdoor)
+
+  HA integration:
+    - Add MQTT publish service call to HA scripts/automations
+    - Or use MQTT Explorer from any PC on the local network
+
+Libraries needed:
+  - None additional — PubSubClient already present (just add subscription)
+
+Approximate addition to firmware: ~80 lines
+  + increase MQTT rx buffer (MQTT_MAX_PACKET_SIZE) to handle larger payloads
+
+
+================================================================================
+5. CONFIG STORAGE: /config.json ON SD CARD
+================================================================================
+
+File: /config.json on the SD card (same card as gps_buffer.csv and gpslog.txt)
+
+Example content:
+  {
+    "apn": "internet",
+    "gprs_user": "",
+    "gprs_pass": "",
+    "mqtt_broker": "artur-kos.tplinkdns.com",
+    "mqtt_port": 1883,
+    "mqtt_user": "homeassistant",
+    "mqtt_pass": "your_password_here",
+    "mqtt_topic": "notification/GPS_tracker",
+    "tracking_mode": "live",
+    "live_interval_ms": 1000,
+    "live_min_voltage": 3.3,
+    "batch_size": 5,
+    "time_to_sleep": 60,
+    "gt06_server": "",
+    "gt06_port": 5013,
+    "h02_server": "",
+    "h02_port": 5023,
+    "h02_device_id": "mototracker",
+    "dummy_gps": false,
+    "test_lat": 53.4285,
+    "test_lon": 14.5528,
+    "at_debug": false,
+    "network_mode": 13
+  }
+
+Priority order at boot:
+  1. /config.json on SD card   ← wins if present and valid
+  2. config_local.h            ← compile-time override (fallback)
+  3. config.h defaults         ← last resort
+
+This means config_local.h can be left as a hardcoded backup for when
+the SD card is absent (e.g. during bench testing without SD).
+
+Library for JSON parsing:
+  ArduinoJson v6 (or v7)
+  Install: Arduino Library Manager → "ArduinoJson" by Benoit Blanchon
+  Already widely used with TinyGSM projects.
+
+Approximate addition to firmware: ~100 lines
+  (loadConfig(), saveConfig(), applyConfig() functions)
+
+
+================================================================================
+6. BOOT FLOW WITH WIRELESS CONFIG
+================================================================================
+
+Power on
+  │
+  ├─► SD init
+  │     ├─ /config.json found → loadConfig() → apply values
+  │     └─ not found → use config_local.h / config.h defaults
+  │
+  ├─► BOOT button held 3s?
+  │     YES → startWiFiAP() → serve web UI → wait for save → reboot
+  │     NO  → continue normal boot
+  │
+  ├─► startBLE()   ← always starts (low power advertisement)
+  │
+  ├─► initModem() → connectNetwork()
+  │
+  ├─► setupLive() / setupBatch()
+  │     └─ MQTT connect → subscribe to mototracker/config/set
+  │
+  └─► loop()
+        ├─ sendPoint()     ← GPS + MQTT + GT06 + H02
+        ├─ BLE callbacks   ← handle config read/write if phone connected
+        └─ MQTT callback   ← handle incoming config/set messages
+
+
+================================================================================
+7. IMPLEMENTATION PLAN
+================================================================================
+
+New files:
+  wireless_config.h / wireless_config.cpp   — all three methods + JSON storage
+    Functions:
+      loadConfig()        — read /config.json, apply to runtime vars
+      saveConfig()        — write runtime vars to /config.json
+      startWiFiConfig()   — start AP + web server, block until saved or timeout
+      startBLE()          — init NimBLE, register GATT service
+      stopBLE()           — stop advertisement after idle timeout
+      handleMqttConfig()  — parse incoming config/set payload, save, ACK
+
+Changes to gps_tracker_optimized.ino:
+  - setup(): call loadConfig() after SD init; call startBLE(); check BOOT button
+  - setupLive(): add MQTT subscription to config topic
+  - mqttCallback(): new function, dispatch config messages to handleMqttConfig()
+  - loop(): call bleLoop() to handle BLE stack ticks
+
+Changes to config.h:
+  - Add: #define CONFIG_JSON_FILE  "/config.json"
+  - Add: #define WIFI_CONFIG_SSID  "MotoTracker-Setup"
+  - Add: #define WIFI_CONFIG_PASS  "mototrack"
+  - Add: #define BLE_DEVICE_NAME   "MotoTracker"
+  - Add: #define MQTT_CONFIG_TOPIC "mototracker/config/set"
+  - Add: #define MQTT_STATUS_TOPIC "mototracker/config/current"
+
+Estimated total new code: ~600 lines across all methods
+Phased approach (see §9) keeps each step manageable.
+
+Flash size note:
+  Adding WiFi + BLE will increase firmware size significantly.
+  LilyGO T-SIM7000G has 4MB flash. With current firmware ~400KB, plenty of room.
+  Use partition scheme "Default 4MB with spiffs" or "Huge APP" if needed.
+  In arduino-cli add to compile command:
+    --build-property "build.partitions=default"
+
+
+================================================================================
+8. SECURITY CONSIDERATIONS
+================================================================================
+
+WiFi AP:
+  - Default password "mototrack" should be changed by user on first setup.
+  - Config page should be HTTP only (no HTTPS — too heavy for ESP32 in AP mode).
+  - AP is only active when explicitly triggered (BOOT hold or missing config) —
+    not always-on, so attack surface is minimal.
+  - Consider auto-timeout: shut down AP after 5 minutes if no client connects.
+
+BLE:
+  - No pairing/bonding by default — anyone nearby can connect.
+  - Mitigation: require a PIN written to an AUTH characteristic before config
+    writes are accepted. PIN stored in config.json.
+  - For motorcycle use (parked outdoors), enable BLE only when device is
+    stationary (speed == 0) to reduce exposure while riding.
+
+MQTT config topic:
+  - Protected by existing MQTT username/password.
+  - If MQTT broker is public-facing, restrict topic permissions in Mosquitto ACL:
+      user homeassistant
+      topic readwrite notification/GPS_tracker
+      topic readwrite mototracker/#
+  - Avoid putting credentials in config/set payloads in plain text over
+    unencrypted MQTT (port 1883). Consider MQTT TLS (port 8883) for future.
+
+config.json on SD:
+  - SD card is physically accessible if device is stolen.
+  - Acceptable risk for a motorcycle tracker — attacker with physical access
+    can already read credentials from the serial monitor anyway.
+  - Future: AES-encrypt sensitive fields (mqtt_pass, api_key) using a device
+    key derived from ESP32's unique chip ID (eFuse).
+
+
+================================================================================
+9. PHASED ROLLOUT SUGGESTION
+================================================================================
+
+Phase 1 (lowest effort, highest value):
+  Implement Method C (MQTT config topic) + config.json storage.
+  No new libraries. Allows runtime changes over existing cellular connection.
+  ~180 lines total.
+
+Phase 2:
+  Implement Method A (WiFi AP web UI).
+  Removes need to edit config_local.h and reflash for credential changes.
+  Uses only built-in ESP32 libraries.
+  ~350 lines total (including HTML form embedded as a string literal).
+
+Phase 3:
+  Implement Method B (BLE GATT).
+  Adds NimBLE-Arduino library (~200KB flash).
+  Enables field config + live status monitoring from phone.
+  ~180 lines total.
+
+Each phase is independently useful and can be added without breaking the others.
+Start with Phase 1 as it requires no changes to the boot flow or new libraries.
+
+================================================================================

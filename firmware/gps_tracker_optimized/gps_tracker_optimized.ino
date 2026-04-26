@@ -1,13 +1,14 @@
 /*
-   GPS Tracker - Optimized HTTP version (v3)
+   GPS Tracker - Optimized v4 (refactored)
    Hardware: LilyGO T-SIM7000G
 
    Two modes (select in config.h):
 
    LIVE MODE:
    - GPS and modem always on, sends every 1 second
-   - HTTP keep-alive (reuses TCP connection)
-   - SD card buffer when HTTP send fails
+   - MQTT_MODE: publishes JSON to broker -> HA automation -> Traccar + RPi
+   - HTTP mode: direct GET to PHP backend (keep-alive)
+   - SD card buffer when send fails
    - Auto-stop on low battery
    - LED blink = sending, LED solid = no GPS fix
 
@@ -16,14 +17,39 @@
    - RTC memory batching (N points per send cycle)
    - SD card offline buffer
    - Low power consumption
+
+   File structure:
+     config.h          - hardware pins, timing, #define flags
+     config_local.h    - credentials/overrides (gitignored)
+     types.h           - GpsPoint struct
+     sd_utils.h        - SD logging, battery, offline buffer
+     modem_utils.h     - modem init, network, GPS control
+     protocol_mqtt.h   - MQTT connect
+     protocol_gt06.h   - GT06 binary TCP (optional)
+     protocol_h02.h    - H02 text UDP (optional)
+     wifi_config.h     - WiFi AP config portal + RuntimeConfig
 */
 
-#include <ArduinoHttpClient.h>
+// ============================================================
+// Includes — order matters: config first, then system libs,
+// then wifi_config (defines RuntimeConfig cfg), then globals,
+// then module headers (which reference the globals).
+// ============================================================
 #include "config.h"
 #include <TinyGsmClient.h>
 #include <SPI.h>
 #include <SD.h>
+#include "wifi_config.h"   // RuntimeConfig cfg, loadConfig, checkConfigButton...
 
+#ifdef MQTT_MODE
+  #include <PubSubClient.h>
+#else
+  #include <ArduinoHttpClient.h>
+#endif
+
+// ============================================================
+// Global objects
+// ============================================================
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
 StreamDebugger debugger(SerialAT, Serial);
@@ -33,170 +59,91 @@ TinyGsm modem(SerialAT);
 #endif
 
 TinyGsmClient client(modem);
-HttpClient http(client, IOT_SERVER, IOT_SERVER_PORT);
-
 bool sdAvailable = false;
 
-// ---- Data structure ----
-struct GpsPoint {
-    float lat;
-    float lon;
-    float speed;
-    float temperature;
-    float humidity;
-    float battery;
-    char  timestamp[20];  // "YYYY-MM-DD HH:MM:SS"
-};
+#ifdef MQTT_MODE
+PubSubClient mqtt(client);
+#else
+HttpClient http(client, IOT_SERVER, IOT_SERVER_PORT);
+#endif
 
+#ifdef GT06_MODE
+TinyGsmClient gt06Client(modem, 1);
+#endif
+
+// ============================================================
+// Module headers (all globals above are now visible)
+// ============================================================
+#include "types.h"
+#include "sd_utils.h"
+#include "modem_utils.h"
+#include "protocol_gt06.h"
+#include "protocol_h02.h"
+#include "protocol_mqtt.h"
+
+// ============================================================
+// Mode-specific state
+// ============================================================
 #ifdef TRACKING_MODE_BATCH
 RTC_DATA_ATTR GpsPoint rtcBuffer[BATCH_SIZE];
 RTC_DATA_ATTR int rtcCount = 0;
 RTC_DATA_ATTR int bootCount = 0;
 #endif
 
-// ---- Live mode state ----
 #ifdef TRACKING_MODE_LIVE
 bool gpsReady = false;
 bool networkReady = false;
 unsigned long lastSendTime = 0;
 unsigned long lastBatteryCheck = 0;
+unsigned long lastNetworkCheck = 0;
 float lastBattery = 4.2;
 int sendOkCount = 0;
 int sendFailCount = 0;
 int sdBufferCount = 0;
+int consecutiveFailCount = 0;
 #endif
 
-// ---- Battery ----
-float readBattery() {
-    uint32_t mv = analogReadMilliVolts(ADC_PIN);
-    float voltage = (mv / 1000.0) * 2.0;
-    return voltage;
-}
-
-// ---- Modem init ----
-bool initModem() {
-    Serial.println("Initializing modem...");
-    if (!modem.init()) {
-        Serial.println("Modem init failed, trying restart...");
-        if (!modem.restart()) {
-            Serial.println("Modem restart failed");
-            return false;
-        }
-    }
-
-    Serial.println("Modem: " + modem.getModemName());
-
-    // Turn off GPS power initially
-    modem.sendAT("+CGPIO=0,48,1,0");
-    modem.waitResponse(10000L);
-
-    // Radio off for configuration
-    modem.sendAT("+CFUN=0");
-    modem.waitResponse(10000L);
-    delay(200);
-
-    // Network mode: 2=Automatic
-    modem.setNetworkMode(2);
-    delay(200);
-
-    // Preferred mode: 3=CAT-M and NB-IoT
-    modem.setPreferredMode(3);
-    delay(200);
-
-    // Radio on
-    modem.sendAT("+CFUN=1");
-    modem.waitResponse(10000L);
-    delay(200);
-
-    return true;
-}
-
-// ---- Enable GPS (keep on) ----
-bool enableGPS() {
-    Serial.println("Enabling GPS...");
-    modem.sendAT("+CGPIO=0,48,1,1");
-    if (modem.waitResponse(10000L) != 1) {
-        Serial.println("GPS power on failed");
-        return false;
-    }
-    modem.enableGPS();
-    return true;
-}
-
-// ---- Disable GPS ----
-void disableGPS() {
-    modem.disableGPS();
-    modem.sendAT("+CGPIO=0,48,1,0");
-    modem.waitResponse(10000L);
-}
-
-// ---- Get GPS reading (non-blocking for live, blocking for batch) ----
-bool getGpsReading(float &lat, float &lon, float &speed, char* timestamp) {
-    if (!modem.getGPS(&lat, &lon, &speed)) {
-        return false;
-    }
-
-    int year, month, day, hour, minute, second;
-    if (modem.getGPSTime(&year, &month, &day, &hour, &minute, &second)) {
-        snprintf(timestamp, 20, "%04d-%02d-%02d %02d:%02d:%02d",
-                 year, month, day, hour, minute, second);
-    } else {
-        timestamp[0] = '\0';
-    }
-
-    return true;
-}
-
-// ---- Wait for initial GPS fix (blocking) ----
-bool waitForGpsFix(float &lat, float &lon, float &speed, char* timestamp) {
-    Serial.println("Waiting for GPS fix...");
-    unsigned long startTime = millis();
-    while (millis() - startTime < GPS_TIMEOUT) {
-        if (getGpsReading(lat, lon, speed, timestamp)) {
-            Serial.printf("GPS fix: %.6f, %.6f, %.1f km/h @ %s\n",
-                           lat, lon, speed, timestamp);
-            return true;
-        }
-        Serial.print(".");
-        delay(1000);
-    }
-    Serial.println("\nGPS fix timeout");
-    return false;
-}
-
-// ---- Network connect ----
-bool connectNetwork() {
-#if TINY_GSM_TEST_GPRS
-    if (GSM_PIN && modem.getSimStatus() != 3) {
-        modem.simUnlock(GSM_PIN);
-    }
-
-    Serial.println("Waiting for network...");
-    if (!modem.waitForNetwork(60000L)) {
-        Serial.println("Network timeout");
-        return false;
-    }
-    Serial.println("Network connected");
-
-    Serial.println("Connecting GPRS: " + String(apn));
-    if (!modem.gprsConnect(apn, gprsUser, gprsPass)) {
-        Serial.println("GPRS connect failed");
-        return false;
-    }
-
-    if (modem.isGprsConnected()) {
-        IPAddress ip = modem.localIP();
-        Serial.print("GPRS OK, IP: ");
-        Serial.println(ip);
-        Serial.println("Signal: " + String(modem.getSignalQuality()));
-        return true;
-    }
-#endif
-    return false;
-}
-
-// ---- Send single point via HTTP GET (with keep-alive for live mode) ----
+// ============================================================
+// sendPoint — orchestrates all enabled protocols
+// ============================================================
 bool sendPoint(GpsPoint &p, bool keepAlive) {
+#ifdef MQTT_MODE
+    // Reconnect per publish. The SIM7070's TCP stack on 2G/CAT-M gets wedged
+    // after ~30 s of sustained use on a single socket, so we keep each socket
+    // short-lived: open -> publish -> close. Matches the proven working
+    // reference firmware (which achieves the same via sendGpsPacket's
+    // client.stop() side effect).
+    if (!mqtt.connected()) {
+        if (!connectMQTT()) return false;
+    }
+
+    char payload[200];
+    snprintf(payload, sizeof(payload),
+        "{\"latitude\":%.6f,\"longitude\":%.6f,\"speed\":%.1f,"
+        "\"temperature\":%.1f,\"humidity\":%.1f,\"battery\":%.2f,"
+        "\"timestamp\":\"%s\"}",
+        p.lat, p.lon, p.speed,
+        p.temperature, p.humidity, p.battery,
+        p.timestamp);
+
+    bool ok = mqtt.publish(cfg.mqtt_topic, payload, true);
+    mqtt.loop();
+    sdLog("MQTT %s: %s", ok ? "OK" : "FAIL", payload);
+
+    // Tear down the MQTT TCP socket so the next publish starts fresh.
+    mqtt.disconnect();
+
+#ifdef GT06_MODE
+    sendGT06(p);      // best-effort alongside MQTT
+#endif
+#ifdef H02_UDP_MODE
+    sendH02UDP(p);    // best-effort alongside MQTT
+#endif
+
+    return ok;
+
+#else
+    // HTTP GET to PHP backend (original)
     String request = "/gpstrack/gps_tracker_add_data_to_db.php?k=";
     request += API_KEY;
     request += "&v=";
@@ -239,27 +186,12 @@ bool sendPoint(GpsPoint &p, bool keepAlive) {
     }
 
     return (status == 200 && body.indexOf("OK") >= 0);
+#endif
 }
 
-// ---- SD card buffer: save point ----
-bool savePointToSD(GpsPoint &p) {
-    if (!sdAvailable) return false;
-
-    File f = SD.open(SD_BUFFER_FILE, FILE_APPEND);
-    if (!f) {
-        Serial.println("SD write failed");
-        return false;
-    }
-
-    f.printf("%.6f,%.6f,%.1f,%.1f,%.1f,%.2f,%s\n",
-             p.lat, p.lon, p.speed,
-             p.temperature, p.humidity, p.battery,
-             p.timestamp);
-    f.close();
-    return true;
-}
-
-// ---- SD card buffer: send all buffered points ----
+// ============================================================
+// SD buffer: send all buffered points
+// ============================================================
 int sendSDBuffer(bool keepAlive) {
     if (!sdAvailable) return 0;
     if (!SD.exists(SD_BUFFER_FILE)) return 0;
@@ -297,6 +229,7 @@ int sendSDBuffer(bool keepAlive) {
         }
 
         if (field >= 7) {
+            if (p.speed < 0) p.speed = 0;  // clamp -9999 from old SD entries
             if (sendPoint(p, keepAlive)) {
                 sent++;
             } else {
@@ -310,15 +243,24 @@ int sendSDBuffer(bool keepAlive) {
 
     if (failed == 0) {
         SD.remove(SD_BUFFER_FILE);
-        Serial.printf("SD buffer cleared (%d points sent)\n", sent);
+        sdLog("SD buffer cleared (%d points sent)", sent);
     } else {
-        Serial.printf("SD buffer: %d sent, %d remaining\n", sent, failed);
+        sdLog("SD buffer: %d sent, %d remaining", sent, failed);
     }
 
     return sent;
 }
 
-// ---- Hardware setup (shared) ----
+// ============================================================
+// Forward declarations
+// ============================================================
+#ifdef TRACKING_MODE_LIVE
+void setupLive();
+#endif
+
+// ============================================================
+// setup() — shared hardware init
+// ============================================================
 void setup() {
     Serial.begin(115200);
     delay(10);
@@ -337,8 +279,30 @@ void setup() {
     if (SD.begin(SD_CS)) {
         sdAvailable = true;
         Serial.printf("SD card: %lu MB\n", SD.cardSize() / (1024 * 1024));
+        File f = SD.open(SD_LOG_FILE, FILE_APPEND);
+        if (f) {
+            f.printf("\n=== BOOT at millis=0, SD %lu MB ===\n",
+                     SD.cardSize() / (1024 * 1024));
+            f.close();
+        }
     } else {
         Serial.println("SD card not available");
+    }
+
+    // Load runtime config from SD (/config.json overrides config.h defaults)
+    loadConfig(cfg);
+
+    // Enter WiFi config portal if:
+    //   - /config.json is missing (first boot, or after "Reset to defaults"), OR
+    //   - BOOT button (GPIO 0) is held for 3 s within the startup window.
+    // To force config mode on a board without a BOOT button, simply delete
+    // /config.json on the SD card and power-cycle.
+    bool needConfig = !configExists();
+    if (needConfig) {
+        Serial.println("No /config.json on SD — entering WiFi config portal");
+    }
+    if (needConfig || checkConfigButton()) {
+        startWiFiConfig(cfg);
     }
 
     delay(1000);
@@ -364,13 +328,11 @@ void setup() {
 #ifdef TRACKING_MODE_LIVE
 
 void setupLive() {
-    // Init modem once
     while (!initModem()) {
         Serial.println("Modem init retry in 5s...");
         delay(5000);
     }
 
-    // Enable GPS and keep it on
     while (!enableGPS()) {
         Serial.println("GPS enable retry in 3s...");
         delay(3000);
@@ -379,55 +341,105 @@ void setupLive() {
     // Wait for first GPS fix
     float lat, lon, speed;
     char ts[20];
-    while (!waitForGpsFix(lat, lon, speed, ts)) {
-        Serial.println("GPS fix retry...");
-        delay(2000);
+#ifdef TEST_DUMMY_GPS
+    Serial.println("TEST_DUMMY_GPS: skipping initial fix wait");
+#else
+    if (cfg.dummy_gps) {
+        Serial.println("cfg.dummy_gps: skipping initial fix wait");
+    } else {
+        while (!waitForGpsFix(lat, lon, speed, ts)) {
+            Serial.println("GPS fix retry...");
+            delay(2000);
+        }
     }
+#endif
 
-    // Connect network
+    // Suspend GPS engine during network attach — SIM7000 docs show GPS and TCP
+    // as sequential, not concurrent. Running both causes CAOPEN error 23.
+    modem.disableGPS();
     while (!connectNetwork()) {
         Serial.println("Network retry in 5s...");
         delay(5000);
     }
+    networkReady = true;
 
-    // Flush any SD-buffered points from previous sessions
+    // Replay any SD-buffered points before re-enabling GPS — GPS must stay off
+    // during TCP (SIM7000 sequential constraint). enableGPS() comes after.
     int recovered = sendSDBuffer(true);
     if (recovered > 0) {
         Serial.printf("Recovered %d offline points\n", recovered);
     }
 
+    modem.enableGPS();  // restart GPS polling after SD buffer replay is done
+
+#ifdef MQTT_MODE
+    mqtt.setSocketTimeout(10);  // bound MQTT keepalive reads so loop can't stall
+    while (!connectMQTT()) {
+        Serial.println("MQTT retry in 5s...");
+        delay(5000);
+    }
+#endif
+
     lastBattery = readBattery();
-    Serial.printf("Battery: %.2f V\n", lastBattery);
-    Serial.println("=== LIVE TRACKING STARTED ===\n");
+    sdLog("Battery: %.2fV", lastBattery);
+    sdLog("=== LIVE TRACKING STARTED ===");
 }
 
 void loop() {
     unsigned long now = millis();
 
-    // ---- Check battery periodically ----
+    // ---- Battery check (voltage only) ----
     if (now - lastBatteryCheck >= LIVE_BATTERY_CHECK) {
         lastBatteryCheck = now;
         lastBattery = readBattery();
-        Serial.printf("[BATT] %.2f V | OK: %d, FAIL: %d, SD: %d\n",
-                      lastBattery, sendOkCount, sendFailCount, sdBufferCount);
+        sdLog("[BATT] %.2fV | OK:%d FAIL:%d SD:%d",
+              lastBattery, sendOkCount, sendFailCount, sdBufferCount);
 
-        if (lastBattery > 0 && lastBattery < LIVE_MIN_VOLTAGE) {
-            Serial.println("LOW BATTERY — stopping tracker");
+        if (lastBattery > 1.0f && lastBattery < LIVE_MIN_VOLTAGE) {
+            sdLog("LOW BATTERY — stopping tracker");
             disableGPS();
             modem.gprsDisconnect();
             modem.sendAT("+CPOWD=1");
             modem.waitResponse(10000L);
-            esp_deep_sleep_start();  // Sleep forever until USB power
+            esp_deep_sleep_start();
         }
+    }
 
-        // Check GPRS still connected
-        if (!modem.isGprsConnected()) {
-            Serial.println("GPRS lost, reconnecting...");
-            networkReady = connectNetwork();
+    // ---- Network health check (consecutive send failures only) ----
+    // Do NOT poll isGprsConnected() here — a transient CGATT blip (often
+    // caused by URCs from per-publish mqtt.disconnect() or CGNSPWR toggles)
+    // would otherwise kick off a 2 min recovery cascade on a healthy link.
+    // Let real send failures accumulate to the threshold instead.
+    if (now - lastNetworkCheck >= LIVE_NETWORK_CHECK) {
+        lastNetworkCheck = now;
+
+        bool needRecover = consecutiveFailCount >= LIVE_RECOVER_THRESHOLD;
+
+        if (needRecover) {
+            sdLog("Network unhealthy (consecFail=%d), recovering...",
+                  consecutiveFailCount);
+#ifdef GT06_MODE
+            gt06Reset();
+#endif
+            modem.disableGPS();
+            networkReady = recoverModem();
+            if (networkReady) {
+                int recovered = sendSDBuffer(true);
+                if (recovered > 0) {
+                    sdBufferCount -= recovered;
+                    if (sdBufferCount < 0) sdBufferCount = 0;
+                }
+            }
+            modem.enableGPS();
+            consecutiveFailCount = 0;
         } else {
             networkReady = true;
         }
     }
+
+#ifdef MQTT_MODE
+    mqtt.loop();
+#endif
 
     // ---- Send at interval ----
     if (now - lastSendTime >= LIVE_INTERVAL_MS) {
@@ -436,8 +448,23 @@ void loop() {
         float lat, lon, speed;
         char timestamp[20];
 
-        if (getGpsReading(lat, lon, speed, timestamp)) {
-            // LED blink = got fix
+        bool hasFix = getGpsReading(lat, lon, speed, timestamp);
+#ifdef TEST_DUMMY_GPS
+        if (!hasFix) {
+            lat = cfg.test_lat; lon = cfg.test_lon; speed = 0.0f;
+            timestamp[0] = '\0';
+            hasFix = true;
+            Serial.println("[DUMMY GPS compile]");
+        }
+#else
+        if (!hasFix && cfg.dummy_gps) {
+            lat = cfg.test_lat; lon = cfg.test_lon; speed = 0.0f;
+            timestamp[0] = '\0';
+            hasFix = true;
+            Serial.println("[DUMMY GPS runtime]");
+        }
+#endif
+        if (hasFix) {
             digitalWrite(LED_PIN, LOW);
 
             GpsPoint p;
@@ -450,16 +477,22 @@ void loop() {
             strncpy(p.timestamp, timestamp, 19);
             p.timestamp[19] = '\0';
 
+            // Suspend GPS engine before opening any TCP socket.
+            // SIM7000 docs show GPS and TCP as sequential; concurrent use
+            // causes CAOPEN error 23. modem.disableGPS() / enableGPS() only
+            // toggle AT+CGNSPWR — no hardware GPIO cycling, so fix is preserved.
+            modem.disableGPS();
+
             if (networkReady && sendPoint(p, true)) {
                 sendOkCount++;
+                consecutiveFailCount = 0;
             } else {
-                // Network down — buffer to SD
                 sendFailCount++;
+                consecutiveFailCount++;
                 if (savePointToSD(p)) {
                     sdBufferCount++;
                 }
 
-                // Try to recover SD buffer when we have enough
                 if (sdBufferCount >= LIVE_SD_BATCH && networkReady) {
                     int recovered = sendSDBuffer(true);
                     if (recovered > 0) {
@@ -469,9 +502,10 @@ void loop() {
                 }
             }
 
+            modem.enableGPS();  // restart GPS engine after TCP is done
+
             digitalWrite(LED_PIN, HIGH);
         } else {
-            // No GPS fix — LED solid on as indicator
             digitalWrite(LED_PIN, LOW);
         }
     }
@@ -488,13 +522,11 @@ void loop() {
     float lat = 0, lon = 0, speed = 0;
     char timestamp[20] = {0};
 
-    // Init modem
     if (!initModem()) {
         Serial.println("Modem init failed, sleeping...");
         goto batch_sleep;
     }
 
-    // Get GPS fix
     if (!enableGPS()) {
         Serial.println("GPS enable failed, sleeping...");
         goto batch_sleep;
@@ -508,7 +540,6 @@ void loop() {
 
     disableGPS();
 
-    // Store point in RTC buffer
     {
         float battery = readBattery();
         Serial.printf("Battery: %.2f V\n", battery);

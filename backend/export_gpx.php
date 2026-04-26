@@ -1,21 +1,32 @@
 <?php
 include('gps_track_config.php');
-
-$conn = mysqli_connect($gps_db_host, $gps_db_user, $gps_db_pass, $gps_db_name);
-
-if ($conn->connect_error) {
-    die("Connection failed");
-}
+include('auth.php');
 
 $date = isset($_GET['date']) && $_GET['date'] !== '' ? $_GET['date'] : date('Y-m-d');
+$device_code = $_GET['device'] ?? '';
+$user_filter = device_user_filter();
 
-$stmt = $conn->prepare("SELECT lat, lon, timestamp, temperature FROM S_02 WHERE DATE(timestamp) = ? ORDER BY timestamp ASC");
-$stmt->bind_param("s", $date);
+if ($device_code === '') {
+    http_response_code(400);
+    echo "Missing device code";
+    exit;
+}
+
+$sql = "SELECT p.lat, p.lon, p.timestamp, p.temperature, d.name AS device_name
+        FROM points p
+        JOIN devices d ON p.device_id = d.id
+        WHERE DATE(p.timestamp) = ? AND d.code = ? AND d.active = 1 $user_filter
+        ORDER BY p.timestamp ASC";
+$stmt = $auth_conn->prepare($sql);
+$stmt->bind_param("ss", $date, $device_code);
 $stmt->execute();
 $result = $stmt->get_result();
 
+$first = $result->fetch_assoc();
+$device_name = $first['device_name'] ?? $device_code;
+
 header('Content-Type: application/gpx+xml');
-header('Content-Disposition: attachment; filename="ride_' . $date . '.gpx"');
+header('Content-Disposition: attachment; filename="ride_' . $device_code . '_' . $date . '.gpx"');
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 echo '<gpx version="1.1" creator="MotoTracker"' . "\n";
@@ -23,9 +34,15 @@ echo '     xmlns="http://www.topografix.com/GPX/1/1"' . "\n";
 echo '     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' . "\n";
 echo '     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">' . "\n";
 echo '  <trk>' . "\n";
-echo '    <name>Motorcycle Ride ' . htmlspecialchars($date) . '</name>' . "\n";
+echo '    <name>' . htmlspecialchars($device_name) . ' ride ' . htmlspecialchars($date) . '</name>' . "\n";
 echo '    <trkseg>' . "\n";
 
+if ($first) {
+    $time = date('Y-m-d\TH:i:s\Z', strtotime($first['timestamp']));
+    echo '      <trkpt lat="' . $first['lat'] . '" lon="' . $first['lon'] . '">' . "\n";
+    echo '        <time>' . $time . '</time>' . "\n";
+    echo '      </trkpt>' . "\n";
+}
 while ($row = $result->fetch_assoc()) {
     $time = date('Y-m-d\TH:i:s\Z', strtotime($row['timestamp']));
     echo '      <trkpt lat="' . $row['lat'] . '" lon="' . $row['lon'] . '">' . "\n";
@@ -38,5 +55,4 @@ echo '  </trk>' . "\n";
 echo '</gpx>' . "\n";
 
 $stmt->close();
-$conn->close();
-?>
+$auth_conn->close();

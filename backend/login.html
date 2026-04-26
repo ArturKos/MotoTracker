@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>MotoTracker — Sign in</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css?v=3" />
+</head>
+<body class="auth-body">
+    <form id="loginForm" class="auth-card" autocomplete="on">
+        <div class="auth-logo">
+            <i class="fas fa-motorcycle"></i>
+            <span>MotoTracker</span>
+        </div>
+        <label>
+            Username
+            <input type="text" name="username" id="username" autocomplete="username" required autofocus>
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" id="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="auth-submit">
+            <i class="fas fa-sign-in-alt"></i> Sign in
+        </button>
+        <div id="authError" class="auth-error" style="display:none"></div>
+    </form>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var err = document.getElementById('authError');
+    err.style.display = 'none';
+    var body = new URLSearchParams();
+    body.append('username', document.getElementById('username').value);
+    body.append('password', document.getElementById('password').value);
+    fetch('login.php', { method: 'POST', body: body })
+        .then(function(r) { return r.json().then(function(j) { return { status: r.status, body: j }; }); })
+        .then(function(res) {
+            if (res.status === 200 && res.body.ok) {
+                if (res.body.must_change_password) {
+                    window.location.href = 'change_password.html';
+                } else {
+                    window.location.href = 'index.html';
+                }
+            } else {
+                err.textContent = res.body.error === 'invalid_credentials'
+                    ? 'Wrong username or password.'
+                    : ('Sign-in failed: ' + (res.body.error || 'unknown'));
+                err.style.display = 'block';
+            }
+        })
+        .catch(function() {
+            err.textContent = 'Network error. Try again.';
+            err.style.display = 'block';
+        });
+});
+</script>
+</body>
+</html>

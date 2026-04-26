@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>MotoTracker — Admin</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css?v=6" />
+</head>
+<body class="admin-body">
+
+<header id="topbar">
+    <div class="logo">
+        <i class="fas fa-user-shield"></i>
+        <span>MotoTracker &mdash; Admin</span>
+    </div>
+    <div class="topbar-controls">
+        <a href="index.html"><button type="button" title="Back to map">
+            <i class="fas fa-arrow-left"></i> Map
+        </button></a>
+        <span id="userInfo" class="user-info"></span>
+        <button id="btnLogout" onclick="logout()" title="Log out">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </div>
+</header>
+
+<div class="admin-wrap">
+    <h1><i class="fas fa-users"></i> Users</h1>
+    <table class="admin-table" id="usersTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Display</th>
+                <th>Status</th>
+                <th>Devices</th>
+                <th>Last point</th>
+                <th>Points (7d)</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="usersBody"></tbody>
+    </table>
+
+    <h1 style="margin-top:28px"><i class="fas fa-motorcycle"></i> Devices</h1>
+    <table class="admin-table" id="devicesTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Owner</th>
+                <th>Active</th>
+                <th>Last point</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="devicesBody"></tbody>
+    </table>
+</div>
+
+<!-- Reset password modal -->
+<div class="modal-backdrop" id="modalReset">
+    <div class="modal">
+        <h2>Reset password</h2>
+        <div class="hint" id="resetUser"></div>
+        <label>New password (min. 8 chars)
+            <input type="password" id="resetPassword" minlength="8" autocomplete="new-password">
+        </label>
+        <div class="hint">User will be forced to change it on next login.</div>
+        <div class="modal-actions">
+            <button onclick="closeModal('modalReset')">Cancel</button>
+            <button class="primary" onclick="submitReset()">Reset</button>
+        </div>
+    </div>
+</div>
+
+<!-- Regen API key confirmation -->
+<div class="modal-backdrop" id="modalRegen">
+    <div class="modal">
+        <h2>Regenerate write API key</h2>
+        <div class="hint" id="regenUser"></div>
+        <div class="hint" id="regenWarn">
+            The old key stops working immediately. Any phone/firmware still using it
+            will fail to push until updated.
+        </div>
+        <div class="result-key" id="regenResult" style="display:none">
+            New key (shown once):
+            <code id="regenResultKey"></code>
+        </div>
+        <div class="modal-actions">
+            <button onclick="closeModal('modalRegen')" id="regenCancel">Cancel</button>
+            <button class="primary" onclick="submitRegen()" id="regenConfirm">Regenerate</button>
+        </div>
+    </div>
+</div>
+
+<!-- View token modal -->
+<div class="modal-backdrop" id="modalView">
+    <div class="modal">
+        <h2>Read-only view token</h2>
+        <div class="hint" id="viewUser"></div>
+        <div class="hint">
+            Anyone with this token can view this user's devices and tracks
+            via <code>?token=…</code> in the URL — no password needed.
+            Useful for embedding the dashboard in Home Assistant.
+        </div>
+        <div class="result-key">
+            Current token:
+            <code id="viewKey"></code>
+        </div>
+        <div class="result-key">
+            Embed URL (paste into a HA <em>webpage</em> card):
+            <code id="viewUrl"></code>
+        </div>
+        <div class="modal-actions">
+            <button onclick="closeModal('modalView')">Close</button>
+            <button class="danger" onclick="submitRegenView()" id="viewRegen">Regenerate (invalidates the old one)</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign device modal -->
+<div class="modal-backdrop" id="modalReassign">
+    <div class="modal">
+        <h2>Reassign device</h2>
+        <div class="hint" id="reassignDevice"></div>
+        <label>New owner
+            <select id="reassignUser"></select>
+        </label>
+        <div class="modal-actions">
+            <button onclick="closeModal('modalReassign')">Cancel</button>
+            <button class="primary" onclick="submitReassign()">Reassign</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function authFetch(url, opts) {
+    return fetch(url, opts).then(function(r) {
+        if (r.status === 401) { window.location.href = 'login.html'; throw new Error('unauth'); }
+        if (r.status === 403) { window.location.href = 'index.html'; throw new Error('forbidden'); }
+        return r;
+    });
+}
+
+function logout() {
+    fetch('logout.php', { method: 'POST' }).finally(function() {
+        window.location.href = 'login.html';
+    });
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('visible'); }
+function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+var state = {
+    users: [],
+    devices: [],
+    resetUserId: null,
+    regenUserId: null,
+    viewUserId: null,
+    reassignDeviceId: null
+};
+
+function fmtDate(ts) {
+    if (!ts) return '—';
+    // MySQL datetime "2026-04-19 12:34:56" — just show date + HH:MM
+    return ts.replace('T', ' ').slice(0, 16);
+}
+
+function escape(s) {
+    return (s == null ? '' : String(s))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function refreshUserInfo() {
+    authFetch('pobierz_me.php').then(function(r){ return r.json(); }).then(function(me){
+        var el = document.getElementById('userInfo');
+        if (el && me && me.username) {
+            var adminBadge = me.is_admin ? ' <span class="user-admin">admin</span>' : '';
+            el.innerHTML = '<i class="fas fa-user"></i> ' +
+                (me.display_name || me.username) + adminBadge;
+        }
+        if (!me || !me.is_admin) window.location.href = 'index.html';
+    });
+}
+
+function loadAll() {
+    return Promise.all([
+        authFetch('admin/list_users.php').then(function(r){ return r.json(); }),
+        authFetch('admin/list_devices.php').then(function(r){ return r.json(); })
+    ]).then(function(arr) {
+        state.users   = arr[0];
+        state.devices = arr[1];
+        renderUsers();
+        renderDevices();
+    });
+}
+
+function renderUsers() {
+    var body = document.getElementById('usersBody');
+    body.innerHTML = '';
+    state.users.forEach(function(u) {
+        var tr = document.createElement('tr');
+        if (!u.active) tr.className = 'inactive';
+        var status = u.active
+            ? '<span class="pill pill-active">active</span>'
+            : '<span class="pill pill-disabled">disabled</span>';
+        if (u.is_admin)             status += ' <span class="pill pill-admin">admin</span>';
+        if (u.must_change_password) status += ' <span class="pill pill-mcp">must change pw</span>';
+
+        var toggleLabel = u.active ? 'Disable' : 'Enable';
+        var toggleClass = u.active ? 'danger'  : '';
+
+        tr.innerHTML =
+            '<td>' + u.id + '</td>' +
+            '<td>' + escape(u.username) + '</td>' +
+            '<td>' + escape(u.display_name || '') + '</td>' +
+            '<td>' + status + '</td>' +
+            '<td>' + u.device_count + '</td>' +
+            '<td>' + fmtDate(u.last_point_at) + '</td>' +
+            '<td>' + u.points_7d + '</td>' +
+            '<td>' + fmtDate(u.created_at) + '</td>' +
+            '<td>' +
+                '<button class="btn-sm" onclick="openReset(' + u.id + ')">Reset pw</button>' +
+                '<button class="btn-sm" onclick="openRegen(' + u.id + ')">Regen key</button>' +
+                '<button class="btn-sm" onclick="openView(' + u.id + ')">View token</button>' +
+                '<button class="btn-sm ' + toggleClass + '" onclick="toggleUser(' + u.id + ',' + (u.active ? 0 : 1) + ')">' + toggleLabel + '</button>' +
+            '</td>';
+        body.appendChild(tr);
+    });
+}
+
+function renderDevices() {
+    var body = document.getElementById('devicesBody');
+    body.innerHTML = '';
+    state.devices.forEach(function(d) {
+        var tr = document.createElement('tr');
+        if (!d.active) tr.className = 'inactive';
+        var owner = d.owner_username
+            ? escape(d.owner_username) + ' (#' + d.user_id + ')'
+            : '<em style="color:var(--text-muted)">unassigned</em>';
+        tr.innerHTML =
+            '<td>' + d.id + '</td>' +
+            '<td>' + escape(d.code) + '</td>' +
+            '<td>' + escape(d.name || '') + '</td>' +
+            '<td>' + owner + '</td>' +
+            '<td>' + (d.active ? 'yes' : 'no') + '</td>' +
+            '<td>' + fmtDate(d.last_point_at) + '</td>' +
+            '<td>' +
+                '<button class="btn-sm" onclick="openReassign(' + d.id + ')">Reassign</button>' +
+            '</td>';
+        body.appendChild(tr);
+    });
+}
+
+// --- Reset password ---
+function openReset(userId) {
+    var u = state.users.find(function(x){ return x.id === userId; });
+    if (!u) return;
+    state.resetUserId = userId;
+    document.getElementById('resetUser').textContent =
+        'User: ' + u.username + ' (#' + u.id + ')';
+    document.getElementById('resetPassword').value = '';
+    openModal('modalReset');
+}
+
+function submitReset() {
+    var pw = document.getElementById('resetPassword').value;
+    if (pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
+    var body = new URLSearchParams();
+    body.append('user_id', state.resetUserId);
+    body.append('new_password', pw);
+    authFetch('admin/reset_password.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (j.ok) { closeModal('modalReset'); loadAll(); }
+            else alert('Error: ' + (j.error || 'unknown'));
+        });
+}
+
+// --- Regen API key ---
+function openRegen(userId) {
+    var u = state.users.find(function(x){ return x.id === userId; });
+    if (!u) return;
+    state.regenUserId = userId;
+    document.getElementById('regenUser').textContent =
+        'User: ' + u.username + ' (#' + u.id + ')';
+    document.getElementById('regenResult').style.display = 'none';
+    document.getElementById('regenResultKey').textContent = '';
+    document.getElementById('regenConfirm').textContent = 'Regenerate';
+    document.getElementById('regenConfirm').disabled = false;
+    document.getElementById('regenCancel').textContent = 'Cancel';
+    openModal('modalRegen');
+}
+
+function submitRegen() {
+    var btn = document.getElementById('regenConfirm');
+    if (btn.textContent === 'Close') { closeModal('modalRegen'); return; }
+    var body = new URLSearchParams();
+    body.append('user_id', state.regenUserId);
+    authFetch('admin/regen_api_key.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (j.ok) {
+                document.getElementById('regenResult').style.display = 'block';
+                document.getElementById('regenResultKey').textContent = j.write_api_key;
+                btn.textContent = 'Close';
+                document.getElementById('regenCancel').textContent = 'Done';
+            } else {
+                alert('Error: ' + (j.error || 'unknown'));
+            }
+        });
+}
+
+// --- View token (read-only embed key) ---
+function buildEmbedUrl(token) {
+    var here = window.location.href.split('?')[0]; // strip query
+    var indexUrl = here.replace(/\/admin\.html$/, '/index.html');
+    return indexUrl + '?token=' + token;
+}
+
+function showViewToken(u) {
+    document.getElementById('viewKey').textContent = u.read_api_key || '(not set)';
+    document.getElementById('viewUrl').textContent = u.read_api_key
+        ? buildEmbedUrl(u.read_api_key) : '—';
+}
+
+function openView(userId) {
+    var u = state.users.find(function(x){ return x.id === userId; });
+    if (!u) return;
+    state.viewUserId = userId;
+    document.getElementById('viewUser').textContent =
+        'User: ' + u.username + ' (#' + u.id + ')';
+    showViewToken(u);
+    openModal('modalView');
+}
+
+function submitRegenView() {
+    if (!confirm('Regenerate this user\'s view token? The old token will stop working immediately.')) return;
+    var body = new URLSearchParams();
+    body.append('user_id', state.viewUserId);
+    authFetch('admin/regen_view_key.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (!j.ok) { alert('Error: ' + (j.error || 'unknown')); return; }
+            var u = state.users.find(function(x){ return x.id === state.viewUserId; });
+            if (u) u.read_api_key = j.read_api_key;
+            showViewToken({ read_api_key: j.read_api_key });
+        });
+}
+
+// --- Toggle user active ---
+function toggleUser(userId, newActive) {
+    var msg = newActive ? 'Enable this user?' : 'Disable this user? They will lose login + ingest access immediately.';
+    if (!confirm(msg)) return;
+    var body = new URLSearchParams();
+    body.append('user_id', userId);
+    body.append('active', newActive);
+    authFetch('admin/toggle_user.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (j.ok) loadAll();
+            else alert('Error: ' + (j.error || 'unknown'));
+        });
+}
+
+// --- Reassign device ---
+function openReassign(deviceId) {
+    var d = state.devices.find(function(x){ return x.id === deviceId; });
+    if (!d) return;
+    state.reassignDeviceId = deviceId;
+    document.getElementById('reassignDevice').textContent =
+        'Device: ' + d.code + ' (' + (d.name || '') + ') — current owner: ' +
+        (d.owner_username || 'unassigned');
+    var sel = document.getElementById('reassignUser');
+    sel.innerHTML = '';
+    state.users.forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = u.username + (u.is_admin ? ' (admin)' : '');
+        if (u.id === d.user_id) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    openModal('modalReassign');
+}
+
+function submitReassign() {
+    var newUser = parseInt(document.getElementById('reassignUser').value, 10);
+    if (!newUser) return;
+    var body = new URLSearchParams();
+    body.append('device_id',   state.reassignDeviceId);
+    body.append('new_user_id', newUser);
+    authFetch('admin/reassign_device.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (j.ok) { closeModal('modalReassign'); loadAll(); }
+            else alert('Error: ' + (j.error || 'unknown'));
+        });
+}
+
+// --- Boot ---
+refreshUserInfo();
+loadAll();
+</script>
+</body>
+</html>

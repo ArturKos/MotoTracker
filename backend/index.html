@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
 
@@ -16,6 +16,11 @@
         <span>MotoTracker</span>
     </div>
     <div class="topbar-controls">
+        <label for="devicePicker">Device:</label>
+        <select id="devicePicker"></select>
+        <button id="btnDeviceSettings" onclick="openDeviceSettings()" title="Device settings" style="display:none">
+            <i class="fas fa-cog"></i>
+        </button>
         <label for="datePicker">Date:</label>
         <input type="date" id="datePicker">
         <button id="btnRefresh" onclick="refreshMap()" title="Refresh map">
@@ -26,6 +31,13 @@
         </button>
         <button id="btnFullscreen" onclick="toggleFullscreen()" title="Toggle fullscreen">
             <i class="fas fa-expand"></i>
+        </button>
+        <span id="userInfo" class="user-info"></span>
+        <a id="btnAdmin" href="admin.html" title="Admin panel" style="display:none">
+            <button type="button"><i class="fas fa-user-shield"></i></button>
+        </a>
+        <button id="btnLogout" onclick="logout()" title="Log out">
+            <i class="fas fa-sign-out-alt"></i>
         </button>
     </div>
 </header>
@@ -122,8 +134,56 @@
     <i class="fas fa-chevron-left" id="sidebarIcon"></i>
 </button>
 
+<!-- Device settings modal -->
+<div class="modal-backdrop" id="modalDeviceSettings">
+    <div class="modal">
+        <h2>Device settings</h2>
+        <div class="hint" id="devSettingsHeader"></div>
+
+        <div class="dev-tabs">
+            <button class="dev-tab active" data-tab="info" onclick="switchDevTab('info')">Info</button>
+            <button class="dev-tab" data-tab="cleanup" onclick="switchDevTab('cleanup')">Cleanup</button>
+        </div>
+
+        <div class="dev-tab-panel" id="devTab-info">
+            <label>Name
+                <input type="text" id="devEditName" maxlength="128">
+            </label>
+            <label>Color
+                <input type="color" id="devEditColor">
+            </label>
+            <div class="hint">Color shows the polyline on the map.</div>
+            <div class="modal-actions">
+                <button onclick="closeModal('modalDeviceSettings')">Cancel</button>
+                <button class="primary" onclick="submitDeviceUpdate()">Save</button>
+            </div>
+        </div>
+
+        <div class="dev-tab-panel" id="devTab-cleanup" style="display:none">
+            <label>From
+                <input type="date" id="devDelFrom">
+            </label>
+            <label>To
+                <input type="date" id="devDelTo">
+            </label>
+            <div class="hint" id="devDelHint">
+                Deletes all points for this device between the dates (inclusive).
+                Interpolated points derived from those raw rows are also removed.
+                <b>This cannot be undone.</b>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeModal('modalDeviceSettings')">Cancel</button>
+                <button onclick="submitDevDelete('stationary')" title="Delete only points with speed &lt; 1 km/h (indoor jitter)">
+                    Purge stationary
+                </button>
+                <button class="primary" onclick="submitDevDelete('all')">Delete in range</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="map.js"></script>
+<script src="map.js?v=7-token"></script>
 
 </body>
 </html>

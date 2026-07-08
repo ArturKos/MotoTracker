@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @keyframes mtPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(2.4); } }
+  @keyframes mtRec { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  @keyframes mtToast { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .mt-screen::-webkit-scrollbar { width: 0; height: 0; }
+  a { color: var(--accent); }
+  a:hover { color: var(--accent2); }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 28px; background: radial-gradient(120% 120% at 50% 0%, #202327 0%, #0c0d0f 70%); font-family: 'Barlow', system-ui, sans-serif;">
+  <div style="{{ frameStyle }}">
+
+    <!-- OS STATUS BAR -->
+    <div style="height: 34px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; letter-spacing: .3px; color: var(--text);">
+      <span>9:41</span>
+      <div style="display: flex; align-items: center; gap: 6px; opacity: .85;">
+        <span style="font-size: 11px;">4G</span>
+        <div style="width: 20px; height: 11px; border: 1.5px solid var(--text); border-radius: 3px; position: relative;">
+          <div style="position: absolute; inset: 1.5px; right: 6px; background: var(--text); border-radius: 1px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP TOP BAR -->
+    <sc-if value="{{ showChrome }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 6px 18px 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ backToRoutes }}" style="width: 34px; height: 34px; flex: 0 0 auto; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </sc-if>
+          <div style="font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ titleStr }}</div>
+        </div>
+        <div style="flex: 0 0 auto;">
+          <sc-if value="{{ syncOff }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; background: color-mix(in srgb, var(--accent2) 16%, transparent); border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent2);"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: var(--accent2); letter-spacing: .3px;">{{ L.chipOffline }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ syncQueue }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: mtRec 1.4s ease-in-out infinite;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: var(--accent); letter-spacing: .3px;">{{ queueCount }} {{ L.chipQueue }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ syncOk }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid var(--line);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: var(--dim); letter-spacing: .3px;">{{ L.chipSync }}</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- SCREEN AREA -->
+    <div class="mt-screen" style="flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; position: relative;">
+
+      <!-- ============ LOGIN ============ -->
+      <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+        <div style="min-height: 100%; display: flex; flex-direction: column; padding: 24px 26px 30px;">
+          <div style="flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 14px 0;">
+            <div style="width: 84px; height: 84px; border-radius: 24px; background: var(--panel); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;">
+              <svg width="54" height="54" viewBox="0 0 512 512">
+                <path d="M128 372 C 176 300, 150 232, 214 236 C 278 240, 250 152, 320 150 C 356 149, 372 168, 388 150" fill="none" stroke="var(--accent)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="128" cy="372" r="26" fill="var(--panel)" stroke="var(--accent)" stroke-width="18"/>
+                <circle cx="388" cy="150" r="42" fill="var(--accent)"/>
+                <circle cx="388" cy="150" r="16" fill="var(--panel)"/>
+              </svg>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 32px; letter-spacing: 1px; text-transform: uppercase;">MotoTracker</div>
+              <div style="color: var(--dim); font-size: 14px; margin-top: 2px;">{{ L.tagline }}</div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <button onClick="{{ doGoogle }}" style="width: 100%; padding: 13px; border: none; border-radius: var(--radius); background: #ffffff; color: #1f1f1f; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 11px; font-family: 'Barlow', sans-serif;">
+              <span style="width: 22px; height: 22px; border-radius: 50%; background: #f1f3f4; color: #4285f4; display: flex; align-items: center; justify-content: center; font-weight: 700; font-family: 'Barlow Semi Condensed', sans-serif; font-size: 15px;">G</span>
+              {{ L.googleBtn }}
+            </button>
+            <div style="display: flex; align-items: center; gap: 12px; margin: 2px 0;">
+              <div style="flex: 1; height: 1px; background: var(--line);"></div>
+              <span style="font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px;">{{ L.orLabel }}</span>
+              <div style="flex: 1; height: 1px; background: var(--line);"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.srvAddr }}</label>
+              <input value="http://192.168.1.145/gpstrack" style="width: 100%; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.email }}</label>
+              <input placeholder="jan.kowalski@wp.pl" style="width: 100%; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 15px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.pass }}</label>
+              <input type="password" value="········" style="width: 100%; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 15px;">
+            </div>
+            <button onClick="{{ doLogin }}" style="margin-top: 4px; width: 100%; padding: 14px; border: none; border-radius: var(--radius); background: var(--accent); color: #05100e; font-weight: 700; font-size: 16px; letter-spacing: .3px; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.loginBtn }}</button>
+            <button onClick="{{ skipLogin }}" style="width: 100%; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--text); font-weight: 600; font-size: 15px; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.guestBtn }}</button>
+            <div style="text-align: center; color: var(--dim); font-size: 12px; margin-top: 2px;">{{ L.guestNote }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ RECORD ============ -->
+      <sc-if value="{{ isRecord }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; height: 100%;">
+          <div style="position: relative; height: 218px; flex: 0 0 auto; background: var(--panel); background-image: var(--grid); background-size: 22px 22px; border-bottom: 1px solid var(--line); overflow: hidden;">
+            <svg viewBox="0 0 340 218" preserveAspectRatio="xMidYMid slice" style="position: absolute; inset: 0; width: 100%; height: 100%;">
+              <path d="M24 188 C 96 168, 74 100, 150 108 C 226 116, 204 44, 278 42 C 312 41, 322 70, 336 56" fill="none" stroke="var(--line)" stroke-width="11" stroke-linecap="round"/>
+              <path d="M24 188 C 96 168, 74 100, 150 108 C 226 116, 204 44, 278 42 C 312 41, 322 70, 336 56" fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-linecap="round" style="{{ recPathStyle }}"/>
+              <circle cx="24" cy="188" r="6" fill="var(--accent)"/>
+            </svg>
+            <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);">
+              <div style="position: relative; width: 16px; height: 16px;">
+                <div style="position: absolute; inset: 0; border-radius: 50%; background: var(--accent);"></div>
+                <sc-if value="{{ recording }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0; border-radius: 50%; background: var(--accent); animation: mtPulse 1.8s ease-out infinite;"></div>
+                </sc-if>
+              </div>
+            </div>
+            <div style="position: absolute; top: 12px; left: 14px; display: flex; gap: 7px; align-items: center; padding: 5px 10px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(4px); border: 1px solid var(--line);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="var(--accent)" stroke-width="2"/><path d="M12 21c5-6 7-9 7-12a7 7 0 10-14 0c0 3 2 6 7 12z" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim);">{{ L.gps }}</span>
+              <sc-if value="{{ gpsCorrect }}" hint-placeholder-val="{{ true }}">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent);">· {{ L.onRoad }}</span>
+              </sc-if>
+            </div>
+            <div style="position: absolute; top: 12px; right: 14px; display: flex; gap: 7px; align-items: center; padding: 5px 11px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(4px); border: 1px solid var(--line);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="var(--accent2)" stroke-width="2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M6 6l1.5 1.5M18 18l-1.5-1.5M6 18l1.5-1.5M18 6l-1.5 1.5" stroke="var(--accent2)" stroke-width="2" stroke-linecap="round"/></svg>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text); font-weight: 500;">{{ wxChip }}</span>
+            </div>
+            <div style="position: absolute; bottom: 12px; right: 14px; width: 58px; height: 58px; border-radius: 50%; background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(4px); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;">
+              <svg width="42" height="42" viewBox="0 0 60 60">
+                <text x="30" y="12" text-anchor="middle" font-size="8" font-family="'JetBrains Mono', monospace" fill="var(--dim)">N</text>
+                <g style="{{ compassStyle }}" transform-origin="30 30">
+                  <polygon points="30,14 25,32 35,32" fill="var(--accent2)"/>
+                  <polygon points="30,46 25,32 35,32" fill="var(--dim)"/>
+                </g>
+                <circle cx="30" cy="30" r="2.5" fill="var(--text)"/>
+              </svg>
+              <span style="position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--accent2); font-weight: 700;">{{ cardinal }}</span>
+            </div>
+          </div>
+
+          <div style="flex: 1 1 auto; display: flex; flex-direction: column; padding: 14px 20px 14px;">
+            <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; margin-top: 2px;">
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 16px;">
+                <div style="font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.speedLbl }}</div>
+                <div style="display: flex; align-items: baseline; gap: 5px; margin-top: 2px;"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 40px; line-height: 1; color: var(--accent); letter-spacing: -1px;">{{ spdStr }}</span><span style="color: var(--dim); font-size: 13px;">{{ spdUnit }}</span></div>
+                <div style="height: 5px; border-radius: 3px; background: var(--panel2); margin-top: 9px; overflow: hidden;"><div style="{{ meterStyle }}"></div></div>
+              </div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 16px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.timeRide }}</div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 30px; margin-top: 2px;">{{ elapsedStr }}</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; text-align: center;">
+                <div style="font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.distance }}</div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; margin-top: 12px;">{{ distStr }}</div>
+                <div style="font-size: 10px; color: var(--dim);">{{ distUnit }}</div>
+              </div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; text-align: center;">
+                <div style="font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.altitude }}</div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; margin-top: 12px;">{{ elevStr }}</div>
+                <div style="font-size: 10px; color: var(--dim);">{{ L.maslUnit }}</div>
+              </div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; text-align: center;">
+                <div style="font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.fuel }}</div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; margin-top: 12px;">{{ fuelStr }}</div>
+                <div style="font-size: 10px; color: var(--dim);">{{ L.fuelUnitShort }}</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: flex; align-items: center; gap: 12px;">
+                <div style="flex: 1;">
+                  <div style="font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.lean }}</div>
+                  <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 18px; margin-top: 4px;">{{ leanStr }}°</div>
+                </div>
+                <div style="width: 46px; height: 30px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                  <div style="width: 42px; height: 2px; background: var(--accent2); border-radius: 2px; {{ leanBarStyle }}"></div>
+                </div>
+              </div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: flex; align-items: center; gap: 12px;">
+                <div style="flex: 1;">
+                  <div style="font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--dim); font-weight: 600;">{{ L.compass }}</div>
+                  <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 18px; margin-top: 4px;">{{ cardinal }} <span style="color: var(--dim); font-size: 13px;">{{ heading }}°</span></div>
+                </div>
+                <svg width="34" height="34" viewBox="0 0 60 60"><g style="{{ compassStyle }}" transform-origin="30 30"><polygon points="30,12 24,32 36,32" fill="var(--accent2)"/><polygon points="30,48 24,32 36,32" fill="var(--dim)"/></g><circle cx="30" cy="30" r="2.5" fill="var(--text)"/></svg>
+              </div>
+            </div>
+
+            <div style="flex: 1 1 auto; min-height: 10px;"></div>
+
+            <sc-if value="{{ idle }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ startRec }}" style="width: 100%; padding: 17px; border: none; border-radius: var(--radius); background: var(--accent); color: #05100e; font-weight: 700; font-size: 17px; letter-spacing: .5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Barlow Semi Condensed', sans-serif; text-transform: uppercase;">
+                <span style="width: 14px; height: 14px; border-radius: 50%; background: #05100e; display: inline-block;"></span> {{ L.startRide }}
+              </button>
+            </sc-if>
+            <sc-if value="{{ recording }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; gap: 12px;">
+                <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ resumeRec }}" style="flex: 1; padding: 16px; border: none; border-radius: var(--radius); background: var(--accent); color: #05100e; font-weight: 700; font-size: 16px; cursor: pointer; text-transform: uppercase; font-family: 'Barlow Semi Condensed', sans-serif;">{{ L.resume }}</button>
+                </sc-if>
+                <sc-if value="{{ running }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ pauseRec }}" style="flex: 1; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); font-weight: 700; font-size: 16px; cursor: pointer; text-transform: uppercase; font-family: 'Barlow Semi Condensed', sans-serif;">{{ L.pause }}</button>
+                </sc-if>
+                <button onClick="{{ stopRec }}" style="flex: 1; padding: 16px; border: none; border-radius: var(--radius); background: var(--accent2); color: #1a0a05; font-weight: 700; font-size: 16px; cursor: pointer; text-transform: uppercase; font-family: 'Barlow Semi Condensed', sans-serif;">{{ L.finish }}</button>
+              </div>
+            </sc-if>
+            <div style="text-align: center; color: var(--dim); font-size: 10.5px; margin-top: 9px;">{{ L.pauseHint }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ ROUTES LIST ============ -->
+      <sc-if value="{{ isRoutes }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 6px 16px 20px; display: flex; flex-direction: column; gap: 11px;">
+          <div style="display: flex; gap: 10px; margin-bottom: 2px;">
+            <div style="flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 14px;">
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.allRoutes }}</div>
+              <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 22px;">{{ routeCount }}</div>
+            </div>
+            <div style="flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 14px;">
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.sumKm }}</div>
+              <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 22px;">{{ totalKm }}</div>
+            </div>
+            <button onClick="{{ importGpx }}" style="flex: 0 0 auto; width: 52px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 15V4m0 0L8 8m4-4l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 15v3a2 2 0 002 2h10a2 2 0 002-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+
+          <sc-for list="{{ routes }}" as="r" hint-placeholder-count="4">
+            <button onClick="{{ r.open }}" style="text-align: left; width: 100%; display: flex; gap: 14px; align-items: stretch; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; cursor: pointer; color: var(--text); font-family: 'Barlow', sans-serif;">
+              <div style="flex: 0 0 76px; height: 76px; border-radius: calc(var(--radius) - 4px); background: var(--panel2); background-image: var(--grid); background-size: 14px 14px; overflow: hidden;">
+                <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%;">
+                  <path d="{{ r.path }}" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <div style="font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.name }}</div>
+                  <sc-if value="{{ r.synced }}" hint-placeholder-val="{{ true }}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex: 0 0 auto;"><path d="M5 13l4 4L19 7" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </sc-if>
+                  <sc-if value="{{ r.queued }}" hint-placeholder-val="{{ false }}">
+                    <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: var(--accent2); border: 1px solid color-mix(in srgb, var(--accent2) 40%, transparent); padding: 2px 5px; border-radius: 5px; letter-spacing: .3px;">{{ L.queueTag }}</span>
+                  </sc-if>
+                </div>
+                <div style="font-size: 12px; color: var(--dim); margin-top: 1px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  <span>{{ r.date }}</span><span>·</span><span style="overflow: hidden; text-overflow: ellipsis;">{{ r.bikeName }}</span>
+                  <sc-if value="{{ r.bikeSold }}" hint-placeholder-val="{{ false }}"><span style="flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--dim); border: 1px solid var(--line); padding: 1px 4px; border-radius: 4px;">{{ L.statusSold }}</span></sc-if>
+                </div>
+                <div style="flex: 1;"></div>
+                <div style="display: flex; gap: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">
+                  <span><b style="font-weight: 700;">{{ r.distDisp }}</b> <span style="color: var(--dim);">{{ distUnit }}</span></span>
+                  <span style="color: var(--dim);">{{ r.dur }}</span>
+                  <span><b style="font-weight: 700; color: var(--accent);">{{ r.maxDisp }}</b> <span style="color: var(--dim);">{{ L.maxShort }}</span></span>
+                </div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- ============ ROUTE DETAIL ============ -->
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column;">
+          <div style="position: relative; height: 200px; background: var(--panel); background-image: var(--grid); background-size: 22px 22px; border-bottom: 1px solid var(--line);">
+            <svg viewBox="0 0 340 200" preserveAspectRatio="xMidYMid slice" style="position: absolute; inset: 0; width: 100%; height: 100%;">
+              <path d="{{ selPath }}" fill="none" stroke="var(--line)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="{{ selPath }}" fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="{{ selStartX }}" cy="{{ selStartY }}" r="6" fill="var(--accent)"/>
+              <circle cx="{{ selEndX }}" cy="{{ selEndY }}" r="6" fill="var(--accent2)"/>
+            </svg>
+          </div>
+          <div style="padding: 16px 18px 22px; display: flex; flex-direction: column; gap: 14px;">
+            <div>
+              <div style="font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 26px; text-transform: uppercase; letter-spacing: .4px;">{{ selName }}</div>
+              <div style="color: var(--dim); font-size: 13px; margin-top: 3px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span>{{ selDate }}</span>
+                <span style="width: 3px; height: 3px; border-radius: 50%; background: var(--dim);"></span>
+                <span style="display: flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="17" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="17" r="3" stroke="currentColor" stroke-width="2"/><path d="M6 17l3-7h4l4 7M9 10V7h3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>{{ selBikeName }}</span>
+                <sc-if value="{{ selBikeSold }}" hint-placeholder-val="{{ false }}"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 6px; border-radius: 5px; background: color-mix(in srgb, var(--dim) 20%, transparent); color: var(--dim);">{{ L.statusSold }}</span></sc-if>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 13px;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.distance }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 2px;">{{ selDist }}</div><div style="font-size: 10px; color: var(--dim);">{{ distUnit }}</div></div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 13px;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.dTime }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 2px;">{{ selDur }}</div><div style="font-size: 10px; color: var(--dim);">{{ L.hms }}</div></div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 13px;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.avgSpeed }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 2px;">{{ selAvg }}</div><div style="font-size: 10px; color: var(--dim);">{{ spdUnit }}</div></div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 13px;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.maxTag }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 2px; color: var(--accent);">{{ selMax }}</div><div style="font-size: 10px; color: var(--dim);">{{ spdUnit }}</div></div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 13px;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.leanShort }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 2px;">{{ selLean }}°</div><div style="font-size: 10px; color: var(--dim);">{{ L.leanMaxSub }}</div></div>
+              <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 13px;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.fuel }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 2px;">{{ selFuel }}</div><div style="font-size: 10px; color: var(--dim);">{{ L.litersUnit }}</div></div>
+            </div>
+
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;">
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600; margin-bottom: 12px;">{{ L.secWeather }}</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <div style="text-align: center;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.wxTemp }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 4px;">{{ selWxTemp }}</div></div>
+                <div style="text-align: center;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.wxHum }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; margin-top: 4px;">{{ selWxHum }}</div></div>
+                <div style="text-align: center;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600;">{{ L.wxRain }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; margin-top: 8px;">{{ selWxRain }}</div></div>
+              </div>
+            </div>
+
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;"><span style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.chartSpeed }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent);">{{ spdUnit }}</span></div>
+              <svg viewBox="0 0 320 90" style="width: 100%; height: 76px; overflow: visible;">
+                <polyline points="{{ selSpeedFill }}" fill="color-mix(in srgb, var(--accent) 14%, transparent)" stroke="none"/>
+                <polyline points="{{ selSpeed }}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;"><span style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.chartElev }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim);">{{ selElev }} m</span></div>
+              <svg viewBox="0 0 320 90" style="width: 100%; height: 76px; overflow: visible;">
+                <polyline points="{{ selElevFill }}" fill="color-mix(in srgb, var(--accent2) 14%, transparent)" stroke="none"/>
+                <polyline points="{{ selElevLine }}" fill="none" stroke="var(--accent2)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;"><span style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.meetings }}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0116 0" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><path d="M8 12a4 4 0 018 0" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg></div>
+              <sc-if value="{{ selHasMeetings }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; flex-direction: column; gap: 11px;">
+                  <sc-for list="{{ selMeetings }}" as="mt" hint-placeholder-count="2">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                      <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--panel2); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 15px; color: var(--accent); flex: 0 0 auto;">{{ mt.init }}</div>
+                      <div style="flex: 1; min-width: 0;"><div style="font-weight: 600; font-size: 14px;">{{ mt.who }} · {{ mt.bike }}</div><div style="font-size: 11.5px; color: var(--dim); font-family: 'JetBrains Mono', monospace;">{{ L.waveAt }} {{ mt.at }} · {{ mt.time }}</div></div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ selNoMeetings }}" hint-placeholder-val="{{ false }}">
+                <div style="color: var(--dim); font-size: 13px; text-align: center; padding: 6px 0;">{{ L.meetingsNone }}</div>
+              </sc-if>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+              <button onClick="{{ openExport }}" style="flex: 1; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Barlow', sans-serif; text-transform: uppercase; letter-spacing: .3px;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 4v11m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 15v3a2 2 0 002 2h10a2 2 0 002-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> {{ L.exportShareBtn }}
+              </button>
+              <sc-if value="{{ selQueued }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ sendSelected }}" style="flex: 0 0 auto; padding: 14px 18px; border: none; border-radius: var(--radius); background: var(--accent); color: #05100e; font-weight: 700; font-size: 14px; cursor: pointer; text-transform: uppercase; font-family: 'Barlow', sans-serif;">{{ L.sendBtn }}</button>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ STATS ============ -->
+      <sc-if value="{{ isStats }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 6px 16px 22px; display: flex; flex-direction: column; gap: 13px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 11px;">
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px;"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.totalDist }}</div><div style="display: flex; align-items: baseline; gap: 5px; margin-top: 3px;"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 30px;">{{ totalKm }}</span><span style="color: var(--dim); font-size: 13px;">{{ distUnit }}</span></div></div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px;"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.timeSaddle }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 30px; margin-top: 3px;">{{ totalTime }}</div></div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px;"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.rides }}</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 30px; margin-top: 3px;">{{ routeCount }}</div></div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px;"><div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.speedRecord }}</div><div style="display: flex; align-items: baseline; gap: 5px; margin-top: 3px;"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 30px; color: var(--accent);">{{ recordSpeed }}</span><span style="color: var(--dim); font-size: 13px;">{{ spdUnit }}</span></div></div>
+          </div>
+
+          <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;"><span style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600;">{{ L.distPerMonth }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim);">2026</span></div>
+            <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; height: 120px;">
+              <sc-for list="{{ months }}" as="m" hint-placeholder-count="6">
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--dim);">{{ m.km }}</span>
+                  <div style="width: 100%; border-radius: 5px 5px 2px 2px; background: var(--accent); {{ m.barStyle }}"></div>
+                  <span style="font-size: 11px; color: var(--dim); font-weight: 500;">{{ m.name }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); font-weight: 600; margin-bottom: 12px;">{{ L.styleSummary }}</div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div><div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;"><span>{{ L.avgLean }}</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700;">38°</span></div><div style="height: 6px; border-radius: 3px; background: var(--panel2);"><div style="width: 63%; height: 100%; border-radius: 3px; background: var(--accent2);"></div></div></div>
+              <div><div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;"><span>{{ L.avgSpeedLabel }}</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700;">48 {{ spdUnit }}</span></div><div style="height: 6px; border-radius: 3px; background: var(--panel2);"><div style="width: 48%; height: 100%; border-radius: 3px; background: var(--accent);"></div></div></div>
+              <div><div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;"><span>{{ L.totalClimb }}</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700;">5 920 m</span></div><div style="height: 6px; border-radius: 3px; background: var(--panel2);"><div style="width: 74%; height: 100%; border-radius: 3px; background: var(--accent);"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ SETTINGS ============ -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 6px 16px 24px; display: flex; flex-direction: column; gap: 18px;">
+
+          <!-- ACCOUNT -->
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700; margin: 0 4px 8px;">{{ L.secAccount }}</div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: center; gap: 13px;">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--panel2); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 18px; color: var(--accent);">{{ accountInitial }}</div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 15px;">{{ accountName }}</div>
+                <div style="font-size: 12.5px; color: var(--dim);">{{ accountSub }}</div>
+              </div>
+              <sc-if value="{{ authed }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ logout }}" style="border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.logout }}</button>
+              </sc-if>
+              <sc-if value="{{ guest }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ goLogin }}" style="border: none; background: var(--accent); color: #05100e; border-radius: 10px; padding: 8px 13px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.login }}</button>
+              </sc-if>
+            </div>
+          </div>
+
+          <!-- MOTORCYCLES -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700;">{{ L.secBikes }}</span>
+              <button onClick="{{ addBike }}" style="border: none; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); border-radius: 8px; padding: 5px 11px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Barlow', sans-serif;">+ {{ L.addBike }}</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <sc-for list="{{ bikes }}" as="b" hint-placeholder-count="3">
+                <button onClick="{{ b.select }}" style="text-align: left; width: 100%; background: var(--panel); border-radius: var(--radius); padding: 13px 15px; cursor: pointer; color: var(--text); font-family: 'Barlow', sans-serif; display: flex; align-items: center; gap: 13px; {{ b.cardStyle }}">
+                  <div style="width: 40px; height: 40px; border-radius: 11px; background: var(--panel2); display: flex; align-items: center; justify-content: center; flex: 0 0 auto;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="17" r="3" stroke="var(--accent)" stroke-width="2"/><circle cx="18" cy="17" r="3" stroke="var(--accent)" stroke-width="2"/><path d="M6 17l3-7h4l4 7M9 10V7h3" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px;"><span style="font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ b.name }}</span><sc-if value="{{ b.current }}" hint-placeholder-val="{{ true }}"><span style="flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); padding: 2px 5px; border-radius: 5px;">{{ L.currentTag }}</span></sc-if></div>
+                    <div style="font-size: 12px; color: var(--dim); font-family: 'JetBrains Mono', monospace; margin-top: 2px;">{{ b.year }} · {{ b.plate }}</div>
+                  </div>
+                  <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; {{ b.badgeStyle }}">{{ b.statusLabel }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- APPEARANCE & LANGUAGE -->
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700; margin: 0 4px 8px;">{{ L.secApp }}</div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 9px;">{{ L.language }}</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <sc-for list="{{ langOptions }}" as="o" hint-placeholder-count="6">
+                    <button onClick="{{ o.select }}" style="{{ o.style }}">{{ o.name }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="height: 1px; background: var(--line);"></div>
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 9px;">{{ L.theme }}</div>
+                <div style="display: flex; gap: 8px;">
+                  <sc-for list="{{ themeOptions }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.select }}" style="{{ o.style }}">{{ o.name }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="height: 1px; background: var(--line);"></div>
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 10px;">{{ L.accentColor }}</div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                  <sc-for list="{{ accentOptions }}" as="o" hint-placeholder-count="6">
+                    <button onClick="{{ o.select }}" style="{{ o.style }}"></button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SERVER & OFFLINE -->
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700; margin: 0 4px 8px;">{{ L.secServer }}</div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <div style="padding: 13px 16px; border-bottom: 1px solid var(--line);">
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 6px;">{{ L.srvAddr }}</div>
+                <input value="http://192.168.1.145/gpstrack" style="width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">
+              </div>
+              <div onClick="{{ toggleOffline }}" style="padding: 15px 16px; display: flex; align-items: center; gap: 13px; cursor: pointer; border-bottom: 1px solid var(--line);">
+                <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.offlineMode }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.offlineDesc }}</div></div>
+                <div style="{{ offToggleTrack }}"><div style="{{ offToggleKnob }}"></div></div>
+              </div>
+              <div onClick="{{ toggleAuto }}" style="padding: 15px 16px; display: flex; align-items: center; gap: 13px; cursor: pointer;">
+                <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.autoSync }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.autoSyncDesc }}</div></div>
+                <div style="{{ autoToggleTrack }}"><div style="{{ autoToggleKnob }}"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SYNC QUEUE -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700;">{{ L.secQueue }}</span>
+              <sc-if value="{{ hasQueue }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ sendAll }}" style="border: none; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); border-radius: 8px; padding: 5px 11px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.sendAll }}</button>
+              </sc-if>
+            </div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <sc-if value="{{ hasQueue }}" hint-placeholder-val="{{ true }}">
+                <sc-for list="{{ queue }}" as="q" hint-placeholder-count="2">
+                  <div style="padding: 13px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line);">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); flex: 0 0 auto;"></div>
+                    <div style="flex: 1; min-width: 0;"><div style="font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ q.name }}</div><div style="font-size: 11.5px; color: var(--dim); font-family: 'JetBrains Mono', monospace;">{{ q.size }} · {{ q.date }}</div></div>
+                    <button onClick="{{ q.send }}" style="border: 1px solid var(--line); background: transparent; color: var(--accent); border-radius: 8px; padding: 6px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.sendBtn }}</button>
+                  </div>
+                </sc-for>
+              </sc-if>
+              <sc-if value="{{ queueEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 22px 16px; text-align: center; color: var(--dim); font-size: 13.5px;">{{ L.allSynced }}</div>
+              </sc-if>
+            </div>
+          </div>
+
+          <!-- PREFERENCES -->
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700; margin: 0 4px 8px;">{{ L.secPrefs }}</div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <div onClick="{{ toggleUnits }}" style="padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); cursor: pointer;"><span style="font-weight: 600; font-size: 15px;">{{ L.units }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--dim);">{{ unitsLabel }}</span></div>
+              <div style="padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line);"><span style="font-weight: 600; font-size: 15px;">{{ L.autoPause }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent);">{{ L.on }}</span></div>
+              <div style="padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;"><span style="font-weight: 600; font-size: 15px;">{{ L.screenOn }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent);">{{ L.on }}</span></div>
+            </div>
+          </div>
+
+          <!-- BROADCAST (BLUETOOTH) -->
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700; margin: 0 4px 8px;">{{ L.secBroadcast }}</div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; display: flex; flex-direction: column; gap: 13px;">
+              <div style="font-size: 12.5px; color: var(--dim); display: flex; align-items: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 7l10 10-5 4V3l5 4L7 17" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+                {{ L.bcIntro }}
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcName }}</div><input value="{{ bcName }}" style="width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 13px;"></div>
+                <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcPhone }}</div><input value="{{ bcPhone }}" style="width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px;"></div>
+                <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcFrom }}</div><input value="{{ bcFrom }}" style="width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 13px;"></div>
+                <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcBike }}</div><div style="padding: 9px 11px; border-radius: 9px; border: 1px dashed var(--line); background: transparent; color: var(--dim); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ bcBikeVal }}</div></div>
+                <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcToday }}</div><div style="padding: 9px 11px; border-radius: 9px; border: 1px dashed var(--line); background: transparent; color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{ bcToday }}</div></div>
+                <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcTotal }}</div><div style="padding: 9px 11px; border-radius: 9px; border: 1px dashed var(--line); background: transparent; color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{ bcTotal }}</div></div>
+              </div>
+              <div><div style="font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; margin-bottom: 5px;">{{ L.bcSocial }}</div><input value="{{ bcSocial }}" style="width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px;"></div>
+              <button onClick="{{ saveBroadcast }}" style="width: 100%; padding: 12px; border: none; border-radius: var(--radius); background: var(--accent); color: #05100e; font-weight: 700; font-size: 14px; cursor: pointer; font-family: 'Barlow', sans-serif;">{{ L.sendBtn }}</button>
+            </div>
+          </div>
+
+          <!-- SYSTEM & PRIVACY -->
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700; margin: 0 4px 8px;">{{ L.secSystem }}</div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <div onClick="{{ toggleOfflineOnly }}" style="padding: 15px 16px; display: flex; align-items: center; gap: 13px; cursor: pointer; border-bottom: 1px solid var(--line);">
+                <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.offlineOnly }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.offlineOnlyDesc }}</div></div>
+                <div style="{{ offOnlyTrack }}"><div style="{{ offOnlyKnob }}"></div></div>
+              </div>
+              <div onClick="{{ toggleGps }}" style="padding: 15px 16px; display: flex; align-items: center; gap: 13px; cursor: pointer; border-bottom: 1px solid var(--line);">
+                <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.gpsCorrect }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.gpsCorrectDesc }}</div></div>
+                <div style="{{ gpsTrack }}"><div style="{{ gpsKnob }}"></div></div>
+              </div>
+              <div style="padding: 14px 16px; display: flex; align-items: center; gap: 13px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: var(--panel2); display: flex; align-items: center; justify-content: center; flex: 0 0 auto;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="13" rx="2" stroke="var(--accent)" stroke-width="2"/><path d="M7 18v2M17 18v2M6 9h4M6 13h8" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.androidAuto }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.androidAutoDesc }}</div></div>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent);">{{ L.on }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align: center; color: var(--dim); font-size: 12px; font-family: 'JetBrains Mono', monospace;">{{ L.version }}</div>
+        </div>
+      </sc-if>
+
+      <!-- ============ RIDERS ============ -->
+      <sc-if value="{{ isRiders }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 6px 16px 22px; display: flex; flex-direction: column; gap: 16px;">
+
+          <!-- GROUP -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700;">{{ L.groupTitle }}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--dim);">{{ groupCount }} {{ L.members }}</span>
+            </div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <sc-for list="{{ group }}" as="g" hint-placeholder-count="3">
+                <div style="padding: 12px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line);">
+                  <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--panel2); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 16px; color: var(--accent); flex: 0 0 auto;">{{ g.init }}</div>
+                  <div style="flex: 1; min-width: 0;"><div style="font-weight: 600; font-size: 15px;">{{ g.name }}</div><div style="font-size: 12px; color: var(--dim); font-family: 'JetBrains Mono', monospace;">{{ g.phone }} · {{ g.bike }}</div></div>
+                </div>
+              </sc-for>
+              <button onClick="{{ addMember }}" style="width: 100%; padding: 13px; background: transparent; border: none; border-top: 1px solid var(--line); color: var(--accent); font-weight: 700; cursor: pointer; font-family: 'Barlow', sans-serif; font-size: 14px;">+ {{ L.addByPhone }}</button>
+            </div>
+          </div>
+
+          <!-- LIVE FEED -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700;">{{ L.feedTitle }}</span>
+              <sc-if value="{{ offlineOnly }}" hint-placeholder-val="{{ false }}"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent2);">{{ L.noInternet }}</span></sc-if>
+            </div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <sc-if value="{{ feedAvailable }}" hint-placeholder-val="{{ true }}">
+                <sc-for list="{{ feed }}" as="f" hint-placeholder-count="3">
+                  <div style="padding: 12px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line);">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; {{ f.dotStyle }}"></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 14px;"><b style="font-weight: 700;">{{ f.who }}</b> <span style="color: var(--dim);">{{ f.text }}</span> <sc-if value="{{ f.isMax }}" hint-placeholder-val="{{ false }}"><b style="color: var(--accent2); font-family: 'JetBrains Mono', monospace;">{{ f.val }}</b></sc-if></div>
+                      <div style="font-size: 11.5px; color: var(--dim); font-family: 'JetBrains Mono', monospace;">{{ f.bike }} · {{ f.time }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </sc-if>
+              <sc-if value="{{ offlineOnly }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 22px 16px; text-align: center; color: var(--dim); font-size: 13px;">{{ L.noInternet }}</div>
+              </sc-if>
+            </div>
+          </div>
+
+          <!-- BLUETOOTH WAVES -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--dim); font-weight: 700;">{{ L.wavesTitle }}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent);">{{ L.worksOffline }}</span>
+            </div>
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;">
+              <sc-for list="{{ waves }}" as="w" hint-placeholder-count="2">
+                <div style="padding: 12px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line);">
+                  <div style="width: 34px; height: 34px; border-radius: 10px; background: var(--panel2); display: flex; align-items: center; justify-content: center; flex: 0 0 auto;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 8l10 10-5 3V3l5 4L7 16" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+                  <div style="flex: 1; min-width: 0;"><div style="font-weight: 600; font-size: 14px;">{{ w.who }} · {{ w.bike }}</div><div style="font-size: 11.5px; color: var(--dim); font-family: 'JetBrains Mono', monospace;">{{ L.waveAt }} {{ w.at }} · {{ w.time }}</div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+        </div>
+      </sc-if>
+
+    </div>
+
+    <!-- EXPORT SHEET -->
+    <sc-if value="{{ showExport }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeExport }}" style="position: absolute; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; z-index: 40;">
+        <div style="width: 100%; background: var(--bg); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; padding: 8px 20px 26px;">
+          <div style="width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 8px auto 16px;"></div>
+          <div style="font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700; font-size: 20px; text-transform: uppercase; margin-bottom: 4px;">{{ L.exportTitle }}</div>
+          <div style="color: var(--dim); font-size: 13px; margin-bottom: 16px;">{{ selName }}</div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onClick="{{ toastGpx }}" style="display: flex; align-items: center; gap: 14px; padding: 15px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); cursor: pointer; text-align: left; font-family: 'Barlow', sans-serif;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14 3v5h5" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V8l-6-5z" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg>
+              <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.exportGpx }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.exportGpxDesc }}</div></div>
+            </button>
+            <button onClick="{{ toastShare }}" style="display: flex; align-items: center; gap: 14px; padding: 15px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); cursor: pointer; text-align: left; font-family: 'Barlow', sans-serif;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="var(--accent)" stroke-width="2"/><circle cx="6" cy="12" r="3" stroke="var(--accent)" stroke-width="2"/><circle cx="18" cy="19" r="3" stroke="var(--accent)" stroke-width="2"/><path d="M8.6 10.6l6.8-4M8.6 13.4l6.8 4" stroke="var(--accent)" stroke-width="2"/></svg>
+              <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.shareRoute }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.shareRouteDesc }}</div></div>
+            </button>
+            <button onClick="{{ toastServer }}" style="display: flex; align-items: center; gap: 14px; padding: 15px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); cursor: pointer; text-align: left; font-family: 'Barlow', sans-serif;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="6" rx="1.5" stroke="var(--accent)" stroke-width="2"/><rect x="3" y="14" width="18" height="6" rx="1.5" stroke="var(--accent)" stroke-width="2"/><path d="M7 7h.01M7 17h.01" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
+              <div style="flex: 1;"><div style="font-weight: 600; font-size: 15px;">{{ L.sendServer }}</div><div style="font-size: 12.5px; color: var(--dim);">{{ L.sendServerDesc }}</div></div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- TOAST -->
+    <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%); z-index: 60; background: var(--text); color: var(--bg); padding: 11px 18px; border-radius: 999px; font-size: 13.5px; font-weight: 600; white-space: nowrap; animation: mtToast .25s ease; box-shadow: 0 8px 24px rgba(0,0,0,.35);">{{ toast }}</div>
+    </sc-if>
+
+    <!-- BOTTOM NAV -->
+    <sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 0 0 auto; display: flex; padding: 8px 10px 6px; border-top: 1px solid var(--line); background: var(--panel);">
+        <button onClick="{{ goRecord }}" style="flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; {{ navRecord }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="6" fill="currentColor"/><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6" opacity=".4"/></svg>
+          <span style="font-size: 10.5px; font-weight: 600;">{{ L.navRecord }}</span>
+        </button>
+        <button onClick="{{ goRoutes }}" style="flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; {{ navRoutes }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 19c3-1 3-9 7-9s4 6 7 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="19" r="2" fill="currentColor"/><circle cx="19" cy="15" r="2" fill="currentColor"/></svg>
+          <span style="font-size: 10.5px; font-weight: 600;">{{ L.navRoutes }}</span>
+        </button>
+        <button onClick="{{ goRiders }}" style="flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; {{ navRiders }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="9" r="2.2" stroke="currentColor" stroke-width="2"/><path d="M4 19c0-2.8 2.2-5 5-5s5 2.2 5 5M15 15c2.4 0 5 1.4 5 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span style="font-size: 10.5px; font-weight: 600;">{{ L.navRiders }}</span>
+        </button>
+        <button onClick="{{ goStats }}" style="flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; {{ navStats }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="4" y="12" width="4" height="7" rx="1" fill="currentColor"/><rect x="10" y="7" width="4" height="12" rx="1" fill="currentColor"/><rect x="16" y="9" width="4" height="10" rx="1" fill="currentColor"/></svg>
+          <span style="font-size: 10.5px; font-weight: 600;">{{ L.navStats }}</span>
+        </button>
+        <button onClick="{{ goSettings }}" style="flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; {{ navSettings }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.4" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="17" r="2.4" stroke="currentColor" stroke-width="2"/></svg>
+          <span style="font-size: 10.5px; font-weight: 600;">{{ L.navSettings }}</span>
+        </button>
+      </div>
+    </sc-if>
+
+    <!-- GESTURE PILL -->
+    <div style="flex: 0 0 auto; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--panel);">
+      <div style="width: 108px; height: 4px; border-radius: 2px; background: var(--text); opacity: .35;"></div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:952},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;cockpit&quot;,&quot;options&quot;:[&quot;cockpit&quot;,&quot;grid&quot;,&quot;light&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Wygląd&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#00d1b2&quot;,&quot;options&quot;:[&quot;#00d1b2&quot;,&quot;#ff5c38&quot;,&quot;#c6ff00&quot;,&quot;#3b82f6&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Wygląd&quot;},&quot;units&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;metric&quot;,&quot;options&quot;:[&quot;metric&quot;,&quot;imperial&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preferencje&quot;}}">
+class Component extends DCLogic {
+  static TRANS = {
+    pl: { navRecord:'Nagrywaj', navRoutes:'Trasy', navStats:'Statystyki', navSettings:'Ustawienia', tRecord:'Nagrywanie', tRoutes:'Moje trasy', tDetail:'Szczegóły', tStats:'Statystyki', tSettings:'Ustawienia', chipOffline:'OFFLINE', chipQueue:'W KOLEJCE', chipSync:'SYNC', tagline:'Rejestrator tras motocyklowych', googleBtn:'Zaloguj przez Google', orLabel:'lub', srvAddr:'Adres serwera', email:'E-mail', pass:'Hasło', loginBtn:'Zaloguj i synchronizuj', guestBtn:'Kontynuuj bez logowania', guestNote:'Bez konta dane zapisują się lokalnie na telefonie.', gps:'GPS · 12 sat', speedLbl:'Prędkość', timeRide:'Czas jazdy', distance:'Dystans', lean:'Pochylenie', altitude:'Wysokość', maslUnit:'m n.p.m.', fuel:'Paliwo', fuelUnitShort:'l szac.', startRide:'Rozpocznij trasę', pause:'Pauza', resume:'Wznów', finish:'Zakończ', allRoutes:'Wszystkie trasy', sumKm:'Suma km', queueTag:'KOLEJKA', maxShort:'max', dTime:'Czas', hms:'g:m:s', avgSpeed:'Śr. pręd.', maxTag:'Maks.', leanShort:'Pochyl.', leanMaxSub:'maks.', litersUnit:'litry', chartSpeed:'Prędkość / dystans', chartElev:'Profil wysokości', exportShareBtn:'Eksport / udostępnij', sendBtn:'Wyślij', totalDist:'Łączny dystans', timeSaddle:'Czas w siodle', rides:'Przejazdy', speedRecord:'Rekord prędkości', distPerMonth:'Dystans / miesiąc', styleSummary:'Podsumowanie stylu jazdy', avgLean:'Śr. kąt pochylenia', avgSpeedLabel:'Śr. prędkość', totalClimb:'Suma przewyższeń', secAccount:'Konto', guestMode:'Tryb gościa', localData:'Dane zapisywane lokalnie', logout:'Wyloguj', login:'Zaloguj', secServer:'Serwer i synchronizacja', offlineMode:'Tryb offline', offlineDesc:'Zapisuj tylko lokalnie, nie wysyłaj', autoSync:'Auto-synchronizacja', autoSyncDesc:'Wyślij po powrocie zasięgu / Wi-Fi', secQueue:'Kolejka synchronizacji', sendAll:'Wyślij wszystko', allSynced:'Wszystko zsynchronizowane ✓', secPrefs:'Preferencje', units:'Jednostki', autoPause:'Automatyczna pauza na postoju', on:'WŁ', screenOn:'Ekran zawsze włączony', secApp:'Wygląd i język', language:'Język', theme:'Motyw', themeCockpit:'Kokpit', themeGrid:'Siatka', themeLight:'Dzień', accentColor:'Kolor akcentu', version:'MotoTracker v1.0 · dane lokalne + serwer GPStrack', unitMetric:'metryczne (km)', unitImperial:'imperialne (mi)', exportTitle:'Eksport i udostępnianie', exportGpx:'Eksportuj plik GPX', exportGpxDesc:'Zapisz ślad do pliku .gpx', shareRoute:'Udostępnij trasę', shareRouteDesc:'Wyślij link lub przekaż innym', sendServer:'Wyślij na serwer GPStrack', sendServerDesc:'192.168.1.145/gpstrack', tImport:'Import GPX — wybierz plik .gpx', tGpx:'Zapisano plik GPX', tShare:'Link do trasy skopiowany', tServer:'Wysłano na serwer GPStrack', tSentPre:'Wysłano „', tSentSuf:'” na serwer', tSentAll:'Zsynchronizowano wszystkie trasy', tSaved:'Trasa zapisana', tSavedLocal:'Zapisano lokalnie (offline)', tGoogle:'Zalogowano przez Google' },
+    en: { navRecord:'Record', navRoutes:'Routes', navStats:'Stats', navSettings:'Settings', tRecord:'Recording', tRoutes:'My routes', tDetail:'Details', tStats:'Statistics', tSettings:'Settings', chipOffline:'OFFLINE', chipQueue:'QUEUED', chipSync:'SYNC', tagline:'Motorcycle ride logger', googleBtn:'Sign in with Google', orLabel:'or', srvAddr:'Server address', email:'E-mail', pass:'Password', loginBtn:'Sign in & sync', guestBtn:'Continue without account', guestNote:'Without an account data is stored locally on the phone.', gps:'GPS · 12 sat', speedLbl:'Speed', timeRide:'Ride time', distance:'Distance', lean:'Lean', altitude:'Altitude', maslUnit:'m ASL', fuel:'Fuel', fuelUnitShort:'L est.', startRide:'Start ride', pause:'Pause', resume:'Resume', finish:'Finish', allRoutes:'All routes', sumKm:'Total km', queueTag:'QUEUE', maxShort:'max', dTime:'Time', hms:'h:m:s', avgSpeed:'Avg spd', maxTag:'Max', leanShort:'Lean', leanMaxSub:'max', litersUnit:'liters', chartSpeed:'Speed / distance', chartElev:'Elevation profile', exportShareBtn:'Export / share', sendBtn:'Send', totalDist:'Total distance', timeSaddle:'Time in saddle', rides:'Rides', speedRecord:'Top speed', distPerMonth:'Distance / month', styleSummary:'Riding style summary', avgLean:'Avg lean angle', avgSpeedLabel:'Avg speed', totalClimb:'Total ascent', secAccount:'Account', guestMode:'Guest mode', localData:'Data stored locally', logout:'Log out', login:'Sign in', secServer:'Server & sync', offlineMode:'Offline mode', offlineDesc:'Store locally only, don\'t upload', autoSync:'Auto-sync', autoSyncDesc:'Upload when back in range / Wi-Fi', secQueue:'Sync queue', sendAll:'Send all', allSynced:'Everything synced ✓', secPrefs:'Preferences', units:'Units', autoPause:'Auto-pause when stopped', on:'ON', screenOn:'Keep screen on', secApp:'Appearance & language', language:'Language', theme:'Theme', themeCockpit:'Cockpit', themeGrid:'Grid', themeLight:'Day', accentColor:'Accent color', version:'MotoTracker v1.0 · local data + GPStrack server', unitMetric:'metric (km)', unitImperial:'imperial (mi)', exportTitle:'Export & share', exportGpx:'Export GPX file', exportGpxDesc:'Save track to a .gpx file', shareRoute:'Share route', shareRouteDesc:'Send a link or pass it on', sendServer:'Send to GPStrack server', sendServerDesc:'192.168.1.145/gpstrack', tImport:'GPX import — pick a .gpx file', tGpx:'GPX file saved', tShare:'Route link copied', tServer:'Sent to GPStrack server', tSentPre:'Sent “', tSentSuf:'” to server', tSentAll:'All routes synced', tSaved:'Ride saved', tSavedLocal:'Saved locally (offline)', tGoogle:'Signed in with Google' },
+    de: { navRecord:'Aufnahme', navRoutes:'Routen', navStats:'Statistik', navSettings:'Einstell.', tRecord:'Aufnahme', tRoutes:'Meine Routen', tDetail:'Details', tStats:'Statistik', tSettings:'Einstellungen', chipOffline:'OFFLINE', chipQueue:'WARTESCHL.', chipSync:'SYNC', tagline:'Motorrad-Tourenrekorder', googleBtn:'Mit Google anmelden', orLabel:'oder', srvAddr:'Serveradresse', email:'E-Mail', pass:'Passwort', loginBtn:'Anmelden & synchron.', guestBtn:'Ohne Konto fortfahren', guestNote:'Ohne Konto werden Daten lokal auf dem Telefon gespeichert.', gps:'GPS · 12 Sat', speedLbl:'Tempo', timeRide:'Fahrzeit', distance:'Distanz', lean:'Schräglage', altitude:'Höhe', maslUnit:'m ü.M.', fuel:'Sprit', fuelUnitShort:'L ca.', startRide:'Tour starten', pause:'Pause', resume:'Weiter', finish:'Beenden', allRoutes:'Alle Routen', sumKm:'Summe km', queueTag:'WARTE', maxShort:'max', dTime:'Zeit', hms:'h:m:s', avgSpeed:'Ø Tempo', maxTag:'Max', leanShort:'Schrägl.', leanMaxSub:'max', litersUnit:'Liter', chartSpeed:'Tempo / Distanz', chartElev:'Höhenprofil', exportShareBtn:'Export / teilen', sendBtn:'Senden', totalDist:'Gesamtdistanz', timeSaddle:'Zeit im Sattel', rides:'Fahrten', speedRecord:'Höchsttempo', distPerMonth:'Distanz / Monat', styleSummary:'Fahrstil-Übersicht', avgLean:'Ø Schräglage', avgSpeedLabel:'Ø Tempo', totalClimb:'Gesamtanstieg', secAccount:'Konto', guestMode:'Gastmodus', localData:'Daten lokal gespeichert', logout:'Abmelden', login:'Anmelden', secServer:'Server & Sync', offlineMode:'Offline-Modus', offlineDesc:'Nur lokal speichern, nicht senden', autoSync:'Auto-Sync', autoSyncDesc:'Senden bei Netz / WLAN', secQueue:'Sync-Warteschlange', sendAll:'Alle senden', allSynced:'Alles synchronisiert ✓', secPrefs:'Einstellungen', units:'Einheiten', autoPause:'Auto-Pause im Stand', on:'AN', screenOn:'Display anlassen', secApp:'Aussehen & Sprache', language:'Sprache', theme:'Design', themeCockpit:'Cockpit', themeGrid:'Raster', themeLight:'Tag', accentColor:'Akzentfarbe', version:'MotoTracker v1.0 · lokale Daten + GPStrack-Server', unitMetric:'metrisch (km)', unitImperial:'imperial (mi)', exportTitle:'Export & Teilen', exportGpx:'GPX-Datei export.', exportGpxDesc:'Track als .gpx speichern', shareRoute:'Route teilen', shareRouteDesc:'Link senden oder weitergeben', sendServer:'An GPStrack-Server senden', sendServerDesc:'192.168.1.145/gpstrack', tImport:'GPX-Import — .gpx-Datei wählen', tGpx:'GPX-Datei gespeichert', tShare:'Routen-Link kopiert', tServer:'An GPStrack-Server gesendet', tSentPre:'„', tSentSuf:'“ gesendet', tSentAll:'Alle Routen synchronisiert', tSaved:'Tour gespeichert', tSavedLocal:'Lokal gespeichert (offline)', tGoogle:'Mit Google angemeldet' },
+    fr: { navRecord:'Enregistr.', navRoutes:'Trajets', navStats:'Stats', navSettings:'Réglages', tRecord:'Enregistrement', tRoutes:'Mes trajets', tDetail:'Détails', tStats:'Statistiques', tSettings:'Réglages', chipOffline:'HORS LIGNE', chipQueue:'EN ATTENTE', chipSync:'SYNC', tagline:'Enregistreur de trajets moto', googleBtn:'Se connecter avec Google', orLabel:'ou', srvAddr:'Adresse du serveur', email:'E-mail', pass:'Mot de passe', loginBtn:'Se connecter & sync.', guestBtn:'Continuer sans compte', guestNote:'Sans compte, les données sont stockées localement sur le téléphone.', gps:'GPS · 12 sat', speedLbl:'Vitesse', timeRide:'Durée', distance:'Distance', lean:'Inclinaison', altitude:'Altitude', maslUnit:'m alt.', fuel:'Essence', fuelUnitShort:'L est.', startRide:'Démarrer', pause:'Pause', resume:'Reprendre', finish:'Terminer', allRoutes:'Tous les trajets', sumKm:'Total km', queueTag:'ATTENTE', maxShort:'max', dTime:'Durée', hms:'h:m:s', avgSpeed:'Vit. moy.', maxTag:'Max', leanShort:'Inclin.', leanMaxSub:'max', litersUnit:'litres', chartSpeed:'Vitesse / distance', chartElev:'Profil altimétrique', exportShareBtn:'Exporter / partager', sendBtn:'Envoyer', totalDist:'Distance totale', timeSaddle:'Temps en selle', rides:'Trajets', speedRecord:'Vitesse record', distPerMonth:'Distance / mois', styleSummary:'Résumé du style de conduite', avgLean:'Inclinaison moy.', avgSpeedLabel:'Vitesse moy.', totalClimb:'Dénivelé total', secAccount:'Compte', guestMode:'Mode invité', localData:'Données stockées localement', logout:'Déconnexion', login:'Connexion', secServer:'Serveur & sync.', offlineMode:'Mode hors ligne', offlineDesc:'Stocker localement, ne pas envoyer', autoSync:'Sync auto', autoSyncDesc:'Envoyer au retour du réseau / Wi-Fi', secQueue:'File de synchronisation', sendAll:'Tout envoyer', allSynced:'Tout est synchronisé ✓', secPrefs:'Préférences', units:'Unités', autoPause:'Pause auto à l\'arrêt', on:'OUI', screenOn:'Garder l\'écran allumé', secApp:'Apparence & langue', language:'Langue', theme:'Thème', themeCockpit:'Cockpit', themeGrid:'Grille', themeLight:'Jour', accentColor:'Couleur d\'accent', version:'MotoTracker v1.0 · données locales + serveur GPStrack', unitMetric:'métrique (km)', unitImperial:'impérial (mi)', exportTitle:'Exporter & partager', exportGpx:'Exporter fichier GPX', exportGpxDesc:'Enregistrer la trace en .gpx', shareRoute:'Partager le trajet', shareRouteDesc:'Envoyer un lien ou le transmettre', sendServer:'Envoyer au serveur GPStrack', sendServerDesc:'192.168.1.145/gpstrack', tImport:'Import GPX — choisir un .gpx', tGpx:'Fichier GPX enregistré', tShare:'Lien du trajet copié', tServer:'Envoyé au serveur GPStrack', tSentPre:'« ', tSentSuf:' » envoyé au serveur', tSentAll:'Tous les trajets synchronisés', tSaved:'Trajet enregistré', tSavedLocal:'Enregistré localement (hors ligne)', tGoogle:'Connecté avec Google' },
+    cs: { navRecord:'Nahrávat', navRoutes:'Trasy', navStats:'Statistiky', navSettings:'Nastavení', tRecord:'Nahrávání', tRoutes:'Moje trasy', tDetail:'Detaily', tStats:'Statistiky', tSettings:'Nastavení', chipOffline:'OFFLINE', chipQueue:'VE FRONTĚ', chipSync:'SYNC', tagline:'Záznamník motocyklových tras', googleBtn:'Přihlásit přes Google', orLabel:'nebo', srvAddr:'Adresa serveru', email:'E-mail', pass:'Heslo', loginBtn:'Přihlásit a synchron.', guestBtn:'Pokračovat bez účtu', guestNote:'Bez účtu se data ukládají lokálně v telefonu.', gps:'GPS · 12 sat', speedLbl:'Rychlost', timeRide:'Čas jízdy', distance:'Vzdálenost', lean:'Náklon', altitude:'Výška', maslUnit:'m n.m.', fuel:'Palivo', fuelUnitShort:'l odh.', startRide:'Začít trasu', pause:'Pauza', resume:'Pokračovat', finish:'Ukončit', allRoutes:'Všechny trasy', sumKm:'Celkem km', queueTag:'FRONTA', maxShort:'max', dTime:'Čas', hms:'h:m:s', avgSpeed:'Prům. rych.', maxTag:'Max', leanShort:'Náklon', leanMaxSub:'max', litersUnit:'litry', chartSpeed:'Rychlost / vzdálenost', chartElev:'Výškový profil', exportShareBtn:'Export / sdílet', sendBtn:'Odeslat', totalDist:'Celková vzdálenost', timeSaddle:'Čas v sedle', rides:'Jízdy', speedRecord:'Rychlostní rekord', distPerMonth:'Vzdálenost / měsíc', styleSummary:'Shrnutí stylu jízdy', avgLean:'Prům. náklon', avgSpeedLabel:'Prům. rychlost', totalClimb:'Celkové převýšení', secAccount:'Účet', guestMode:'Režim hosta', localData:'Data uložena lokálně', logout:'Odhlásit', login:'Přihlásit', secServer:'Server a synchronizace', offlineMode:'Offline režim', offlineDesc:'Ukládat jen lokálně, neodesílat', autoSync:'Auto-synchronizace', autoSyncDesc:'Odeslat po návratu signálu / Wi-Fi', secQueue:'Fronta synchronizace', sendAll:'Odeslat vše', allSynced:'Vše synchronizováno ✓', secPrefs:'Předvolby', units:'Jednotky', autoPause:'Auto-pauza při zastavení', on:'ZAP', screenOn:'Nechat obrazovku zapnutou', secApp:'Vzhled a jazyk', language:'Jazyk', theme:'Motiv', themeCockpit:'Kokpit', themeGrid:'Mřížka', themeLight:'Den', accentColor:'Barva akcentu', version:'MotoTracker v1.0 · lokální data + server GPStrack', unitMetric:'metrické (km)', unitImperial:'imperiální (mi)', exportTitle:'Export a sdílení', exportGpx:'Exportovat GPX', exportGpxDesc:'Uložit stopu do .gpx', shareRoute:'Sdílet trasu', shareRouteDesc:'Odeslat odkaz nebo předat dál', sendServer:'Odeslat na server GPStrack', sendServerDesc:'192.168.1.145/gpstrack', tImport:'Import GPX — vyberte .gpx', tGpx:'Soubor GPX uložen', tShare:'Odkaz na trasu zkopírován', tServer:'Odesláno na server GPStrack', tSentPre:'„', tSentSuf:'“ odesláno na server', tSentAll:'Všechny trasy synchronizovány', tSaved:'Trasa uložena', tSavedLocal:'Uloženo lokálně (offline)', tGoogle:'Přihlášeno přes Google' },
+    ru: { navRecord:'Запись', navRoutes:'Маршруты', navStats:'Статистика', navSettings:'Настройки', tRecord:'Запись', tRoutes:'Мои маршруты', tDetail:'Детали', tStats:'Статистика', tSettings:'Настройки', chipOffline:'ОФФЛАЙН', chipQueue:'В ОЧЕРЕДИ', chipSync:'СИНХР', tagline:'Регистратор мотомаршрутов', googleBtn:'Войти через Google', orLabel:'или', srvAddr:'Адрес сервера', email:'E-mail', pass:'Пароль', loginBtn:'Войти и синхрон.', guestBtn:'Продолжить без аккаунта', guestNote:'Без аккаунта данные хранятся локально на телефоне.', gps:'GPS · 12 сп', speedLbl:'Скорость', timeRide:'Время', distance:'Дистанция', lean:'Наклон', altitude:'Высота', maslUnit:'м н.у.м.', fuel:'Топливо', fuelUnitShort:'л прим.', startRide:'Начать маршрут', pause:'Пауза', resume:'Продолжить', finish:'Завершить', allRoutes:'Все маршруты', sumKm:'Всего км', queueTag:'ОЧЕРЕДЬ', maxShort:'макс', dTime:'Время', hms:'ч:м:с', avgSpeed:'Ср. скор.', maxTag:'Макс', leanShort:'Наклон', leanMaxSub:'макс', litersUnit:'литры', chartSpeed:'Скорость / дистанция', chartElev:'Профиль высоты', exportShareBtn:'Экспорт / поделиться', sendBtn:'Отправить', totalDist:'Общая дистанция', timeSaddle:'Время в седле', rides:'Поездки', speedRecord:'Рекорд скорости', distPerMonth:'Дистанция / месяц', styleSummary:'Сводка стиля езды', avgLean:'Ср. угол наклона', avgSpeedLabel:'Ср. скорость', totalClimb:'Суммарный подъём', secAccount:'Аккаунт', guestMode:'Гостевой режим', localData:'Данные хранятся локально', logout:'Выйти', login:'Войти', secServer:'Сервер и синхронизация', offlineMode:'Офлайн-режим', offlineDesc:'Хранить только локально, не отправлять', autoSync:'Автосинхронизация', autoSyncDesc:'Отправить при возврате сети / Wi-Fi', secQueue:'Очередь синхронизации', sendAll:'Отправить все', allSynced:'Всё синхронизировано ✓', secPrefs:'Настройки', units:'Единицы', autoPause:'Автопауза на стоянке', on:'ВКЛ', screenOn:'Не гасить экран', secApp:'Оформление и язык', language:'Язык', theme:'Тема', themeCockpit:'Кокпит', themeGrid:'Сетка', themeLight:'День', accentColor:'Цвет акцента', version:'MotoTracker v1.0 · локальные данные + сервер GPStrack', unitMetric:'метрические (км)', unitImperial:'имперские (mi)', exportTitle:'Экспорт и обмен', exportGpx:'Экспорт файла GPX', exportGpxDesc:'Сохранить трек в .gpx', shareRoute:'Поделиться маршрутом', shareRouteDesc:'Отправить ссылку или передать', sendServer:'Отправить на сервер GPStrack', sendServerDesc:'192.168.1.145/gpstrack', tImport:'Импорт GPX — выберите .gpx', tGpx:'Файл GPX сохранён', tShare:'Ссылка на маршрут скопирована', tServer:'Отправлено на сервер GPStrack', tSentPre:'«', tSentSuf:'» отправлено на сервер', tSentAll:'Все маршруты синхронизированы', tSaved:'Маршрут сохранён', tSavedLocal:'Сохранено локально (офлайн)', tGoogle:'Выполнен вход через Google' },
+  };
+
+  state = {
+    screen: 'login',
+    authed: false,
+    provider: null,
+    lang: 'pl',
+    theme: null,
+    accent: null,
+    units: null,
+    offlineOnly: false,
+    gpsCorrect: true,
+    recording: false,
+    paused: false,
+    offline: false,
+    autoSync: true,
+    weather: { temp: 21, hum: 64, rain: false },
+    currentBikeId: 'ten700',
+    bikes: [
+      { id: 'ten700', name: 'Yamaha Ténéré 700', year: 2022, plate: 'KR 7X091', status: 'active' },
+      { id: 'z900', name: 'Kawasaki Z900', year: 2019, plate: 'KR 3M204', status: 'active' },
+      { id: 'r6', name: 'Yamaha YZF-R6', year: 2015, plate: 'KR 9A550', status: 'sold' },
+    ],
+    group: [
+      { name: 'Marek', phone: '+48 601 234 567', bike: 'BMW R1250GS' },
+      { name: 'Ola', phone: '+48 602 887 010', bike: 'Kawasaki Z650' },
+      { name: 'Piotr', phone: '+48 605 400 122', bike: 'Suzuki V-Strom' },
+    ],
+    feed: [
+      { who: 'Marek', bike: 'R1250GS', type: 'start', time: '09:12' },
+      { who: 'Ola', bike: 'Z650', type: 'max', val: '148 km/h', time: '10:03' },
+      { who: 'Piotr', bike: 'V-Strom', type: 'finish', time: '12:40' },
+    ],
+    waves: [
+      { who: 'Tomek', bike: 'KTM 890', at: 'Rabka', time: '11:24' },
+      { who: 'Kasia', bike: 'MT-07', at: 'Nowy Targ', time: '13:08' },
+    ],
+    t: 0, dist: 0, spd: 0, lean: 0, elev: 0, fuel: 0,
+    selId: null,
+    showExport: false,
+    toast: '',
+    routes: [
+      { id: 1, name: 'Przełęcz Knurowska', date: '5 lip 2026', weather: 'Słonecznie 24°', km: 128.4, dur: '2:47:10', avg: 46, max: 132, lean: 41, elev: 1840, fuel: 5.9, synced: true,
+        path: 'M24 168 C 70 150, 60 92, 110 96 C 150 100, 150 150, 196 120 C 250 86, 250 52, 300 40',
+        speed: '0,60 26,42 52,50 78,22 104,40 130,26 156,46 182,16 208,36 234,28 260,44 286,20 312,34 320,30',
+        elevPts: '0,72 40,58 80,62 120,34 160,40 200,20 240,30 280,14 320,26' },
+      { id: 2, name: 'Bieszczady — duża pętla', date: '2 lip 2026', weather: 'Zachmurzenie 19°', km: 214.7, dur: '4:12:33', avg: 51, max: 148, lean: 47, elev: 3120, fuel: 9.8, synced: false,
+        path: 'M30 44 C 80 66, 66 128, 120 126 C 180 124, 190 66, 232 108 C 274 150, 280 168, 300 150',
+        speed: '0,50 26,58 52,30 78,52 104,20 130,44 156,58 182,34 208,50 234,26 260,48 286,22 312,40 320,44',
+        elevPts: '0,60 40,40 80,50 120,18 160,30 200,44 240,22 280,36 320,16' },
+      { id: 3, name: 'Wieczorny objazd', date: '28 cze 2026', weather: 'Deszcz 15°', km: 43.1, dur: '0:58:04', avg: 44, max: 118, lean: 33, elev: 620, fuel: 2.1, synced: false,
+        path: 'M28 150 C 60 120, 110 130, 130 90 C 160 40, 220 60, 296 78',
+        speed: '0,62 30,50 60,58 90,44 120,54 150,40 180,50 210,38 240,52 270,44 300,56 320,50',
+        elevPts: '0,70 45,64 90,66 135,52 180,58 225,48 270,54 320,50' },
+      { id: 4, name: 'Trasa nadmorska', date: '20 cze 2026', weather: 'Wiatr 21°', km: 96.3, dur: '1:52:40', avg: 51, max: 126, lean: 29, elev: 340, fuel: 4.3, synced: true,
+        path: 'M24 118 L 96 116 C 150 114, 150 60, 210 64 C 270 68, 296 120, 300 150',
+        speed: '0,44 26,52 52,48 78,58 104,50 130,56 156,46 182,54 208,60 234,50 260,58 286,52 312,56 320,54',
+        elevPts: '0,64 40,60 80,58 120,54 160,56 200,52 240,54 280,50 320,52' },
+    ],
+    months: [
+      { name: 'Lut', km: 210 }, { name: 'Mar', km: 340 }, { name: 'Kwi', km: 480 },
+      { name: 'Maj', km: 620 }, { name: 'Cze', km: 540 }, { name: 'Lip', km: 386 },
+    ],
+  };
+
+  static T2 = {
+    pl: { navRiders:'Znajomi', secBikes:'Moje motocykle', addBike:'Dodaj motocykl', statusActive:'Aktywny', statusSold:'Sprzedany', currentTag:'AKTUALNY', onBike:'na', secRiders:'Grupa i spotkania', groupTitle:'Grupa znajomych', members:'uczestników', addByPhone:'Dodaj przez numer telefonu', feedTitle:'Na żywo', feedStart:'rozpoczął trasę', feedFinish:'zakończył trasę', feedMax:'prędkość maks.', wavesTitle:'Pomachania (Bluetooth)', waveAt:'przy', noInternet:'Wymaga internetu', worksOffline:'Działa offline (BT)', secBroadcast:'Rozgłaszanie (Bluetooth)', bcIntro:'Co wysyłać riderom przy mijaniu', bcName:'Nazwa / ksywa', bcBike:'Motocykl', bcFrom:'Skąd jadę', bcToday:'Dziś przejechane', bcTotal:'Suma w apce', bcSocial:'Media społecznościowe', bcPhone:'Numer telefonu', secSystem:'System i prywatność', offlineOnly:'Praca bez internetu', offlineOnlyDesc:'Wyłącza pogodę i grupę online', gpsCorrect:'Korekcja GPS do drogi', gpsCorrectDesc:'Prostuje odchyłki pozycji (map-matching)', androidAuto:'Android Auto', androidAutoDesc:'Wyświetlaj na ekranie samochodu', secWeather:'Pogoda', wxTemp:'Temperatura', wxHum:'Wilgotność', wxRain:'Opady', wxRainYes:'Deszcz', wxRainNo:'Bez opadów', wxOffline:'offline', compass:'Kompas', onRoad:'na drodze', meetings:'Spotkania na trasie', meetingsNone:'Brak spotkań', pauseHint:'Pauza także przyciskiem na kierownicy', tAddBike:'Dodaj motocykl — formularz', tAddMember:'Zaproszenie SMS wysłane', tBcSaved:'Zapisano profil rozgłaszania', todMorning:'poranek', todAfternoon:'popołudnie', todEvening:'wieczór', todNight:'noc' },
+    en: { navRiders:'Riders', secBikes:'My motorcycles', addBike:'Add motorcycle', statusActive:'Active', statusSold:'Sold', currentTag:'CURRENT', onBike:'on', secRiders:'Group & meetups', groupTitle:'Riding group', members:'members', addByPhone:'Add by phone number', feedTitle:'Live feed', feedStart:'started a ride', feedFinish:'finished a ride', feedMax:'top speed', wavesTitle:'Waves (Bluetooth)', waveAt:'near', noInternet:'Requires internet', worksOffline:'Works offline (BT)', secBroadcast:'Broadcast (Bluetooth)', bcIntro:'What to send riders you pass', bcName:'Name / handle', bcBike:'Motorcycle', bcFrom:'Riding from', bcToday:'Ridden today', bcTotal:'Total in app', bcSocial:'Social media', bcPhone:'Phone number', secSystem:'System & privacy', offlineOnly:'Work without internet', offlineOnlyDesc:'Disables weather & online group', gpsCorrect:'Snap GPS to road', gpsCorrectDesc:'Fixes position drift (map-matching)', androidAuto:'Android Auto', androidAutoDesc:'Show on the car display', secWeather:'Weather', wxTemp:'Temperature', wxHum:'Humidity', wxRain:'Precipitation', wxRainYes:'Rain', wxRainNo:'No rain', wxOffline:'offline', compass:'Compass', onRoad:'on road', meetings:'Meetups on route', meetingsNone:'No meetups', pauseHint:'Pause also via handlebar button', tAddBike:'Add motorcycle — form', tAddMember:'SMS invite sent', tBcSaved:'Broadcast profile saved', todMorning:'morning', todAfternoon:'afternoon', todEvening:'evening', todNight:'night' },
+    de: { navRiders:'Freunde', secBikes:'Meine Motorräder', addBike:'Motorrad hinzufügen', statusActive:'Aktiv', statusSold:'Verkauft', currentTag:'AKTUELL', onBike:'auf', secRiders:'Gruppe & Treffen', groupTitle:'Fahrgruppe', members:'Mitglieder', addByPhone:'Per Telefonnummer hinzufügen', feedTitle:'Live-Feed', feedStart:'hat gestartet', feedFinish:'hat beendet', feedMax:'Höchsttempo', wavesTitle:'Winken (Bluetooth)', waveAt:'bei', noInternet:'Braucht Internet', worksOffline:'Offline nutzbar (BT)', secBroadcast:'Aussendung (Bluetooth)', bcIntro:'Was an gekreuzte Fahrer senden', bcName:'Name / Kürzel', bcBike:'Motorrad', bcFrom:'Startort', bcToday:'Heute gefahren', bcTotal:'Gesamt in App', bcSocial:'Social Media', bcPhone:'Telefonnummer', secSystem:'System & Datenschutz', offlineOnly:'Ohne Internet arbeiten', offlineOnlyDesc:'Deaktiviert Wetter & Online-Gruppe', gpsCorrect:'GPS auf Straße korrigieren', gpsCorrectDesc:'Korrigiert Abweichungen (Map-Matching)', androidAuto:'Android Auto', androidAutoDesc:'Am Autodisplay anzeigen', secWeather:'Wetter', wxTemp:'Temperatur', wxHum:'Luftfeuchte', wxRain:'Niederschlag', wxRainYes:'Regen', wxRainNo:'Kein Regen', wxOffline:'offline', compass:'Kompass', onRoad:'auf Straße', meetings:'Treffen unterwegs', meetingsNone:'Keine Treffen', pauseHint:'Pause auch per Lenkertaste', tAddBike:'Motorrad hinzufügen — Formular', tAddMember:'SMS-Einladung gesendet', tBcSaved:'Sendeprofil gespeichert', todMorning:'Morgen', todAfternoon:'Nachmittag', todEvening:'Abend', todNight:'Nacht' },
+    fr: { navRiders:'Amis', secBikes:'Mes motos', addBike:'Ajouter une moto', statusActive:'Active', statusSold:'Vendue', currentTag:'ACTUELLE', onBike:'sur', secRiders:'Groupe & rencontres', groupTitle:'Groupe de route', members:'membres', addByPhone:'Ajouter par téléphone', feedTitle:'Fil en direct', feedStart:'a démarré', feedFinish:'a terminé', feedMax:'vitesse max', wavesTitle:'Salutations (Bluetooth)', waveAt:'près de', noInternet:'Nécessite internet', worksOffline:'Marche hors ligne (BT)', secBroadcast:'Diffusion (Bluetooth)', bcIntro:'Ce que tu envoies aux motards croisés', bcName:'Nom / pseudo', bcBike:'Moto', bcFrom:'Départ', bcToday:'Parcouru aujourd’hui', bcTotal:'Total appli', bcSocial:'Réseaux sociaux', bcPhone:'Numéro de tél.', secSystem:'Système & confidentialité', offlineOnly:'Fonctionner sans internet', offlineOnlyDesc:'Désactive météo & groupe en ligne', gpsCorrect:'Corriger le GPS sur la route', gpsCorrectDesc:'Corrige les écarts (map-matching)', androidAuto:'Android Auto', androidAutoDesc:'Afficher sur l’écran voiture', secWeather:'Météo', wxTemp:'Température', wxHum:'Humidité', wxRain:'Précipitations', wxRainYes:'Pluie', wxRainNo:'Pas de pluie', wxOffline:'hors ligne', compass:'Boussole', onRoad:'sur route', meetings:'Rencontres sur le trajet', meetingsNone:'Aucune rencontre', pauseHint:'Pause aussi au bouton guidon', tAddBike:'Ajouter une moto — formulaire', tAddMember:'Invitation SMS envoyée', tBcSaved:'Profil de diffusion enregistré', todMorning:'matin', todAfternoon:'après-midi', todEvening:'soir', todNight:'nuit' },
+    cs: { navRiders:'Přátelé', secBikes:'Moje motorky', addBike:'Přidat motorku', statusActive:'Aktivní', statusSold:'Prodáno', currentTag:'AKTUÁLNÍ', onBike:'na', secRiders:'Skupina a setkání', groupTitle:'Jezdecká skupina', members:'členů', addByPhone:'Přidat přes telefon', feedTitle:'Živě', feedStart:'zahájil trasu', feedFinish:'ukončil trasu', feedMax:'max. rychlost', wavesTitle:'Zamávání (Bluetooth)', waveAt:'u', noInternet:'Vyžaduje internet', worksOffline:'Funguje offline (BT)', secBroadcast:'Vysílání (Bluetooth)', bcIntro:'Co posílat míjeným jezdcům', bcName:'Jméno / přezdívka', bcBike:'Motorka', bcFrom:'Odkud jedu', bcToday:'Dnes ujeto', bcTotal:'Celkem v apce', bcSocial:'Sociální sítě', bcPhone:'Telefon', secSystem:'Systém a soukromí', offlineOnly:'Práce bez internetu', offlineOnlyDesc:'Vypne počasí a online skupinu', gpsCorrect:'Korekce GPS na silnici', gpsCorrectDesc:'Opraví odchylky (map-matching)', androidAuto:'Android Auto', androidAutoDesc:'Zobrazit na displeji auta', secWeather:'Počasí', wxTemp:'Teplota', wxHum:'Vlhkost', wxRain:'Srážky', wxRainYes:'Déšť', wxRainNo:'Bez srážek', wxOffline:'offline', compass:'Kompas', onRoad:'na silnici', meetings:'Setkání na trase', meetingsNone:'Žádná setkání', pauseHint:'Pauza i tlačítkem na řídítkách', tAddBike:'Přidat motorku — formulář', tAddMember:'SMS pozvánka odeslána', tBcSaved:'Profil vysílání uložen', todMorning:'ráno', todAfternoon:'odpoledne', todEvening:'večer', todNight:'noc' },
+    ru: { navRiders:'Друзья', secBikes:'Мои мотоциклы', addBike:'Добавить мотоцикл', statusActive:'Активен', statusSold:'Продан', currentTag:'ТЕКУЩИЙ', onBike:'на', secRiders:'Группа и встречи', groupTitle:'Группа райдеров', members:'участников', addByPhone:'Добавить по номеру', feedTitle:'Лента', feedStart:'начал поездку', feedFinish:'завершил поездку', feedMax:'макс. скорость', wavesTitle:'Приветствия (Bluetooth)', waveAt:'у', noInternet:'Требуется интернет', worksOffline:'Работает офлайн (BT)', secBroadcast:'Трансляция (Bluetooth)', bcIntro:'Что отправлять встречным райдерам', bcName:'Имя / позывной', bcBike:'Мотоцикл', bcFrom:'Откуда еду', bcToday:'Проехал сегодня', bcTotal:'Всего в приложении', bcSocial:'Соцсети', bcPhone:'Телефон', secSystem:'Система и приватность', offlineOnly:'Работа без интернета', offlineOnlyDesc:'Отключает погоду и онлайн-группу', gpsCorrect:'Привязка GPS к дороге', gpsCorrectDesc:'Исправляет отклонения (map-matching)', androidAuto:'Android Auto', androidAutoDesc:'Показать на экране авто', secWeather:'Погода', wxTemp:'Температура', wxHum:'Влажность', wxRain:'Осадки', wxRainYes:'Дождь', wxRainNo:'Без осадков', wxOffline:'офлайн', compass:'Компас', onRoad:'на дороге', meetings:'Встречи на маршруте', meetingsNone:'Нет встреч', pauseHint:'Пауза также кнопкой на руле', tAddBike:'Добавить мотоцикл — форма', tAddMember:'SMS-приглашение отправлено', tBcSaved:'Профиль трансляции сохранён', todMorning:'утро', todAfternoon:'день', todEvening:'вечер', todNight:'ночь' },
+  };
+
+  L() {
+    const base = Component.TRANS[this.state.lang] || Component.TRANS.pl;
+    const ext = Component.T2[this.state.lang] || Component.T2.pl;
+    return { ...base, ...ext };
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.state.recording && !this.state.paused) {
+        this.setState(s => {
+          const t = s.t + 1;
+          const spd = Math.max(0, Math.round(48 + 34 * Math.sin(t / 7) + 10 * Math.sin(t / 2.3)));
+          const dist = s.dist + spd / 3600;
+          const lean = Math.round(Math.abs(38 * Math.sin(t / 5)) + 4);
+          const elev = Math.round(420 + 260 * (0.5 + 0.5 * Math.sin(t / 11)));
+          const fuel = dist * 0.046;
+          const weather = { temp: 18 + Math.round(6 * Math.sin(t / 40)), hum: 55 + Math.round(20 * Math.sin(t / 33)), rain: false };
+          return { t, spd, dist, lean, elev, fuel, weather };
+        });
+      }
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  showToast(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => this.setState({ toast: '' }), 2200);
+  }
+
+  fmtT(sec) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    const p = n => String(n).padStart(2, '0');
+    return h > 0 ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
+  }
+
+  markSynced(id) { this.setState(s => ({ routes: s.routes.map(r => r.id === id ? { ...r, synced: true } : r) })); }
+
+  suggestName() {
+    const L = this.L();
+    const areas = ['Beskid Sądecki', 'Pogórze', 'Dolina Dunajca', 'Jura', 'Gorce', 'Kotlina Kłodzka'];
+    const h = new Date().getHours();
+    const tod = h < 11 ? L.todMorning : h < 16 ? L.todAfternoon : h < 21 ? L.todEvening : L.todNight;
+    const area = areas[Math.floor(Math.random() * areas.length)];
+    return area + ' — ' + tod;
+  }
+
+  stopRecording() {
+    const s = this.state;
+    const wx = s.offlineOnly ? { temp: null, hum: null, rain: false, offline: true } : { temp: s.weather.temp, hum: s.weather.hum, rain: s.weather.rain, offline: false };
+    const newRoute = {
+      id: Date.now(), name: this.suggestName(), date: '7 lip 2026', weather: 'Pochmurno 20°',
+      km: +s.dist.toFixed(1), dur: this.fmtT(s.t), avg: Math.round(s.dist / (s.t / 3600) || 0),
+      max: Math.max(60, s.spd), lean: Math.max(20, s.lean), elev: s.elev || 500, fuel: +s.fuel.toFixed(1),
+      synced: (s.offline || s.offlineOnly) ? false : s.autoSync,
+      bikeId: s.currentBikeId, wx, meetings: [],
+      path: 'M28 150 C 60 120, 110 130, 130 90 C 160 40, 220 60, 296 78',
+      speed: '0,62 30,50 60,58 90,44 120,54 150,40 180,50 210,38 240,52 270,44 300,56 320,50',
+      elevPts: '0,70 45,64 90,66 135,52 180,58 225,48 270,54 320,50',
+    };
+    const offline = s.offline || s.offlineOnly;
+    this.setState(st => ({ recording: false, paused: false, screen: 'detail', selId: newRoute.id, routes: [newRoute, ...st.routes] }));
+    this.showToast(offline ? this.L().tSavedLocal : this.L().tSaved);
+  }
+
+  renderVals() {
+    const st = this.state;
+    const L = this.L();
+    const lang = st.lang || 'pl';
+    const theme = st.theme || this.props.theme || 'cockpit';
+    const units = st.units || this.props.units || 'metric';
+    const mi = units === 'imperial';
+    const kFac = mi ? 0.621371 : 1;
+    const distUnit = mi ? 'mi' : 'km';
+    const spdUnit = mi ? 'mph' : 'km/h';
+
+    const THEMES = {
+      cockpit: { bg:'#0a0b0d', panel:'#14171b', panel2:'#1d2127', line:'rgba(255,255,255,0.08)', text:'#f1f4f3', dim:'#899089', accent2:'#ff5c38', radius:'16px', grid:'none', accent:'#00d1b2' },
+      grid:    { bg:'#0b0f15', panel:'#121924', panel2:'#18212f', line:'rgba(130,170,210,0.14)', text:'#e7eef5', dim:'#7a8a9c', accent2:'#ffb020', radius:'5px', accent:'#12d6c0',
+                 grid:'linear-gradient(rgba(130,170,210,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(130,170,210,0.10) 1px, transparent 1px)' },
+      light:   { bg:'#e9eeec', panel:'#ffffff', panel2:'#eef3f0', line:'rgba(0,0,0,0.10)', text:'#111819', dim:'#5c6660', accent2:'#e2542e', radius:'14px', grid:'none', accent:'#009a89' },
+    };
+    const th = THEMES[theme] || THEMES.cockpit;
+    const accent = st.accent || this.props.accent || th.accent;
+
+    const frameStyle = {
+      '--bg': th.bg, '--panel': th.panel, '--panel2': th.panel2, '--line': th.line,
+      '--text': th.text, '--dim': th.dim, '--accent': accent, '--accent2': th.accent2,
+      '--radius': th.radius, '--grid': th.grid,
+      width: '412px', height: '892px', flex: '0 0 auto',
+      background: 'var(--bg)', color: 'var(--text)',
+      borderRadius: '46px', border: '11px solid #05060700', outline: '11px solid #050607',
+      boxShadow: '0 40px 90px rgba(0,0,0,0.55), inset 0 0 0 2px rgba(255,255,255,0.04)',
+      position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+      fontFamily: "'Barlow', system-ui, sans-serif",
+    };
+
+    const scr = st.screen;
+    const isLogin = scr === 'login';
+    const isRecord = scr === 'record';
+    const isRoutes = scr === 'routes';
+    const isDetail = scr === 'detail';
+    const isStats = scr === 'stats';
+    const isSettings = scr === 'settings';
+    const isRiders = scr === 'riders';
+    const showChrome = !isLogin;
+    const showNav = !isLogin && !isDetail;
+
+    const titleStr = isRecord ? L.tRecord : isRoutes ? L.tRoutes : isDetail ? L.tDetail : isStats ? L.tStats : isRiders ? L.secRiders : isSettings ? L.tSettings : 'MotoTracker';
+
+    const queueList = st.routes.filter(r => !r.synced);
+    const queueCount = queueList.length;
+    const syncOff = st.offline;
+    const syncQueue = !st.offline && queueCount > 0;
+    const syncOk = !st.offline && queueCount === 0;
+
+    const spdDisp = Math.round(st.spd * kFac);
+    const meterStyle = { width: Math.min(100, (spdDisp / (mi ? 100 : 160)) * 100) + '%', height: '100%', borderRadius: '3px', background: 'var(--accent)', transition: 'width .5s ease' };
+    const leanBarStyle = `transform: rotate(${(st.recording ? st.lean : 0)}deg); transition: transform .5s ease;`;
+    const recProgress = Math.min(1, st.t / 90);
+    const recPathStyle = { strokeDasharray: 640, strokeDashoffset: 640 * (1 - (st.recording ? recProgress : 0)), transition: 'stroke-dashoffset 1s linear' };
+
+    const maxScale = mi ? 120 : 180;
+    const frac = Math.min(1, spdDisp / maxScale);
+    const gCx = 125, gR = 100, gA0 = -135, gSW = 270;
+    const polar = (r, ang) => ({ x: gCx + r * Math.sin(ang * Math.PI / 180), y: gCx - r * Math.cos(ang * Math.PI / 180) });
+    const arc = (r, a0, a1) => { const p0 = polar(r, a0), p1 = polar(r, a1); const large = (a1 - a0) > 180 ? 1 : 0; return `M ${p0.x.toFixed(1)} ${p0.y.toFixed(1)} A ${r} ${r} 0 ${large} 1 ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`; };
+    const gaugeTrack = arc(gR, gA0, gA0 + gSW);
+    const gaugeProg = frac > 0.005 ? arc(gR, gA0, gA0 + gSW * frac) : `M ${polar(gR, gA0).x.toFixed(1)} ${polar(gR, gA0).y.toFixed(1)}`;
+    const gaugeColor = frac > 0.82 ? 'var(--accent2)' : 'var(--accent)';
+    const ndp = polar(gR * 0.82, gA0 + gSW * frac);
+    const needleX = ndp.x.toFixed(1), needleY = ndp.y.toFixed(1);
+    const gaugeTicks = [];
+    for (let i = 0; i <= 8; i++) { const ang = gA0 + (gSW / 8) * i; const major = i % 2 === 0; const o = polar(gR - 13, ang); const inr = polar(gR - (major ? 27 : 21), ang); gaugeTicks.push({ x1: o.x.toFixed(1), y1: o.y.toFixed(1), x2: inr.x.toFixed(1), y2: inr.y.toFixed(1), w: major ? 3 : 1.5 }); }
+
+    const RB = { 1: 'ten700', 2: 'ten700', 3: 'z900', 4: 'r6' };
+    const bikeById = (id) => st.bikes.find(b => b.id === id) || {};
+    const routeBikeId = (r) => r.bikeId || RB[r.id] || st.currentBikeId;
+    const routes = st.routes.map(r => {
+      const b = bikeById(routeBikeId(r));
+      return {
+        ...r,
+        distDisp: (r.km * kFac).toFixed(1),
+        maxDisp: Math.round(r.max * kFac),
+        queued: !r.synced,
+        bikeName: b.name || '—',
+        bikeSold: b.status === 'sold',
+        open: () => this.setState({ screen: 'detail', selId: r.id }),
+      };
+    });
+    const routeCount = st.routes.length;
+    const totalKmNum = st.routes.reduce((a, r) => a + r.km, 0);
+    const totalKm = Math.round(totalKmNum * kFac).toLocaleString('pl-PL');
+    const recordSpeed = Math.round(Math.max(...st.routes.map(r => r.max)) * kFac);
+    const totalTime = '11:38';
+
+    const sel = st.routes.find(r => r.id === st.selId) || st.routes[0];
+    const lastX = 320;
+    const selSpeedFill = sel.speed + ` ${lastX},90 0,90`;
+    const selElevFill = sel.elevPts + ` ${lastX},90 0,90`;
+    const nums = sel.path.match(/-?\d+(\.\d+)?/g).map(Number);
+    const selStartX = nums[0], selStartY = nums[1];
+    const selEndX = nums[nums.length - 2], selEndY = nums[nums.length - 1];
+
+    const maxKm = Math.max(...st.months.map(m => m.km));
+    const months = st.months.map(m => ({ name: m.name, km: Math.round(m.km * kFac), barStyle: { height: (18 + (m.km / maxKm) * 82) + '%', transition: 'height .4s ease' } }));
+
+    const authed = st.authed;
+    const guest = !st.authed;
+    const accountInitial = authed ? 'JK' : '?';
+    const accountName = authed ? 'Jan Kowalski' : L.guestMode;
+    const accountSub = authed ? (st.provider === 'google' ? 'Google · jan.kowalski@gmail.com' : 'jan.kowalski@wp.pl') : L.localData;
+
+    const track = (on) => `width: 46px; height: 26px; border-radius: 999px; flex: 0 0 auto; position: relative; transition: background .2s; background: ${on ? 'var(--accent)' : 'var(--panel2)'};`;
+    const knob = (on) => `position: absolute; top: 3px; ${on ? 'left: 23px' : 'left: 3px'}; width: 20px; height: 20px; border-radius: 50%; background: ${on ? '#05100e' : 'var(--dim)'}; transition: left .2s;`;
+
+    const queue = queueList.map(r => ({
+      name: r.name, date: r.date, size: (r.km * 12.4).toFixed(0) + ' KB',
+      send: () => { this.markSynced(r.id); this.showToast(L.tSentPre + r.name + L.tSentSuf); },
+    }));
+    const hasQueue = queueCount > 0 && !st.offline;
+    const queueEmpty = queueCount === 0 || st.offline;
+
+    const unitsLabel = mi ? L.unitImperial : L.unitMetric;
+
+    // weather (live from GPS position) — unavailable in full-offline mode
+    const offlineOnly = st.offlineOnly;
+    const gpsCorrect = st.gpsCorrect;
+    const wx = st.weather;
+    const wxChip = offlineOnly ? L.wxOffline : (wx.temp + '° · ' + wx.hum + '%');
+    const heading = st.recording ? (Math.round(48 + 40 * Math.sin(st.t / 12)) % 360 + 360) % 360 : 47;
+    const CARD = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const cardinal = CARD[Math.round(heading / 45) % 8];
+    const compassStyle = `transform: rotate(${heading}deg); transition: transform .6s ease;`;
+
+    // motorcycles
+    const bikes = st.bikes.map(b => ({
+      ...b,
+      current: b.id === st.currentBikeId,
+      statusLabel: b.status === 'sold' ? L.statusSold : L.statusActive,
+      sold: b.status === 'sold',
+      badgeStyle: b.status === 'sold'
+        ? 'background: color-mix(in srgb, var(--dim) 20%, transparent); color: var(--dim);'
+        : 'background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent);',
+      cardStyle: b.id === st.currentBikeId ? 'border: 1px solid var(--accent);' : 'border: 1px solid var(--line);',
+      select: () => this.setState({ currentBikeId: b.id }),
+    }));
+    const curBike = bikeById(st.currentBikeId);
+    const curBikeName = curBike.name || '—';
+
+    // group + feed + waves
+    const group = st.group.map(g => ({ ...g, init: g.name.slice(0, 1) }));
+    const groupCount = st.group.length;
+    const feedAvailable = !offlineOnly;
+    const feed = st.feed.map(f => ({
+      who: f.who, bike: f.bike, time: f.time, val: f.val || '',
+      text: f.type === 'start' ? L.feedStart : f.type === 'finish' ? L.feedFinish : L.feedMax,
+      isMax: f.type === 'max',
+      dotStyle: f.type === 'finish' ? 'background: var(--dim);' : f.type === 'max' ? 'background: var(--accent2);' : 'background: var(--accent);',
+    }));
+    const waves = st.waves;
+
+    // selected route extras
+    const RW = { 1: { temp: 24, hum: 38, rain: false }, 2: { temp: 19, hum: 72, rain: false }, 3: { temp: 15, hum: 88, rain: true }, 4: { temp: 21, hum: 55, rain: false } };
+    const RM = { 2: [{ who: 'Marek', bike: 'R1250GS', at: 'Rabka', time: '11:24' }], 4: [{ who: 'Ola', bike: 'Z650', at: 'Sopot', time: '15:02' }, { who: 'Piotr', bike: 'V-Strom', at: 'Gdańsk', time: '16:20' }] };
+    const selBike = bikeById(routeBikeId(sel));
+    const selBikeName = selBike.name || '—';
+    const selBikeSold = selBike.status === 'sold';
+    const selWxRaw = sel.wx || RW[sel.id] || { temp: 20, hum: 60, rain: false, offline: false };
+    const selWxOffline = !!selWxRaw.offline;
+    const selWxTemp = selWxOffline ? '—' : (selWxRaw.temp + '°');
+    const selWxHum = selWxOffline ? '—' : (selWxRaw.hum + '%');
+    const selWxRain = selWxOffline ? L.wxOffline : (selWxRaw.rain ? L.wxRainYes : L.wxRainNo);
+    const selMeetingsRaw = sel.meetings && sel.meetings.length ? sel.meetings : (RM[sel.id] || []);
+    const selMeetings = selMeetingsRaw.map(m => ({ ...m, init: m.who.slice(0, 1) }));
+    const selHasMeetings = selMeetings.length > 0;
+    const selNoMeetings = !selHasMeetings;
+
+    // broadcast profile fields
+    const bc = { name: 'Janek', bike: curBikeName, from: 'Kraków', today: (Math.round(st.dist) || 42) + ' km', total: totalKm + ' ' + distUnit, social: 'instagram.com/janek.rides', phone: '+48 600 000 000' };
+
+    // settings controls
+    const chip = (selc, grow) => ({ padding: '8px 13px', borderRadius: '999px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Barlow', sans-serif", whiteSpace: 'nowrap', textAlign: 'center', flex: grow ? '1' : '0 0 auto', border: selc ? '1px solid var(--accent)' : '1px solid var(--line)', background: selc ? 'var(--accent)' : 'var(--panel2)', color: selc ? '#05100e' : 'var(--text)' });
+    const LANGS = [['pl', 'Polski'], ['en', 'English'], ['de', 'Deutsch'], ['fr', 'Français'], ['cs', 'Čeština'], ['ru', 'Русский']];
+    const langOptions = LANGS.map(([code, name]) => ({ name, style: chip(lang === code, false), select: () => this.setState({ lang: code }) }));
+    const themeOptions = [['cockpit', L.themeCockpit], ['grid', L.themeGrid], ['light', L.themeLight]].map(([code, name]) => ({ name, style: chip(theme === code, true), select: () => this.setState({ theme: code }) }));
+    const ACCENTS = ['#00d1b2', '#ff5c38', '#c6ff00', '#3b82f6', '#a855f7', '#ef4444'];
+    const accentOptions = ACCENTS.map(hex => ({ style: { width: '38px', height: '38px', borderRadius: '12px', cursor: 'pointer', background: hex, border: 'none', outline: accent.toLowerCase() === hex ? '2px solid var(--text)' : '2px solid transparent', outlineOffset: '2px' }, select: () => this.setState({ accent: hex }) }));
+
+    return {
+      L, frameStyle,
+      isLogin, isRecord, isRoutes, isDetail, isStats, isSettings, showChrome, showNav,
+      titleStr, distUnit, spdUnit,
+      syncOff, syncQueue, syncOk, queueCount,
+      recording: st.recording, paused: st.paused, idle: !st.recording, running: st.recording && !st.paused,
+      elapsedStr: this.fmtT(st.t),
+      distStr: (st.dist * kFac).toFixed(1),
+      spdStr: String(spdDisp),
+      leanStr: st.recording ? String(st.lean) : '0',
+      elevStr: st.recording ? String(st.elev) : '—',
+      fuelStr: st.recording ? (st.fuel).toFixed(1) : '0.0',
+      meterStyle, leanBarStyle, recPathStyle,
+      gaugeTrack, gaugeProg, gaugeColor, needleX, needleY, gaugeTicks,
+      routes, routeCount, totalKm, recordSpeed, totalTime, months,
+      selName: sel.name, selDate: sel.date, selWeather: sel.weather,
+      selDist: (sel.km * kFac).toFixed(1), selDur: sel.dur,
+      selAvg: Math.round(sel.avg * kFac), selMax: Math.round(sel.max * kFac),
+      selLean: sel.lean, selFuel: sel.fuel.toFixed(1), selElev: sel.elev,
+      selPath: sel.path, selSpeed: sel.speed, selSpeedFill, selElevLine: sel.elevPts, selElevFill,
+      selStartX, selStartY, selEndX, selEndY, selQueued: !sel.synced,
+      authed, guest, accountInitial, accountName, accountSub,
+      offToggleTrack: track(st.offline), offToggleKnob: knob(st.offline),
+      autoToggleTrack: track(st.autoSync), autoToggleKnob: knob(st.autoSync),
+      queue, hasQueue, queueEmpty, unitsLabel,
+      langOptions, themeOptions, accentOptions,
+      isRiders,
+      offlineOnly, gpsCorrect, wxChip, heading, cardinal, compassStyle,
+      offOnlyTrack: track(st.offlineOnly), offOnlyKnob: knob(st.offlineOnly),
+      gpsTrack: track(st.gpsCorrect), gpsKnob: knob(st.gpsCorrect),
+      bikes, curBikeName,
+      group, groupCount, feed, feedAvailable, waves,
+      selBikeName, selBikeSold, selWxTemp, selWxHum, selWxRain, selWxOffline, selMeetings, selHasMeetings, selNoMeetings,
+      bcName: bc.name, bcBikeVal: bc.bike, bcFrom: bc.from, bcToday: bc.today, bcTotal: bc.total, bcSocial: bc.social, bcPhone: bc.phone,
+      showExport: st.showExport, toast: st.toast,
+      navRecord: `color: ${isRecord ? 'var(--accent)' : 'var(--dim)'};`,
+      navRoutes: `color: ${isRoutes ? 'var(--accent)' : 'var(--dim)'};`,
+      navRiders: `color: ${isRiders ? 'var(--accent)' : 'var(--dim)'};`,
+      navStats: `color: ${isStats ? 'var(--accent)' : 'var(--dim)'};`,
+      navSettings: `color: ${isSettings ? 'var(--accent)' : 'var(--dim)'};`,
+      goRiders: () => this.setState({ screen: 'riders' }),
+      toggleOfflineOnly: () => this.setState(s => ({ offlineOnly: !s.offlineOnly })),
+      toggleGps: () => this.setState(s => ({ gpsCorrect: !s.gpsCorrect })),
+      addBike: () => this.showToast(L.tAddBike),
+      addMember: () => this.showToast(L.tAddMember),
+      saveBroadcast: () => this.showToast(L.tBcSaved),
+      doLogin: () => this.setState({ authed: true, provider: 'email', screen: 'record' }),
+      doGoogle: () => { this.setState({ authed: true, provider: 'google', screen: 'record' }); this.showToast(this.L().tGoogle); },
+      skipLogin: () => this.setState({ authed: false, provider: null, screen: 'record' }),
+      goLogin: () => this.setState({ screen: 'login' }),
+      logout: () => this.setState({ authed: false, provider: null }),
+      startRec: () => this.setState({ recording: true, paused: false, t: 0, dist: 0, spd: 0, lean: 0, elev: 420, fuel: 0 }),
+      pauseRec: () => this.setState({ paused: true }),
+      resumeRec: () => this.setState({ paused: false }),
+      stopRec: () => this.stopRecording(),
+      goRecord: () => this.setState({ screen: 'record' }),
+      goRoutes: () => this.setState({ screen: 'routes' }),
+      goStats: () => this.setState({ screen: 'stats' }),
+      goSettings: () => this.setState({ screen: 'settings' }),
+      backToRoutes: () => this.setState({ screen: 'routes' }),
+      toggleOffline: () => this.setState(s => ({ offline: !s.offline })),
+      toggleAuto: () => this.setState(s => ({ autoSync: !s.autoSync })),
+      toggleUnits: () => this.setState(s => ({ units: (s.units || this.props.units || 'metric') === 'metric' ? 'imperial' : 'metric' })),
+      openExport: () => this.setState({ showExport: true }),
+      closeExport: () => this.setState({ showExport: false }),
+      sendAll: () => { this.setState(s => ({ routes: s.routes.map(r => ({ ...r, synced: true })) })); this.showToast(L.tSentAll); },
+      sendSelected: () => { this.markSynced(sel.id); this.showToast(L.tServer); },
+      importGpx: () => this.showToast(L.tImport),
+      toastGpx: () => { this.setState({ showExport: false }); this.showToast(L.tGpx); },
+      toastShare: () => { this.setState({ showExport: false }); this.showToast(L.tShare); },
+      toastServer: () => { this.setState({ showExport: false }); this.markSynced(sel.id); this.showToast(L.tServer); },
+    };
+  }
+}
+</script>
+</body>
+</html>

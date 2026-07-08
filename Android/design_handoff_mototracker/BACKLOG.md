@@ -51,7 +51,7 @@ license new SDK packages), the scaffold MUST target what is installed:
 | #  | Item | Status |
 |----|------|--------|
 | A1 | **Android Studio / Gradle project scaffold**: `settings.gradle.kts`, root + `app/` module `build.gradle.kts`, `gradle/libs.versions.toml` version catalog, Compose + Kotlin, `AndroidManifest.xml`, `MainActivity`, min/target SDK, `.gitignore`, a trivial passing unit test, `./gradlew assembleDebug` + `testDebugUnitTest` green. | ✅ |
-| A2 | **Design system / theme**: Compose `Theme`/`Color`/`Type`/`Shape` encoding the README tokens; the three themes (cockpit/grid/light) + user accent color; Barlow / Barlow Semi Condensed / JetBrains Mono bundled as font resources. | ⬜ |
+| A2 | **Design system / theme**: Compose `Theme`/`Color`/`Type`/`Shape` encoding the README tokens; the three themes (cockpit/grid/light) + user accent color; Barlow / Barlow Semi Condensed / JetBrains Mono bundled as font resources. | ✅ |
 | A3 | **Navigation shell**: bottom nav (Record · Routes · Riders · Stats · Settings), route-detail back stack, top app bar + sync chip, chrome hidden on login/detail per spec. | ⬜ |
 | A4 | **DI + app state container**: dependency injection (Hilt or chosen DI) and the app-level state (`screen`, `authed`, `lang`, `theme`, `accent`, `units`) as unidirectional `StateFlow` UI state. | ⬜ |
 | A5 | **i18n string resources**: `strings.xml` for all 6 languages (pl/en/de/fr/cs/ru), copied from the `TRANS`/`T2` dicts in `MotoTracker.dc.html`; runtime language switch; metric↔imperial unit formatting. | ⬜ |

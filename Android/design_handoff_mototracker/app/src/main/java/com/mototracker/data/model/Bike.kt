@@ -1,0 +1,22 @@
+package com.mototracker.data.model
+
+import com.mototracker.data.local.entity.BikeStatus
+
+/**
+ * Pure domain model representing a motorcycle.
+ *
+ * Free of Room annotations — safe to use in ViewModels and domain logic.
+ *
+ * @param id     UUID string uniquely identifying the bike.
+ * @param name   Display name, e.g. "Yamaha MT-07".
+ * @param year   Model year.
+ * @param plate  Registration plate.
+ * @param status Active or sold lifecycle status.
+ */
+data class Bike(
+    val id: String,
+    val name: String,
+    val year: Int,
+    val plate: String,
+    val status: BikeStatus,
+)

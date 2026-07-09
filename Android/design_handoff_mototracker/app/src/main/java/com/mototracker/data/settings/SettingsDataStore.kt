@@ -26,7 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class SettingsDataStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-) : AppSettingsSource {
+) : WritableSettingsSource {
 
     private object Keys {
         val OFFLINE = booleanPreferencesKey("offline")
@@ -92,7 +92,7 @@ class SettingsDataStore @Inject constructor(
     }
 
     /** Persists the GPStrack server base URL. */
-    suspend fun setServerAddress(address: String) {
+    override suspend fun setServerAddress(address: String) {
         dataStore.edit { it[Keys.SERVER_ADDRESS] = address }
     }
 

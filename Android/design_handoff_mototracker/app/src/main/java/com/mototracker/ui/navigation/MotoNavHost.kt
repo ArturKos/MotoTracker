@@ -14,13 +14,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
-import com.mototracker.ui.screens.LoginScreen
 import com.mototracker.ui.screens.RecordScreen
 import com.mototracker.ui.screens.RidersScreen
 import com.mototracker.ui.screens.RouteDetailScreen
 import com.mototracker.ui.screens.RoutesScreen
 import com.mototracker.ui.screens.SettingsScreen
 import com.mototracker.ui.screens.StatsScreen
+import com.mototracker.ui.screens.login.LoginScreen
 import com.mototracker.ui.theme.MotoTracker
 
 /**
@@ -29,21 +29,25 @@ import com.mototracker.ui.theme.MotoTracker
  * Owns a [rememberNavController], wraps a [Scaffold] whose top bar and bottom bar
  * are conditionally shown based on the current back-stack destination (via the pure
  * [showTopBar] / [showBottomBar] / [showBackArrow] functions), and hosts the
- * [NavHost] with placeholder composables for every destination.
+ * [NavHost] with composables for every destination.
  *
  * The [startDestination] is driven by [authed]: authenticated users start at [MotoDestination.RECORD];
  * unauthenticated / guest users start at [MotoDestination.LOGIN].
  *
- * Sync state is hardcoded to [SyncState.Offline] until the sync feature (A7) is implemented.
+ * Both sign-in callbacks ([onSignIn] and [onContinueAsGuest]) invoke the app-level state update
+ * and then navigate to [MotoDestination.RECORD], popping the login destination from the back stack
+ * so the user cannot navigate back to the login screen via the system Back button.
  *
  * Must be called inside [com.mototracker.ui.theme.MotoTrackerTheme].
  *
- * @param authed          Whether the current session is authenticated. Controls start destination.
- * @param onContinueAsGuest Callback invoked when the user taps "Continue as Guest" on the login screen.
+ * @param authed              Whether the current session is authenticated. Controls start destination.
+ * @param onSignIn            Callback invoked when the user completes sign-in (authed = true).
+ * @param onContinueAsGuest   Callback invoked when the user taps "Continue as Guest" (authed = false).
  */
 @Composable
 fun MotoApp(
     authed: Boolean = false,
+    onSignIn: () -> Unit = {},
     onContinueAsGuest: () -> Unit = {},
 ) {
     val navController = rememberNavController()
@@ -94,7 +98,22 @@ fun MotoApp(
                 .padding(innerPadding),
         ) {
             composable(MotoDestination.LOGIN.route) {
-                LoginScreen(onContinueAsGuest = onContinueAsGuest)
+                LoginScreen(
+                    onSignedIn = {
+                        onSignIn()
+                        navController.navigate(MotoDestination.RECORD.route) {
+                            popUpTo(MotoDestination.LOGIN.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onGuest = {
+                        onContinueAsGuest()
+                        navController.navigate(MotoDestination.RECORD.route) {
+                            popUpTo(MotoDestination.LOGIN.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
             composable(MotoDestination.RECORD.route) { RecordScreen() }
             composable(MotoDestination.ROUTES.route) { RoutesScreen() }

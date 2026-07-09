@@ -10,15 +10,6 @@ import androidx.compose.ui.res.stringResource
 import com.mototracker.R
 import com.mototracker.ui.theme.MotoTracker
 
-/** Placeholder for [com.mototracker.ui.navigation.MotoDestination.LOGIN] — replaced in B1. */
-@Composable
-fun LoginScreen(
-    onContinueAsGuest: () -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
-    PlaceholderContent(title = stringResource(R.string.screen_login), modifier = modifier)
-}
-
 /** Placeholder for [com.mototracker.ui.navigation.MotoDestination.RECORD] — replaced in B2. */
 @Composable
 fun RecordScreen(modifier: Modifier = Modifier) {

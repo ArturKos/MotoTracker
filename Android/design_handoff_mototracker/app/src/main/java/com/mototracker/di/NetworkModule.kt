@@ -10,6 +10,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.SyncRepositoryImpl
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.data.settings.SettingsDataStore
+import com.mototracker.data.settings.WritableSettingsSource
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -52,4 +53,12 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindAppSettingsSource(impl: SettingsDataStore): AppSettingsSource
+
+    /**
+     * Exposes [SettingsDataStore] through [WritableSettingsSource] so the login layer
+     * can persist the server address without depending on DataStore directly.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindWritableSettingsSource(impl: SettingsDataStore): WritableSettingsSource
 }

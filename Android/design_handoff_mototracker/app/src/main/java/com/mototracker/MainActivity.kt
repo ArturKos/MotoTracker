@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 MotoApp(
                     authed = uiState.authed,
+                    onSignIn = appViewModel::signIn,
                     onContinueAsGuest = appViewModel::continueAsGuest,
                 )
             }

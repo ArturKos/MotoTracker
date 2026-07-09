@@ -59,4 +59,31 @@ interface SyncQueueDao {
      */
     @Query("SELECT COUNT(*) FROM sync_queue WHERE state != 'DONE'")
     fun getPendingCount(): Flow<Int>
+
+    /**
+     * Returns the first queue entry for [routeId], or null if none exists.
+     *
+     * Used by the sync repository to update (rather than duplicate) an existing entry
+     * when a route is re-enqueued.
+     *
+     * @param routeId The route UUID to look up.
+     */
+    @Query("SELECT * FROM sync_queue WHERE routeId = :routeId LIMIT 1")
+    suspend fun findByRouteId(routeId: String): SyncQueueEntity?
+
+    /**
+     * Returns a one-shot snapshot of all actionable (non-DONE) queue entries, ordered by
+     * [SyncQueueEntity.nextRetryEpochMs] ascending (nulls first).
+     *
+     * Use this instead of [getPending] when a single synchronous read is needed (e.g. inside
+     * the sync drain loop) to avoid collecting an infinite Flow for a one-shot query.
+     */
+    @Query(
+        """
+        SELECT * FROM sync_queue
+        WHERE state != 'DONE'
+        ORDER BY nextRetryEpochMs ASC
+        """
+    )
+    suspend fun getPendingSnapshot(): List<SyncQueueEntity>
 }

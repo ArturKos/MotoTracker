@@ -26,7 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class SettingsDataStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-) {
+) : AppSettingsSource {
 
     private object Keys {
         val OFFLINE = booleanPreferencesKey("offline")
@@ -44,7 +44,7 @@ class SettingsDataStore @Inject constructor(
     private val defaults = AppSettings()
 
     /** Live stream of the current [AppSettings], emitting on every change. */
-    val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
+    override val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             offline = prefs[Keys.OFFLINE] ?: defaults.offline,
             autoSync = prefs[Keys.AUTO_SYNC] ?: defaults.autoSync,

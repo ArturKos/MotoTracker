@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MotoTracker</string>
+
+    <string name="nav_login">Войти</string>
+    <string name="nav_record">Запись</string>
+    <string name="nav_routes">Маршруты</string>
+    <string name="nav_riders">Друзья</string>
+    <string name="nav_stats">Статистика</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="nav_route_detail">Детали</string>
+
+    <string name="screen_login">Вход</string>
+    <string name="screen_record">Запись</string>
+    <string name="screen_routes">Мои маршруты</string>
+    <string name="screen_riders">Друзья</string>
+    <string name="screen_stats">Статистика</string>
+    <string name="screen_settings">Настройки</string>
+    <string name="screen_route_detail">Детали</string>
+
+    <string name="sync_offline">ОФФЛАЙН</string>
+    <string name="sync_queued">%1$d в очереди</string>
+    <string name="sync_synced">СИНХР ✓</string>
+
+    <string name="action_back">Назад</string>
+
+    <string name="tagline">Регистратор мотомаршрутов</string>
+    <string name="btn_google_sign_in">Войти через Google</string>
+    <string name="label_or">или</string>
+    <string name="label_server_address">Адрес сервера</string>
+    <string name="label_email">E-mail</string>
+    <string name="label_password">Пароль</string>
+    <string name="btn_sign_in_sync">Войти и синхрон.</string>
+    <string name="btn_guest_continue">Продолжить без аккаунта</string>
+    <string name="note_guest_mode">Без аккаунта данные хранятся локально на телефоне.</string>
+
+    <string name="label_gps_status">GPS · 12 сп</string>
+    <string name="tile_speed">Скорость</string>
+    <string name="tile_ride_time">Время</string>
+    <string name="tile_distance">Дистанция</string>
+    <string name="tile_lean">Наклон</string>
+    <string name="tile_altitude">Высота</string>
+    <string name="unit_meters_asl">м н.у.м.</string>
+    <string name="tile_fuel">Топливо</string>
+    <string name="unit_fuel_short">л прим.</string>
+    <string name="btn_start_ride">Начать маршрут</string>
+    <string name="btn_pause">Пауза</string>
+    <string name="btn_resume">Продолжить</string>
+    <string name="btn_finish">Завершить</string>
+
+    <string name="label_all_routes">Все маршруты</string>
+    <string name="label_total_km">Всего км</string>
+    <string name="tag_queue">ОЧЕРЕДЬ</string>
+    <string name="tag_max_short">макс</string>
+
+    <string name="label_time">Время</string>
+    <string name="format_hms">ч:м:с</string>
+    <string name="label_avg_speed">Ср. скор.</string>
+    <string name="tag_max">Макс</string>
+    <string name="label_lean_short">Наклон</string>
+    <string name="label_lean_max_sub">макс</string>
+    <string name="unit_liters">литры</string>
+    <string name="chart_speed_title">Скорость / дистанция</string>
+    <string name="chart_elevation_title">Профиль высоты</string>
+    <string name="btn_export_share">Экспорт / поделиться</string>
+    <string name="btn_send">Отправить</string>
+
+    <string name="stat_total_distance">Общая дистанция</string>
+    <string name="stat_time_saddle">Время в седле</string>
+    <string name="stat_rides">Поездки</string>
+    <string name="stat_speed_record">Рекорд скорости</string>
+    <string name="stat_distance_per_month">Дистанция / месяц</string>
+    <string name="stat_style_summary">Сводка стиля езды</string>
+    <string name="stat_avg_lean">Ср. угол наклона</string>
+    <string name="stat_avg_speed_label">Ср. скорость</string>
+    <string name="stat_total_climb">Суммарный подъём</string>
+
+    <string name="section_account">Аккаунт</string>
+    <string name="label_guest_mode">Гостевой режим</string>
+    <string name="label_local_data">Данные хранятся локально</string>
+    <string name="btn_logout">Выйти</string>
+    <string name="btn_login">Войти</string>
+
+    <string name="section_server">Сервер и синхронизация</string>
+    <string name="label_offline_mode">Офлайн-режим</string>
+    <string name="desc_offline_mode">Хранить только локально, не отправлять</string>
+    <string name="label_auto_sync">Автосинхронизация</string>
+    <string name="desc_auto_sync">Отправить при возврате сети / Wi-Fi</string>
+
+    <string name="section_sync_queue">Очередь синхронизации</string>
+    <string name="btn_send_all">Отправить все</string>
+    <string name="label_all_synced">Всё синхронизировано ✓</string>
+
+    <string name="section_preferences">Настройки</string>
+    <string name="label_units">Единицы</string>
+    <string name="label_auto_pause">Автопауза на стоянке</string>
+    <string name="label_on">ВКЛ</string>
+    <string name="label_screen_on">Не гасить экран</string>
+
+    <string name="section_appearance">Оформление и язык</string>
+    <string name="label_language">Язык</string>
+    <string name="label_theme">Тема</string>
+    <string name="theme_cockpit">Кокпит</string>
+    <string name="theme_grid">Сетка</string>
+    <string name="theme_light">День</string>
+    <string name="label_accent_color">Цвет акцента</string>
+    <string name="label_version_info">MotoTracker v1.0 · локальные данные + сервер GPStrack</string>
+    <string name="unit_metric">метрические (км)</string>
+    <string name="unit_imperial">имперские (mi)</string>
+
+    <string name="title_export">Экспорт и обмен</string>
+    <string name="btn_export_gpx">Экспорт файла GPX</string>
+    <string name="desc_export_gpx">Сохранить трек в .gpx</string>
+    <string name="btn_share_route">Поделиться маршрутом</string>
+    <string name="desc_share_route">Отправить ссылку или передать</string>
+    <string name="btn_send_server">Отправить на сервер GPStrack</string>
+    <string name="desc_send_server">192.168.1.145/gpstrack</string>
+
+    <string name="toast_import">Импорт GPX — выберите .gpx</string>
+    <string name="toast_gpx_saved">Файл GPX сохранён</string>
+    <string name="toast_link_copied">Ссылка на маршрут скопирована</string>
+    <string name="toast_server_sent">Отправлено на сервер GPStrack</string>
+    <string name="toast_sent_pre">«</string>
+    <string name="toast_sent_suf">» отправлено на сервер</string>
+    <string name="toast_all_synced">Все маршруты синхронизированы</string>
+    <string name="toast_ride_saved">Маршрут сохранён</string>
+    <string name="toast_saved_local">Сохранено локально (офлайн)</string>
+    <string name="toast_google_signed_in">Выполнен вход через Google</string>
+
+    <string name="section_bikes">Мои мотоциклы</string>
+    <string name="btn_add_bike">Добавить мотоцикл</string>
+    <string name="status_active">Активен</string>
+    <string name="status_sold">Продан</string>
+    <string name="tag_current">ТЕКУЩИЙ</string>
+    <string name="label_on_bike">на</string>
+
+    <string name="section_riders_group">Группа и встречи</string>
+    <string name="label_group_title">Группа райдеров</string>
+    <string name="label_members">участников</string>
+    <string name="btn_add_by_phone">Добавить по номеру</string>
+
+    <string name="label_feed_title">Лента</string>
+    <string name="label_feed_start">начал поездку</string>
+    <string name="label_feed_finish">завершил поездку</string>
+    <string name="label_feed_max_speed">макс. скорость</string>
+
+    <string name="riders_waves_title">Приветствия (Bluetooth)</string>
+    <string name="label_wave_at">у</string>
+    <string name="label_no_internet">Требуется интернет</string>
+    <string name="label_works_offline">Работает офлайн (BT)</string>
+
+    <string name="section_broadcast">Трансляция (Bluetooth)</string>
+    <string name="label_broadcast_intro">Что отправлять встречным райдерам</string>
+    <string name="label_bc_name">Имя / позывной</string>
+    <string name="label_bc_bike">Мотоцикл</string>
+    <string name="label_bc_from">Откуда еду</string>
+    <string name="label_bc_today">Проехал сегодня</string>
+    <string name="label_bc_total">Всего в приложении</string>
+    <string name="label_bc_social">Соцсети</string>
+    <string name="label_bc_phone">Телефон</string>
+
+    <string name="section_system">Система и приватность</string>
+    <string name="label_offline_only">Работа без интернета</string>
+    <string name="desc_offline_only">Отключает погоду и онлайн-группу</string>
+    <string name="label_gps_correct">Привязка GPS к дороге</string>
+    <string name="desc_gps_correct">Исправляет отклонения (map-matching)</string>
+    <string name="label_android_auto">Android Auto</string>
+    <string name="desc_android_auto">Показать на экране авто</string>
+
+    <string name="section_weather">Погода</string>
+    <string name="label_wx_temp">Температура</string>
+    <string name="label_wx_hum">Влажность</string>
+    <string name="label_wx_rain">Осадки</string>
+    <string name="label_wx_rain_yes">Дождь</string>
+    <string name="label_wx_rain_no">Без осадков</string>
+    <string name="label_wx_offline">офлайн</string>
+
+    <string name="label_compass">Компас</string>
+    <string name="label_on_road">на дороге</string>
+    <string name="label_meetings">Встречи на маршруте</string>
+    <string name="label_meetings_none">Нет встреч</string>
+    <string name="hint_pause_handlebar">Пауза также кнопкой на руле</string>
+
+    <string name="toast_add_bike">Добавить мотоцикл — форма</string>
+    <string name="toast_add_member">SMS-приглашение отправлено</string>
+    <string name="toast_bc_saved">Профиль трансляции сохранён</string>
+
+    <string name="tod_morning">утро</string>
+    <string name="tod_afternoon">день</string>
+    <string name="tod_evening">вечер</string>
+    <string name="tod_night">ночь</string>
+</resources>

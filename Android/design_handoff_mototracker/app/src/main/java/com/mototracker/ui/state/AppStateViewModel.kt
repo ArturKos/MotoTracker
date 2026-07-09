@@ -1,6 +1,7 @@
 package com.mototracker.ui.state
 
 import androidx.lifecycle.ViewModel
+import com.mototracker.core.i18n.LocaleController
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,12 +17,17 @@ import javax.inject.Inject
  * trigger updates only via the named intent methods below. Internal state is
  * never mutated directly from outside this class.
  *
+ * [localeController] is injected to keep this ViewModel testable without an
+ * Android runtime; fakes replace it in unit tests.
+ *
  * NOTE (A6): Persistence is intentionally absent here. Task A6 will replace the
  * in-memory [MutableStateFlow] initialiser with a DataStore-backed source and
  * make intent methods suspend functions that also persist to disk.
  */
 @HiltViewModel
-class AppStateViewModel @Inject constructor() : ViewModel() {
+class AppStateViewModel @Inject constructor(
+    private val localeController: LocaleController,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
 
@@ -58,12 +64,13 @@ class AppStateViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Changes the active UI language.
+     * Changes the active UI language and applies it via [localeController].
      *
      * @param language The [Language] to activate.
      */
     fun setLanguage(language: Language) {
         _uiState.value = _uiState.value.copy(language = language)
+        localeController.applyLanguage(language.tag)
     }
 
     /**

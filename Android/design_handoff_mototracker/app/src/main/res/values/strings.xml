@@ -2,29 +2,217 @@
 <resources>
     <string name="app_name">MotoTracker</string>
 
-    <!-- Bottom navigation tab labels (5 main tabs) -->
+    <!-- Bottom navigation tab labels -->
     <string name="nav_login">Login</string>
     <string name="nav_record">Record</string>
     <string name="nav_routes">Routes</string>
     <string name="nav_riders">Riders</string>
     <string name="nav_stats">Stats</string>
     <string name="nav_settings">Settings</string>
-    <string name="nav_route_detail">Route Detail</string>
+    <string name="nav_route_detail">Details</string>
 
-    <!-- Top bar screen titles (7 destinations) -->
+    <!-- Top bar screen titles -->
     <string name="screen_login">Login</string>
     <string name="screen_record">Recording</string>
-    <string name="screen_routes">Routes</string>
+    <string name="screen_routes">My routes</string>
     <string name="screen_riders">Riders</string>
-    <string name="screen_stats">Stats</string>
+    <string name="screen_stats">Statistics</string>
     <string name="screen_settings">Settings</string>
-    <string name="screen_route_detail">Route Detail</string>
+    <string name="screen_route_detail">Details</string>
 
-    <!-- Sync chip states (top app bar) -->
+    <!-- Sync chip states -->
     <string name="sync_offline">OFFLINE</string>
     <string name="sync_queued">%1$d in queue</string>
     <string name="sync_synced">SYNC ✓</string>
 
     <!-- Accessibility / action labels -->
     <string name="action_back">Back</string>
+
+    <!-- Login screen -->
+    <string name="tagline">Motorcycle ride logger</string>
+    <string name="btn_google_sign_in">Sign in with Google</string>
+    <string name="label_or">or</string>
+    <string name="label_server_address">Server address</string>
+    <string name="label_email">E-mail</string>
+    <string name="label_password">Password</string>
+    <string name="btn_sign_in_sync">Sign in &amp; sync</string>
+    <string name="btn_guest_continue">Continue without account</string>
+    <string name="note_guest_mode">Without an account data is stored locally on the phone.</string>
+
+    <!-- Recording screen -->
+    <string name="label_gps_status">GPS · 12 sat</string>
+    <string name="tile_speed">Speed</string>
+    <string name="tile_ride_time">Ride time</string>
+    <string name="tile_distance">Distance</string>
+    <string name="tile_lean">Lean</string>
+    <string name="tile_altitude">Altitude</string>
+    <string name="unit_meters_asl">m ASL</string>
+    <string name="tile_fuel">Fuel</string>
+    <string name="unit_fuel_short">L est.</string>
+    <string name="btn_start_ride">Start ride</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_resume">Resume</string>
+    <string name="btn_finish">Finish</string>
+
+    <!-- Routes list -->
+    <string name="label_all_routes">All routes</string>
+    <string name="label_total_km">Total km</string>
+    <string name="tag_queue">QUEUE</string>
+    <string name="tag_max_short">max</string>
+
+    <!-- Route detail -->
+    <string name="label_time">Time</string>
+    <string name="format_hms">h:m:s</string>
+    <string name="label_avg_speed">Avg spd</string>
+    <string name="tag_max">Max</string>
+    <string name="label_lean_short">Lean</string>
+    <string name="label_lean_max_sub">max</string>
+    <string name="unit_liters">liters</string>
+    <string name="chart_speed_title">Speed / distance</string>
+    <string name="chart_elevation_title">Elevation profile</string>
+    <string name="btn_export_share">Export / share</string>
+    <string name="btn_send">Send</string>
+
+    <!-- Stats screen -->
+    <string name="stat_total_distance">Total distance</string>
+    <string name="stat_time_saddle">Time in saddle</string>
+    <string name="stat_rides">Rides</string>
+    <string name="stat_speed_record">Top speed</string>
+    <string name="stat_distance_per_month">Distance / month</string>
+    <string name="stat_style_summary">Riding style summary</string>
+    <string name="stat_avg_lean">Avg lean angle</string>
+    <string name="stat_avg_speed_label">Avg speed</string>
+    <string name="stat_total_climb">Total ascent</string>
+
+    <!-- Settings — account section -->
+    <string name="section_account">Account</string>
+    <string name="label_guest_mode">Guest mode</string>
+    <string name="label_local_data">Data stored locally</string>
+    <string name="btn_logout">Log out</string>
+    <string name="btn_login">Sign in</string>
+
+    <!-- Settings — server section -->
+    <string name="section_server">Server &amp; sync</string>
+    <string name="label_offline_mode">Offline mode</string>
+    <string name="desc_offline_mode">Store locally only, don\'t upload</string>
+    <string name="label_auto_sync">Auto-sync</string>
+    <string name="desc_auto_sync">Upload when back in range / Wi-Fi</string>
+
+    <!-- Settings — sync queue section -->
+    <string name="section_sync_queue">Sync queue</string>
+    <string name="btn_send_all">Send all</string>
+    <string name="label_all_synced">Everything synced ✓</string>
+
+    <!-- Settings — preferences section -->
+    <string name="section_preferences">Preferences</string>
+    <string name="label_units">Units</string>
+    <string name="label_auto_pause">Auto-pause when stopped</string>
+    <string name="label_on">ON</string>
+    <string name="label_screen_on">Keep screen on</string>
+
+    <!-- Settings — appearance section -->
+    <string name="section_appearance">Appearance &amp; language</string>
+    <string name="label_language">Language</string>
+    <string name="label_theme">Theme</string>
+    <string name="theme_cockpit">Cockpit</string>
+    <string name="theme_grid">Grid</string>
+    <string name="theme_light">Day</string>
+    <string name="label_accent_color">Accent color</string>
+    <string name="label_version_info">MotoTracker v1.0 · local data + GPStrack server</string>
+    <string name="unit_metric">metric (km)</string>
+    <string name="unit_imperial">imperial (mi)</string>
+
+    <!-- Export sheet -->
+    <string name="title_export">Export &amp; share</string>
+    <string name="btn_export_gpx">Export GPX file</string>
+    <string name="desc_export_gpx">Save track to a .gpx file</string>
+    <string name="btn_share_route">Share route</string>
+    <string name="desc_share_route">Send a link or pass it on</string>
+    <string name="btn_send_server">Send to GPStrack server</string>
+    <string name="desc_send_server">192.168.1.145/gpstrack</string>
+
+    <!-- Toast messages -->
+    <string name="toast_import">GPX import — pick a .gpx file</string>
+    <string name="toast_gpx_saved">GPX file saved</string>
+    <string name="toast_link_copied">Route link copied</string>
+    <string name="toast_server_sent">Sent to GPStrack server</string>
+    <string name="toast_sent_pre">Sent "</string>
+    <string name="toast_sent_suf">" to server</string>
+    <string name="toast_all_synced">All routes synced</string>
+    <string name="toast_ride_saved">Ride saved</string>
+    <string name="toast_saved_local">Saved locally (offline)</string>
+    <string name="toast_google_signed_in">Signed in with Google</string>
+
+    <!-- Riders screen — bikes section -->
+    <string name="section_bikes">My motorcycles</string>
+    <string name="btn_add_bike">Add motorcycle</string>
+    <string name="status_active">Active</string>
+    <string name="status_sold">Sold</string>
+    <string name="tag_current">CURRENT</string>
+    <string name="label_on_bike">on</string>
+
+    <!-- Riders screen — group section -->
+    <string name="section_riders_group">Group &amp; meetups</string>
+    <string name="label_group_title">Riding group</string>
+    <string name="label_members">members</string>
+    <string name="btn_add_by_phone">Add by phone number</string>
+
+    <!-- Riders screen — live feed -->
+    <string name="label_feed_title">Live feed</string>
+    <string name="label_feed_start">started a ride</string>
+    <string name="label_feed_finish">finished a ride</string>
+    <string name="label_feed_max_speed">top speed</string>
+
+    <!-- Riders screen — waves -->
+    <string name="riders_waves_title">Waves (Bluetooth)</string>
+    <string name="label_wave_at">near</string>
+    <string name="label_no_internet">Requires internet</string>
+    <string name="label_works_offline">Works offline (BT)</string>
+
+    <!-- Riders screen — broadcast section -->
+    <string name="section_broadcast">Broadcast (Bluetooth)</string>
+    <string name="label_broadcast_intro">What to send riders you pass</string>
+    <string name="label_bc_name">Name / handle</string>
+    <string name="label_bc_bike">Motorcycle</string>
+    <string name="label_bc_from">Riding from</string>
+    <string name="label_bc_today">Ridden today</string>
+    <string name="label_bc_total">Total in app</string>
+    <string name="label_bc_social">Social media</string>
+    <string name="label_bc_phone">Phone number</string>
+
+    <!-- Settings — system section -->
+    <string name="section_system">System &amp; privacy</string>
+    <string name="label_offline_only">Work without internet</string>
+    <string name="desc_offline_only">Disables weather &amp; online group</string>
+    <string name="label_gps_correct">Snap GPS to road</string>
+    <string name="desc_gps_correct">Fixes position drift (map-matching)</string>
+    <string name="label_android_auto">Android Auto</string>
+    <string name="desc_android_auto">Show on the car display</string>
+
+    <!-- Weather widget -->
+    <string name="section_weather">Weather</string>
+    <string name="label_wx_temp">Temperature</string>
+    <string name="label_wx_hum">Humidity</string>
+    <string name="label_wx_rain">Precipitation</string>
+    <string name="label_wx_rain_yes">Rain</string>
+    <string name="label_wx_rain_no">No rain</string>
+    <string name="label_wx_offline">offline</string>
+
+    <!-- Misc -->
+    <string name="label_compass">Compass</string>
+    <string name="label_on_road">on road</string>
+    <string name="label_meetings">Meetups on route</string>
+    <string name="label_meetings_none">No meetups</string>
+    <string name="hint_pause_handlebar">Pause also via handlebar button</string>
+
+    <!-- Riders toast messages -->
+    <string name="toast_add_bike">Add motorcycle — form</string>
+    <string name="toast_add_member">SMS invite sent</string>
+    <string name="toast_bc_saved">Broadcast profile saved</string>
+
+    <!-- Time of day -->
+    <string name="tod_morning">morning</string>
+    <string name="tod_afternoon">afternoon</string>
+    <string name="tod_evening">evening</string>
+    <string name="tod_night">night</string>
 </resources>

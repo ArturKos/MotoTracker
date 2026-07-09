@@ -1,6 +1,7 @@
 package com.mototracker.ui.state
 
 import app.cash.turbine.test
+import com.mototracker.core.i18n.LocaleController
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
 import kotlinx.coroutines.test.runTest
@@ -10,13 +11,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+/** Records every [applyLanguage] call for assertion in tests. */
+private class FakeLocaleController : LocaleController {
+    val appliedTags = mutableListOf<String>()
+    override fun applyLanguage(tag: String) {
+        appliedTags += tag
+    }
+}
+
 class AppStateViewModelTest {
 
+    private lateinit var fakeLocale: FakeLocaleController
     private lateinit var viewModel: AppStateViewModel
 
     @Before
     fun setUp() {
-        viewModel = AppStateViewModel()
+        fakeLocale = FakeLocaleController()
+        viewModel = AppStateViewModel(fakeLocale)
     }
 
     @Test
@@ -65,12 +76,43 @@ class AppStateViewModelTest {
     }
 
     @Test
+    fun `setLanguage updates state and invokes LocaleController with correct tag`() = runTest {
+        viewModel.uiState.test {
+            awaitItem() // initial
+            viewModel.setLanguage(Language.DE)
+            val state = awaitItem()
+            assertEquals(Language.DE, state.language)
+            assertEquals(listOf("de"), fakeLocale.appliedTags)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `setLanguage mutates only language field`() = runTest {
         val before = viewModel.uiState.value
         viewModel.setLanguage(Language.DE)
         val after = viewModel.uiState.value
         assertEquals(Language.DE, after.language)
         assertEquals(before.copy(language = Language.DE), after)
+    }
+
+    @Test
+    fun `setLanguage calls LocaleController for every Language value`() {
+        Language.entries.forEach { lang ->
+            fakeLocale.appliedTags.clear()
+            viewModel.setLanguage(lang)
+            assertEquals(listOf(lang.tag), fakeLocale.appliedTags)
+        }
+    }
+
+    @Test
+    fun `Language tag values match BCP-47`() {
+        assertEquals("pl", Language.PL.tag)
+        assertEquals("en", Language.EN.tag)
+        assertEquals("de", Language.DE.tag)
+        assertEquals("fr", Language.FR.tag)
+        assertEquals("cs", Language.CS.tag)
+        assertEquals("ru", Language.RU.tag)
     }
 
     @Test

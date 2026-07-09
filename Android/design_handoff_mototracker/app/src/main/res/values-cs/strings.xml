@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MotoTracker</string>
+
+    <string name="nav_login">Přihlásit</string>
+    <string name="nav_record">Nahrávat</string>
+    <string name="nav_routes">Trasy</string>
+    <string name="nav_riders">Přátelé</string>
+    <string name="nav_stats">Statistiky</string>
+    <string name="nav_settings">Nastavení</string>
+    <string name="nav_route_detail">Detaily</string>
+
+    <string name="screen_login">Přihlášení</string>
+    <string name="screen_record">Nahrávání</string>
+    <string name="screen_routes">Moje trasy</string>
+    <string name="screen_riders">Přátelé</string>
+    <string name="screen_stats">Statistiky</string>
+    <string name="screen_settings">Nastavení</string>
+    <string name="screen_route_detail">Detaily</string>
+
+    <string name="sync_offline">OFFLINE</string>
+    <string name="sync_queued">%1$d ve frontě</string>
+    <string name="sync_synced">SYNC ✓</string>
+
+    <string name="action_back">Zpět</string>
+
+    <string name="tagline">Záznamník motocyklových tras</string>
+    <string name="btn_google_sign_in">Přihlásit přes Google</string>
+    <string name="label_or">nebo</string>
+    <string name="label_server_address">Adresa serveru</string>
+    <string name="label_email">E-mail</string>
+    <string name="label_password">Heslo</string>
+    <string name="btn_sign_in_sync">Přihlásit a synchron.</string>
+    <string name="btn_guest_continue">Pokračovat bez účtu</string>
+    <string name="note_guest_mode">Bez účtu se data ukládají lokálně v telefonu.</string>
+
+    <string name="label_gps_status">GPS · 12 sat</string>
+    <string name="tile_speed">Rychlost</string>
+    <string name="tile_ride_time">Čas jízdy</string>
+    <string name="tile_distance">Vzdálenost</string>
+    <string name="tile_lean">Náklon</string>
+    <string name="tile_altitude">Výška</string>
+    <string name="unit_meters_asl">m n.m.</string>
+    <string name="tile_fuel">Palivo</string>
+    <string name="unit_fuel_short">l odh.</string>
+    <string name="btn_start_ride">Začít trasu</string>
+    <string name="btn_pause">Pauza</string>
+    <string name="btn_resume">Pokračovat</string>
+    <string name="btn_finish">Ukončit</string>
+
+    <string name="label_all_routes">Všechny trasy</string>
+    <string name="label_total_km">Celkem km</string>
+    <string name="tag_queue">FRONTA</string>
+    <string name="tag_max_short">max</string>
+
+    <string name="label_time">Čas</string>
+    <string name="format_hms">h:m:s</string>
+    <string name="label_avg_speed">Prům. rych.</string>
+    <string name="tag_max">Max</string>
+    <string name="label_lean_short">Náklon</string>
+    <string name="label_lean_max_sub">max</string>
+    <string name="unit_liters">litry</string>
+    <string name="chart_speed_title">Rychlost / vzdálenost</string>
+    <string name="chart_elevation_title">Výškový profil</string>
+    <string name="btn_export_share">Export / sdílet</string>
+    <string name="btn_send">Odeslat</string>
+
+    <string name="stat_total_distance">Celková vzdálenost</string>
+    <string name="stat_time_saddle">Čas v sedle</string>
+    <string name="stat_rides">Jízdy</string>
+    <string name="stat_speed_record">Rychlostní rekord</string>
+    <string name="stat_distance_per_month">Vzdálenost / měsíc</string>
+    <string name="stat_style_summary">Shrnutí stylu jízdy</string>
+    <string name="stat_avg_lean">Prům. náklon</string>
+    <string name="stat_avg_speed_label">Prům. rychlost</string>
+    <string name="stat_total_climb">Celkové převýšení</string>
+
+    <string name="section_account">Účet</string>
+    <string name="label_guest_mode">Režim hosta</string>
+    <string name="label_local_data">Data uložena lokálně</string>
+    <string name="btn_logout">Odhlásit</string>
+    <string name="btn_login">Přihlásit</string>
+
+    <string name="section_server">Server a synchronizace</string>
+    <string name="label_offline_mode">Offline režim</string>
+    <string name="desc_offline_mode">Ukládat jen lokálně, neodesílat</string>
+    <string name="label_auto_sync">Auto-synchronizace</string>
+    <string name="desc_auto_sync">Odeslat po návratu signálu / Wi-Fi</string>
+
+    <string name="section_sync_queue">Fronta synchronizace</string>
+    <string name="btn_send_all">Odeslat vše</string>
+    <string name="label_all_synced">Vše synchronizováno ✓</string>
+
+    <string name="section_preferences">Předvolby</string>
+    <string name="label_units">Jednotky</string>
+    <string name="label_auto_pause">Auto-pauza při zastavení</string>
+    <string name="label_on">ZAP</string>
+    <string name="label_screen_on">Nechat obrazovku zapnutou</string>
+
+    <string name="section_appearance">Vzhled a jazyk</string>
+    <string name="label_language">Jazyk</string>
+    <string name="label_theme">Motiv</string>
+    <string name="theme_cockpit">Kokpit</string>
+    <string name="theme_grid">Mřížka</string>
+    <string name="theme_light">Den</string>
+    <string name="label_accent_color">Barva akcentu</string>
+    <string name="label_version_info">MotoTracker v1.0 · lokální data + server GPStrack</string>
+    <string name="unit_metric">metrické (km)</string>
+    <string name="unit_imperial">imperiální (mi)</string>
+
+    <string name="title_export">Export a sdílení</string>
+    <string name="btn_export_gpx">Exportovat GPX</string>
+    <string name="desc_export_gpx">Uložit stopu do .gpx</string>
+    <string name="btn_share_route">Sdílet trasu</string>
+    <string name="desc_share_route">Odeslat odkaz nebo předat dál</string>
+    <string name="btn_send_server">Odeslat na server GPStrack</string>
+    <string name="desc_send_server">192.168.1.145/gpstrack</string>
+
+    <string name="toast_import">Import GPX — vyberte .gpx</string>
+    <string name="toast_gpx_saved">Soubor GPX uložen</string>
+    <string name="toast_link_copied">Odkaz na trasu zkopírován</string>
+    <string name="toast_server_sent">Odesláno na server GPStrack</string>
+    <string name="toast_sent_pre">„</string>
+    <string name="toast_sent_suf">" odesláno na server</string>
+    <string name="toast_all_synced">Všechny trasy synchronizovány</string>
+    <string name="toast_ride_saved">Trasa uložena</string>
+    <string name="toast_saved_local">Uloženo lokálně (offline)</string>
+    <string name="toast_google_signed_in">Přihlášeno přes Google</string>
+
+    <string name="section_bikes">Moje motorky</string>
+    <string name="btn_add_bike">Přidat motorku</string>
+    <string name="status_active">Aktivní</string>
+    <string name="status_sold">Prodáno</string>
+    <string name="tag_current">AKTUÁLNÍ</string>
+    <string name="label_on_bike">na</string>
+
+    <string name="section_riders_group">Skupina a setkání</string>
+    <string name="label_group_title">Jezdecká skupina</string>
+    <string name="label_members">členů</string>
+    <string name="btn_add_by_phone">Přidat přes telefon</string>
+
+    <string name="label_feed_title">Živě</string>
+    <string name="label_feed_start">zahájil trasu</string>
+    <string name="label_feed_finish">ukončil trasu</string>
+    <string name="label_feed_max_speed">max. rychlost</string>
+
+    <string name="riders_waves_title">Zamávání (Bluetooth)</string>
+    <string name="label_wave_at">u</string>
+    <string name="label_no_internet">Vyžaduje internet</string>
+    <string name="label_works_offline">Funguje offline (BT)</string>
+
+    <string name="section_broadcast">Vysílání (Bluetooth)</string>
+    <string name="label_broadcast_intro">Co posílat míjeným jezdcům</string>
+    <string name="label_bc_name">Jméno / přezdívka</string>
+    <string name="label_bc_bike">Motorka</string>
+    <string name="label_bc_from">Odkud jedu</string>
+    <string name="label_bc_today">Dnes ujeto</string>
+    <string name="label_bc_total">Celkem v apce</string>
+    <string name="label_bc_social">Sociální sítě</string>
+    <string name="label_bc_phone">Telefon</string>
+
+    <string name="section_system">Systém a soukromí</string>
+    <string name="label_offline_only">Práce bez internetu</string>
+    <string name="desc_offline_only">Vypne počasí a online skupinu</string>
+    <string name="label_gps_correct">Korekce GPS na silnici</string>
+    <string name="desc_gps_correct">Opraví odchylky (map-matching)</string>
+    <string name="label_android_auto">Android Auto</string>
+    <string name="desc_android_auto">Zobrazit na displeji auta</string>
+
+    <string name="section_weather">Počasí</string>
+    <string name="label_wx_temp">Teplota</string>
+    <string name="label_wx_hum">Vlhkost</string>
+    <string name="label_wx_rain">Srážky</string>
+    <string name="label_wx_rain_yes">Déšť</string>
+    <string name="label_wx_rain_no">Bez srážek</string>
+    <string name="label_wx_offline">offline</string>
+
+    <string name="label_compass">Kompas</string>
+    <string name="label_on_road">na silnici</string>
+    <string name="label_meetings">Setkání na trase</string>
+    <string name="label_meetings_none">Žádná setkání</string>
+    <string name="hint_pause_handlebar">Pauza i tlačítkem na řídítkách</string>
+
+    <string name="toast_add_bike">Přidat motorku — formulář</string>
+    <string name="toast_add_member">SMS pozvánka odeslána</string>
+    <string name="toast_bc_saved">Profil vysílání uložen</string>
+
+    <string name="tod_morning">ráno</string>
+    <string name="tod_afternoon">odpoledne</string>
+    <string name="tod_evening">večer</string>
+    <string name="tod_night">noc</string>
+</resources>

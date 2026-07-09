@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MotoTracker</string>
+
+    <string name="nav_login">Connexion</string>
+    <string name="nav_record">Enregistr.</string>
+    <string name="nav_routes">Trajets</string>
+    <string name="nav_riders">Amis</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_settings">Réglages</string>
+    <string name="nav_route_detail">Détails</string>
+
+    <string name="screen_login">Connexion</string>
+    <string name="screen_record">Enregistrement</string>
+    <string name="screen_routes">Mes trajets</string>
+    <string name="screen_riders">Amis</string>
+    <string name="screen_stats">Statistiques</string>
+    <string name="screen_settings">Réglages</string>
+    <string name="screen_route_detail">Détails</string>
+
+    <string name="sync_offline">HORS LIGNE</string>
+    <string name="sync_queued">%1$d en attente</string>
+    <string name="sync_synced">SYNC ✓</string>
+
+    <string name="action_back">Retour</string>
+
+    <string name="tagline">Enregistreur de trajets moto</string>
+    <string name="btn_google_sign_in">Se connecter avec Google</string>
+    <string name="label_or">ou</string>
+    <string name="label_server_address">Adresse du serveur</string>
+    <string name="label_email">E-mail</string>
+    <string name="label_password">Mot de passe</string>
+    <string name="btn_sign_in_sync">Se connecter &amp; sync.</string>
+    <string name="btn_guest_continue">Continuer sans compte</string>
+    <string name="note_guest_mode">Sans compte, les données sont stockées localement sur le téléphone.</string>
+
+    <string name="label_gps_status">GPS · 12 sat</string>
+    <string name="tile_speed">Vitesse</string>
+    <string name="tile_ride_time">Durée</string>
+    <string name="tile_distance">Distance</string>
+    <string name="tile_lean">Inclinaison</string>
+    <string name="tile_altitude">Altitude</string>
+    <string name="unit_meters_asl">m alt.</string>
+    <string name="tile_fuel">Essence</string>
+    <string name="unit_fuel_short">L est.</string>
+    <string name="btn_start_ride">Démarrer</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_resume">Reprendre</string>
+    <string name="btn_finish">Terminer</string>
+
+    <string name="label_all_routes">Tous les trajets</string>
+    <string name="label_total_km">Total km</string>
+    <string name="tag_queue">ATTENTE</string>
+    <string name="tag_max_short">max</string>
+
+    <string name="label_time">Durée</string>
+    <string name="format_hms">h:m:s</string>
+    <string name="label_avg_speed">Vit. moy.</string>
+    <string name="tag_max">Max</string>
+    <string name="label_lean_short">Inclin.</string>
+    <string name="label_lean_max_sub">max</string>
+    <string name="unit_liters">litres</string>
+    <string name="chart_speed_title">Vitesse / distance</string>
+    <string name="chart_elevation_title">Profil altimétrique</string>
+    <string name="btn_export_share">Exporter / partager</string>
+    <string name="btn_send">Envoyer</string>
+
+    <string name="stat_total_distance">Distance totale</string>
+    <string name="stat_time_saddle">Temps en selle</string>
+    <string name="stat_rides">Trajets</string>
+    <string name="stat_speed_record">Vitesse record</string>
+    <string name="stat_distance_per_month">Distance / mois</string>
+    <string name="stat_style_summary">Résumé du style de conduite</string>
+    <string name="stat_avg_lean">Inclinaison moy.</string>
+    <string name="stat_avg_speed_label">Vitesse moy.</string>
+    <string name="stat_total_climb">Dénivelé total</string>
+
+    <string name="section_account">Compte</string>
+    <string name="label_guest_mode">Mode invité</string>
+    <string name="label_local_data">Données stockées localement</string>
+    <string name="btn_logout">Déconnexion</string>
+    <string name="btn_login">Connexion</string>
+
+    <string name="section_server">Serveur &amp; sync.</string>
+    <string name="label_offline_mode">Mode hors ligne</string>
+    <string name="desc_offline_mode">Stocker localement, ne pas envoyer</string>
+    <string name="label_auto_sync">Sync auto</string>
+    <string name="desc_auto_sync">Envoyer au retour du réseau / Wi-Fi</string>
+
+    <string name="section_sync_queue">File de synchronisation</string>
+    <string name="btn_send_all">Tout envoyer</string>
+    <string name="label_all_synced">Tout est synchronisé ✓</string>
+
+    <string name="section_preferences">Préférences</string>
+    <string name="label_units">Unités</string>
+    <string name="label_auto_pause">Pause auto à l\'arrêt</string>
+    <string name="label_on">OUI</string>
+    <string name="label_screen_on">Garder l\'écran allumé</string>
+
+    <string name="section_appearance">Apparence &amp; langue</string>
+    <string name="label_language">Langue</string>
+    <string name="label_theme">Thème</string>
+    <string name="theme_cockpit">Cockpit</string>
+    <string name="theme_grid">Grille</string>
+    <string name="theme_light">Jour</string>
+    <string name="label_accent_color">Couleur d\'accent</string>
+    <string name="label_version_info">MotoTracker v1.0 · données locales + serveur GPStrack</string>
+    <string name="unit_metric">métrique (km)</string>
+    <string name="unit_imperial">impérial (mi)</string>
+
+    <string name="title_export">Exporter &amp; partager</string>
+    <string name="btn_export_gpx">Exporter fichier GPX</string>
+    <string name="desc_export_gpx">Enregistrer la trace en .gpx</string>
+    <string name="btn_share_route">Partager le trajet</string>
+    <string name="desc_share_route">Envoyer un lien ou le transmettre</string>
+    <string name="btn_send_server">Envoyer au serveur GPStrack</string>
+    <string name="desc_send_server">192.168.1.145/gpstrack</string>
+
+    <string name="toast_import">Import GPX — choisir un .gpx</string>
+    <string name="toast_gpx_saved">Fichier GPX enregistré</string>
+    <string name="toast_link_copied">Lien du trajet copié</string>
+    <string name="toast_server_sent">Envoyé au serveur GPStrack</string>
+    <string name="toast_sent_pre">« </string>
+    <string name="toast_sent_suf"> » envoyé au serveur</string>
+    <string name="toast_all_synced">Tous les trajets synchronisés</string>
+    <string name="toast_ride_saved">Trajet enregistré</string>
+    <string name="toast_saved_local">Enregistré localement (hors ligne)</string>
+    <string name="toast_google_signed_in">Connecté avec Google</string>
+
+    <string name="section_bikes">Mes motos</string>
+    <string name="btn_add_bike">Ajouter une moto</string>
+    <string name="status_active">Active</string>
+    <string name="status_sold">Vendue</string>
+    <string name="tag_current">ACTUELLE</string>
+    <string name="label_on_bike">sur</string>
+
+    <string name="section_riders_group">Groupe &amp; rencontres</string>
+    <string name="label_group_title">Groupe de route</string>
+    <string name="label_members">membres</string>
+    <string name="btn_add_by_phone">Ajouter par téléphone</string>
+
+    <string name="label_feed_title">Fil en direct</string>
+    <string name="label_feed_start">a démarré</string>
+    <string name="label_feed_finish">a terminé</string>
+    <string name="label_feed_max_speed">vitesse max</string>
+
+    <string name="riders_waves_title">Salutations (Bluetooth)</string>
+    <string name="label_wave_at">près de</string>
+    <string name="label_no_internet">Nécessite internet</string>
+    <string name="label_works_offline">Marche hors ligne (BT)</string>
+
+    <string name="section_broadcast">Diffusion (Bluetooth)</string>
+    <string name="label_broadcast_intro">Ce que tu envoies aux motards croisés</string>
+    <string name="label_bc_name">Nom / pseudo</string>
+    <string name="label_bc_bike">Moto</string>
+    <string name="label_bc_from">Départ</string>
+    <string name="label_bc_today">Parcouru aujourd\'hui</string>
+    <string name="label_bc_total">Total appli</string>
+    <string name="label_bc_social">Réseaux sociaux</string>
+    <string name="label_bc_phone">Numéro de tél.</string>
+
+    <string name="section_system">Système &amp; confidentialité</string>
+    <string name="label_offline_only">Fonctionner sans internet</string>
+    <string name="desc_offline_only">Désactive météo &amp; groupe en ligne</string>
+    <string name="label_gps_correct">Corriger le GPS sur la route</string>
+    <string name="desc_gps_correct">Corrige les écarts (map-matching)</string>
+    <string name="label_android_auto">Android Auto</string>
+    <string name="desc_android_auto">Afficher sur l\'écran voiture</string>
+
+    <string name="section_weather">Météo</string>
+    <string name="label_wx_temp">Température</string>
+    <string name="label_wx_hum">Humidité</string>
+    <string name="label_wx_rain">Précipitations</string>
+    <string name="label_wx_rain_yes">Pluie</string>
+    <string name="label_wx_rain_no">Pas de pluie</string>
+    <string name="label_wx_offline">hors ligne</string>
+
+    <string name="label_compass">Boussole</string>
+    <string name="label_on_road">sur route</string>
+    <string name="label_meetings">Rencontres sur le trajet</string>
+    <string name="label_meetings_none">Aucune rencontre</string>
+    <string name="hint_pause_handlebar">Pause aussi au bouton guidon</string>
+
+    <string name="toast_add_bike">Ajouter une moto — formulaire</string>
+    <string name="toast_add_member">Invitation SMS envoyée</string>
+    <string name="toast_bc_saved">Profil de diffusion enregistré</string>
+
+    <string name="tod_morning">matin</string>
+    <string name="tod_afternoon">après-midi</string>
+    <string name="tod_evening">soir</string>
+    <string name="tod_night">nuit</string>
+</resources>

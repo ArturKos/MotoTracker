@@ -1,0 +1,81 @@
+package com.mototracker.core.format
+
+import com.mototracker.ui.state.Units
+import java.util.Locale
+import kotlin.math.roundToInt
+
+/**
+ * Pure, Android-free formatter for speed, distance, and altitude values.
+ *
+ * Uses a fixed [Locale.US] for number formatting so results are deterministic
+ * in unit tests regardless of the host locale.
+ */
+object UnitFormatter {
+
+    private const val KM_TO_MI = 0.621371
+    private const val M_TO_FT = 3.28084
+    private val LOCALE = Locale.US
+
+    /** Returns the speed unit label for [units]. */
+    fun speedUnitLabel(units: Units): String = when (units) {
+        Units.METRIC -> "km/h"
+        Units.IMPERIAL -> "mph"
+    }
+
+    /** Returns the distance unit label for [units]. */
+    fun distanceUnitLabel(units: Units): String = when (units) {
+        Units.METRIC -> "km"
+        Units.IMPERIAL -> "mi"
+    }
+
+    /** Returns the altitude unit label for [units]. */
+    fun altitudeUnitLabel(units: Units): String = when (units) {
+        Units.METRIC -> "m"
+        Units.IMPERIAL -> "ft"
+    }
+
+    /**
+     * Formats [kmh] as a rounded integer speed value with its unit label.
+     *
+     * @param kmh Speed in kilometres per hour.
+     * @param units Measurement system preference.
+     * @return E.g. `"120 km/h"` or `"75 mph"`.
+     */
+    fun formatSpeed(kmh: Double, units: Units): String {
+        val value = when (units) {
+            Units.METRIC -> kmh
+            Units.IMPERIAL -> kmh * KM_TO_MI
+        }
+        return "${value.roundToInt()} ${speedUnitLabel(units)}"
+    }
+
+    /**
+     * Formats [km] as a one-decimal distance value with its unit label.
+     *
+     * @param km Distance in kilometres.
+     * @param units Measurement system preference.
+     * @return E.g. `"128.4 km"` or `"79.8 mi"`.
+     */
+    fun formatDistance(km: Double, units: Units): String {
+        val value = when (units) {
+            Units.METRIC -> km
+            Units.IMPERIAL -> km * KM_TO_MI
+        }
+        return String.format(LOCALE, "%.1f %s", value, distanceUnitLabel(units))
+    }
+
+    /**
+     * Formats [m] as a rounded integer altitude value with its unit label.
+     *
+     * @param m Altitude in metres above sea level.
+     * @param units Measurement system preference.
+     * @return E.g. `"1840 m"` or `"6037 ft"`.
+     */
+    fun formatAltitude(m: Double, units: Units): String {
+        val value = when (units) {
+            Units.METRIC -> m
+            Units.IMPERIAL -> m * M_TO_FT
+        }
+        return "${value.roundToInt()} ${altitudeUnitLabel(units)}"
+    }
+}

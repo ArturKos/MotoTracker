@@ -56,7 +56,7 @@ license new SDK packages), the scaffold MUST target what is installed:
 | A4 | **DI + app state container**: dependency injection (Hilt or chosen DI) and the app-level state (`screen`, `authed`, `lang`, `theme`, `accent`, `units`) as unidirectional `StateFlow` UI state. | ✅ |
 | A5 | **i18n string resources**: `strings.xml` for all 6 languages (pl/en/de/fr/cs/ru), copied from the `TRANS`/`T2` dicts in `MotoTracker.dc.html`; runtime language switch; metric↔imperial unit formatting. | ✅ |
 | A6 | **Local persistence**: Room schema for routes/bikes/group/waves + settings (DataStore); an outbound **sync queue** table with retry state. Migrations. | ✅ |
-| A7 | **GPStrack sync layer**: HTTP client to `http://192.168.1.145/gpstrack` (server address configurable); repository + sync-queue drainer with offline/online + auto-sync toggles. Client behind an interface (unit-testable with fakes). | ⬜ |
+| A7 | **GPStrack sync layer**: HTTP client to `http://192.168.1.145/gpstrack` (server address configurable); repository + sync-queue drainer with offline/online + auto-sync toggles. Client behind an interface (unit-testable with fakes). | ✅ |
 
 ## B. Screens & features (from README §Screens)
 

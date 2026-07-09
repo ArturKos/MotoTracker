@@ -12,7 +12,10 @@ import com.mototracker.ui.theme.MotoTracker
 
 /** Placeholder for [com.mototracker.ui.navigation.MotoDestination.LOGIN] — replaced in B1. */
 @Composable
-fun LoginScreen(modifier: Modifier = Modifier) {
+fun LoginScreen(
+    onContinueAsGuest: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     PlaceholderContent(title = stringResource(R.string.screen_login), modifier = modifier)
 }
 

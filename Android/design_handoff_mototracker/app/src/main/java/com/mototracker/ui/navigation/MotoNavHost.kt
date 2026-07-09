@@ -31,16 +31,30 @@ import com.mototracker.ui.theme.MotoTracker
  * [showTopBar] / [showBottomBar] / [showBackArrow] functions), and hosts the
  * [NavHost] with placeholder composables for every destination.
  *
- * Sync state is hardcoded to [SyncState.Offline] until the app-state container
- * (A4) provides a real [kotlinx.coroutines.flow.StateFlow].
+ * The [startDestination] is driven by [authed]: authenticated users start at [MotoDestination.RECORD];
+ * unauthenticated / guest users start at [MotoDestination.LOGIN].
+ *
+ * Sync state is hardcoded to [SyncState.Offline] until the sync feature (A7) is implemented.
  *
  * Must be called inside [com.mototracker.ui.theme.MotoTrackerTheme].
+ *
+ * @param authed          Whether the current session is authenticated. Controls start destination.
+ * @param onContinueAsGuest Callback invoked when the user taps "Continue as Guest" on the login screen.
  */
 @Composable
-fun MotoApp() {
+fun MotoApp(
+    authed: Boolean = false,
+    onContinueAsGuest: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = MotoDestination.fromRoute(navBackStackEntry?.destination?.route)
+
+    val startDestination = if (authed) {
+        MotoDestination.RECORD.route
+    } else {
+        MotoDestination.LOGIN.route
+    }
 
     Scaffold(
         containerColor = MotoTracker.colors.bg,
@@ -73,13 +87,15 @@ fun MotoApp() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = MotoDestination.RECORD.route,
+            startDestination = startDestination,
             modifier = Modifier
                 .fillMaxSize()
                 .background(MotoTracker.colors.bg)
                 .padding(innerPadding),
         ) {
-            composable(MotoDestination.LOGIN.route) { LoginScreen() }
+            composable(MotoDestination.LOGIN.route) {
+                LoginScreen(onContinueAsGuest = onContinueAsGuest)
+            }
             composable(MotoDestination.RECORD.route) { RecordScreen() }
             composable(MotoDestination.ROUTES.route) { RoutesScreen() }
             composable(MotoDestination.RIDERS.route) { RidersScreen() }

@@ -1,4 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MotoTracker</string>
+
+    <!-- Bottom navigation tab labels (5 main tabs) -->
+    <string name="nav_login">Login</string>
+    <string name="nav_record">Record</string>
+    <string name="nav_routes">Routes</string>
+    <string name="nav_riders">Riders</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_route_detail">Route Detail</string>
+
+    <!-- Top bar screen titles (7 destinations) -->
+    <string name="screen_login">Login</string>
+    <string name="screen_record">Recording</string>
+    <string name="screen_routes">Routes</string>
+    <string name="screen_riders">Riders</string>
+    <string name="screen_stats">Stats</string>
+    <string name="screen_settings">Settings</string>
+    <string name="screen_route_detail">Route Detail</string>
+
+    <!-- Sync chip states (top app bar) -->
+    <string name="sync_offline">OFFLINE</string>
+    <string name="sync_queued">%1$d in queue</string>
+    <string name="sync_synced">SYNC ✓</string>
+
+    <!-- Accessibility / action labels -->
+    <string name="action_back">Back</string>
 </resources>

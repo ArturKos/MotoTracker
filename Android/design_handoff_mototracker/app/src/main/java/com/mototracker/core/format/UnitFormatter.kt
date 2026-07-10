@@ -80,6 +80,22 @@ object UnitFormatter {
     }
 
     /**
+     * Formats a duration in seconds as a compact `h:mm` string for the Stats screen totals.
+     *
+     * Hours are always shown; minutes are always two digits, e.g. `"11:38"`.
+     * Negative values are clamped to zero.
+     *
+     * @param durSec Duration in seconds (non-negative).
+     * @return E.g. `"11:38"` for 41 880 s, `"0:00"` for 0 s.
+     */
+    fun formatHm(durSec: Long): String {
+        val totalSec = if (durSec < 0) 0L else durSec
+        val h = totalSec / 3600
+        val m = (totalSec % 3600) / 60
+        return String.format(LOCALE, "%d:%02d", h, m)
+    }
+
+    /**
      * Formats a duration in seconds as a compact `h:mm:ss` string.
      *
      * Hours are omitted when zero; minutes and seconds are always two digits

@@ -138,4 +138,39 @@ class UnitFormatterTest {
     fun `formatHms negative input treated as zero`() {
         assertEquals("0:00", UnitFormatter.formatHms(-1L))
     }
+
+    // --- formatHm ---
+
+    @Test
+    fun `formatHm zero seconds`() {
+        assertEquals("0:00", UnitFormatter.formatHm(0L))
+    }
+
+    @Test
+    fun `formatHm under one hour shows 0 hours`() {
+        // 38 min = 2280 s
+        assertEquals("0:38", UnitFormatter.formatHm(2280L))
+    }
+
+    @Test
+    fun `formatHm exactly one hour`() {
+        assertEquals("1:00", UnitFormatter.formatHm(3600L))
+    }
+
+    @Test
+    fun `formatHm hours and minutes`() {
+        // 41 880 s = 11h 38m
+        assertEquals("11:38", UnitFormatter.formatHm(41_880L))
+    }
+
+    @Test
+    fun `formatHm pads single-digit minutes`() {
+        // 3661 s = 1h 1m 1s → "1:01"
+        assertEquals("1:01", UnitFormatter.formatHm(3661L))
+    }
+
+    @Test
+    fun `formatHm negative input treated as zero`() {
+        assertEquals("0:00", UnitFormatter.formatHm(-5L))
+    }
 }

@@ -18,7 +18,7 @@ import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
 import com.mototracker.ui.screens.SettingsScreen
 import com.mototracker.ui.screens.riders.RidersScreen
-import com.mototracker.ui.screens.StatsScreen
+import com.mototracker.ui.screens.stats.StatsScreen
 import com.mototracker.ui.screens.detail.RouteDetailScreen
 import com.mototracker.ui.screens.login.LoginScreen
 import com.mototracker.ui.screens.record.RecordingScreen

@@ -57,6 +57,7 @@ private class FakeRouteRepository : RouteRepository {
     }
 
     override fun observeAll(): Flow<List<Route>> = allFlow
+    override suspend fun getById(id: String): Route? = saved.find { it.id == id }
 }
 
 private class FakeSyncRepository : SyncRepository {

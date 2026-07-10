@@ -22,4 +22,11 @@ interface RouteRepository {
      * Returns a live stream of all routes ordered by [Route.dateEpochMs] descending.
      */
     fun observeAll(): Flow<List<Route>>
+
+    /**
+     * Returns the route with the given [id], or `null` if no such route exists.
+     *
+     * @param id The route UUID to look up.
+     */
+    suspend fun getById(id: String): Route?
 }

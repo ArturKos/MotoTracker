@@ -6,6 +6,8 @@ import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.BikeRepositoryImpl
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.RouteRepositoryImpl
+import com.mototracker.data.repository.WaveRepository
+import com.mototracker.data.repository.WaveRepositoryImpl
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.sensor.SensorManagerLeanSource
 import dagger.Binds
@@ -18,8 +20,8 @@ import javax.inject.Singleton
  * Hilt module wiring recording-layer interfaces to their concrete implementations.
  *
  * All bindings are singletons so the same [LocationClient] / [LeanSensorSource] /
- * [RouteRepository] / [BikeRepository] instance is shared between ViewModels and
- * any other callsite.
+ * [RouteRepository] / [BikeRepository] / [WaveRepository] instance is shared between
+ * ViewModels and any other callsite.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -44,4 +46,9 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindBikeRepository(impl: BikeRepositoryImpl): BikeRepository
+
+    /** Binds [WaveRepositoryImpl] as the [WaveRepository] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindWaveRepository(impl: WaveRepositoryImpl): WaveRepository
 }

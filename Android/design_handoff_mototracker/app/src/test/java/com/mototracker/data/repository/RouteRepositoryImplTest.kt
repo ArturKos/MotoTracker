@@ -200,6 +200,63 @@ class RouteRepositoryImplTest {
         }
     }
 
+    // ── getById ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `getById returns null when route does not exist`() = runTest {
+        assertNull(repo.getById("nonexistent"))
+    }
+
+    @Test
+    fun `getById returns route after save`() = runTest {
+        repo.save(buildRoute(id = "found", name = "Night Ride", km = 77.0))
+        val result = repo.getById("found")
+        assertEquals("found", result?.id)
+        assertEquals("Night Ride", result?.name)
+        assertEquals(77.0, result?.km ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun `getById returns null for a different id than what was saved`() = runTest {
+        repo.save(buildRoute(id = "alpha"))
+        assertNull(repo.getById("beta"))
+    }
+
+    @Test
+    fun `getById maps all fields correctly`() = runTest {
+        val route = buildRoute(
+            id = "m1",
+            name = "Dawn Run",
+            dateEpochMs = 1_710_000_000L,
+            bikeId = "bike-x",
+            km = 55.5,
+            durSec = 7200L,
+            avg = 55.0,
+            max = 130.0,
+            lean = 40.0,
+            elev = 900.0,
+            fuel = 4.2,
+            synced = true,
+            wxJson = """{"temp":18}""",
+            notes = "Misty",
+        )
+        repo.save(route)
+        val got = repo.getById("m1")!!
+        assertEquals("Dawn Run", got.name)
+        assertEquals(1_710_000_000L, got.dateEpochMs)
+        assertEquals("bike-x", got.bikeId)
+        assertEquals(55.5, got.km, 0.001)
+        assertEquals(7200L, got.durSec)
+        assertEquals(55.0, got.avg, 0.001)
+        assertEquals(130.0, got.max, 0.001)
+        assertEquals(40.0, got.lean, 0.001)
+        assertEquals(900.0, got.elev, 0.001)
+        assertEquals(4.2, got.fuel, 0.001)
+        assertTrue(got.synced)
+        assertEquals("""{"temp":18}""", got.wxJson)
+        assertEquals("Misty", got.notes)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun buildRoute(

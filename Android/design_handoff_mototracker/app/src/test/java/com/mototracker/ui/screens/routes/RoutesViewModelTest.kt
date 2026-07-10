@@ -36,6 +36,7 @@ private class FakeRouteRepository(
 
     override suspend fun save(route: Route) { _flow.value = _flow.value + route }
     override fun observeAll(): Flow<List<Route>> = _flow
+    override suspend fun getById(id: String): Route? = _flow.value.find { it.id == id }
 }
 
 private class FakeBikeRepository(

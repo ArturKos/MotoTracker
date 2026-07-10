@@ -28,4 +28,7 @@ class RouteRepositoryImpl @Inject constructor(
 
     override fun observeAll(): Flow<List<Route>> =
         routeDao.getAll().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun getById(id: String): Route? =
+        routeDao.getById(id)?.toDomain()
 }

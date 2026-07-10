@@ -10,12 +10,6 @@ import androidx.compose.ui.res.stringResource
 import com.mototracker.R
 import com.mototracker.ui.theme.MotoTracker
 
-/** Placeholder for [com.mototracker.ui.navigation.MotoDestination.ROUTE_DETAIL] — replaced in B4. */
-@Composable
-fun RouteDetailScreen(modifier: Modifier = Modifier) {
-    PlaceholderContent(title = stringResource(R.string.screen_route_detail), modifier = modifier)
-}
-
 /** Placeholder for [com.mototracker.ui.navigation.MotoDestination.RIDERS] — replaced in B5. */
 @Composable
 fun RidersScreen(modifier: Modifier = Modifier) {

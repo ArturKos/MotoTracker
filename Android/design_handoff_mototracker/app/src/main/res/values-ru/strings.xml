@@ -52,6 +52,7 @@
     <string name="label_total_km">Всего км</string>
     <string name="tag_queue">ОЧЕРЕДЬ</string>
     <string name="tag_max_short">макс</string>
+    <string name="tag_sold">Продан</string>
 
     <string name="label_time">Время</string>
     <string name="format_hms">ч:м:с</string>

@@ -52,6 +52,7 @@
     <string name="label_total_km">Suma km</string>
     <string name="tag_queue">KOLEJKA</string>
     <string name="tag_max_short">max</string>
+    <string name="tag_sold">Sprzedany</string>
 
     <string name="label_time">Czas</string>
     <string name="format_hms">g:m:s</string>

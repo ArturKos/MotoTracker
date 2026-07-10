@@ -50,8 +50,11 @@ sealed class MotoDestination(
     /**
      * Route detail screen. Not in the bottom nav; reached by tapping a route
      * card. Shows a back arrow in the top bar instead of the bottom nav.
+     *
+     * The route pattern carries a `{routeId}` nav argument; navigate via
+     * `"route_detail/$routeId"` and declare the argument with [NavType.StringType].
      */
-    object ROUTE_DETAIL : MotoDestination("route_detail", R.string.nav_route_detail, R.string.screen_route_detail, Icons.Filled.Map)
+    object ROUTE_DETAIL : MotoDestination("route_detail/{routeId}", R.string.nav_route_detail, R.string.screen_route_detail, Icons.Filled.Map)
 
     companion object {
         /**
@@ -63,15 +66,15 @@ sealed class MotoDestination(
          * the JVM, where the companion `<clinit>` can run before nested objects are
          * fully initialized.
          */
-        fun fromRoute(route: String?): MotoDestination = when (route) {
-            "login"        -> LOGIN
-            "record"       -> RECORD
-            "routes"       -> ROUTES
-            "riders"       -> RIDERS
-            "stats"        -> STATS
-            "settings"     -> SETTINGS
-            "route_detail" -> ROUTE_DETAIL
-            else           -> RECORD
+        fun fromRoute(route: String?): MotoDestination = when {
+            route == "login"                       -> LOGIN
+            route == "record"                      -> RECORD
+            route == "routes"                      -> ROUTES
+            route == "riders"                      -> RIDERS
+            route == "stats"                       -> STATS
+            route == "settings"                    -> SETTINGS
+            route?.startsWith("route_detail") == true -> ROUTE_DETAIL
+            else                                   -> RECORD
         }
     }
 }

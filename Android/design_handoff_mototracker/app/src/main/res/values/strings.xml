@@ -59,6 +59,7 @@
     <string name="label_total_km">Total km</string>
     <string name="tag_queue">QUEUE</string>
     <string name="tag_max_short">max</string>
+    <string name="tag_sold">Sold</string>
 
     <!-- Route detail -->
     <string name="label_time">Time</string>

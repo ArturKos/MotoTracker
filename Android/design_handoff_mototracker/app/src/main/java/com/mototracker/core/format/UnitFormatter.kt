@@ -78,4 +78,26 @@ object UnitFormatter {
         }
         return "${value.roundToInt()} ${altitudeUnitLabel(units)}"
     }
+
+    /**
+     * Formats a duration in seconds as a compact `h:mm:ss` string.
+     *
+     * Hours are omitted when zero; minutes and seconds are always two digits
+     * when hours are present, e.g. `"2:07:03"`. When hours are absent the
+     * format is `"m:ss"`, e.g. `"7:03"`.
+     *
+     * @param durSec Duration in seconds (non-negative).
+     * @return E.g. `"2:07:33"` for 7653 s, `"7:03"` for 423 s.
+     */
+    fun formatHms(durSec: Long): String {
+        val totalSec = if (durSec < 0) 0L else durSec
+        val h = totalSec / 3600
+        val m = (totalSec % 3600) / 60
+        val s = totalSec % 60
+        return if (h > 0) {
+            String.format(LOCALE, "%d:%02d:%02d", h, m, s)
+        } else {
+            String.format(LOCALE, "%d:%02d", m, s)
+        }
+    }
 }

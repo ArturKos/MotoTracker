@@ -8,19 +8,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
 import com.mototracker.ui.screens.RidersScreen
 import com.mototracker.ui.screens.RouteDetailScreen
-import com.mototracker.ui.screens.RoutesScreen
 import com.mototracker.ui.screens.SettingsScreen
 import com.mototracker.ui.screens.StatsScreen
 import com.mototracker.ui.screens.login.LoginScreen
 import com.mototracker.ui.screens.record.RecordingScreen
+import com.mototracker.ui.screens.routes.RoutesScreen
 import com.mototracker.ui.theme.MotoTracker
 
 /**
@@ -116,11 +118,18 @@ fun MotoApp(
                 )
             }
             composable(MotoDestination.RECORD.route) { RecordingScreen() }
-            composable(MotoDestination.ROUTES.route) { RoutesScreen() }
+            composable(MotoDestination.ROUTES.route) {
+                RoutesScreen(onOpenRoute = { routeId ->
+                    navController.navigate("route_detail/$routeId")
+                })
+            }
             composable(MotoDestination.RIDERS.route) { RidersScreen() }
             composable(MotoDestination.STATS.route) { StatsScreen() }
             composable(MotoDestination.SETTINGS.route) { SettingsScreen() }
-            composable(MotoDestination.ROUTE_DETAIL.route) {
+            composable(
+                route = MotoDestination.ROUTE_DETAIL.route,
+                arguments = listOf(navArgument("routeId") { type = NavType.StringType }),
+            ) {
                 RouteDetailScreen()
             }
         }

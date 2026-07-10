@@ -52,6 +52,7 @@
     <string name="label_total_km">Celkem km</string>
     <string name="tag_queue">FRONTA</string>
     <string name="tag_max_short">max</string>
+    <string name="tag_sold">Prodáno</string>
 
     <string name="label_time">Čas</string>
     <string name="format_hms">h:m:s</string>

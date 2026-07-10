@@ -102,7 +102,10 @@ class MotoDestinationTest {
         assertEquals(MotoDestination.RIDERS,       MotoDestination.fromRoute("riders"))
         assertEquals(MotoDestination.STATS,        MotoDestination.fromRoute("stats"))
         assertEquals(MotoDestination.SETTINGS,     MotoDestination.fromRoute("settings"))
+        // base pattern (kept for backward compatibility)
         assertEquals(MotoDestination.ROUTE_DETAIL, MotoDestination.fromRoute("route_detail"))
+        // NavHost back-stack route template
+        assertEquals(MotoDestination.ROUTE_DETAIL, MotoDestination.fromRoute("route_detail/{routeId}"))
     }
 
     @Test

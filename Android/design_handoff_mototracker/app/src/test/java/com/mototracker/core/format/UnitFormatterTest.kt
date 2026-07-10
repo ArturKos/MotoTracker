@@ -99,4 +99,43 @@ class UnitFormatterTest {
         assertEquals("0 m", UnitFormatter.formatAltitude(0.0, Units.METRIC))
         assertEquals("0 ft", UnitFormatter.formatAltitude(0.0, Units.IMPERIAL))
     }
+
+    // --- formatHms ---
+
+    @Test
+    fun `formatHms zero seconds`() {
+        assertEquals("0:00", UnitFormatter.formatHms(0L))
+    }
+
+    @Test
+    fun `formatHms seconds only`() {
+        assertEquals("0:33", UnitFormatter.formatHms(33L))
+    }
+
+    @Test
+    fun `formatHms minutes and seconds without hours`() {
+        assertEquals("7:03", UnitFormatter.formatHms(423L))
+    }
+
+    @Test
+    fun `formatHms exactly one hour`() {
+        assertEquals("1:00:00", UnitFormatter.formatHms(3600L))
+    }
+
+    @Test
+    fun `formatHms hours minutes seconds`() {
+        // 7653 s = 2h 7m 33s
+        assertEquals("2:07:33", UnitFormatter.formatHms(7653L))
+    }
+
+    @Test
+    fun `formatHms pads single-digit minutes and seconds when hours present`() {
+        // 3661 s = 1h 1m 1s
+        assertEquals("1:01:01", UnitFormatter.formatHms(3661L))
+    }
+
+    @Test
+    fun `formatHms negative input treated as zero`() {
+        assertEquals("0:00", UnitFormatter.formatHms(-1L))
+    }
 }

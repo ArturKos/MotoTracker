@@ -333,7 +333,14 @@ private fun WeatherCard(weather: WeatherUi, modifier: Modifier = Modifier) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 WeatherItem(label = stringResource(R.string.label_wx_temp), value = weather.tempDisplay)
                 WeatherItem(label = stringResource(R.string.label_wx_hum), value = weather.humDisplay)
-                WeatherItem(label = stringResource(R.string.label_wx_rain), value = weather.rainLabel)
+                WeatherItem(
+                    label = stringResource(R.string.label_wx_rain),
+                    value = when (weather.rain) {
+                        true  -> stringResource(R.string.label_wx_rain_yes)
+                        false -> stringResource(R.string.label_wx_rain_no)
+                        null  -> "—"
+                    },
+                )
             }
         }
     }

@@ -16,7 +16,7 @@ class RouteWeatherTest {
         assertTrue(result.offline)
         assertEquals("—", result.tempDisplay)
         assertEquals("—", result.humDisplay)
-        assertEquals("—", result.rainLabel)
+        assertEquals(null, result.rain)
     }
 
     @Test
@@ -52,20 +52,20 @@ class RouteWeatherTest {
         assertFalse(result.offline)
         assertEquals("22°C", result.tempDisplay)
         assertEquals("60%", result.humDisplay)
-        assertEquals("No rain", result.rainLabel)
+        assertEquals(false, result.rain)
     }
 
     @Test
-    fun `rain=true sets Rain label`() {
+    fun `rain=true sets rain boolean to true`() {
         val result = RouteWeather.parse("""{"temp":15,"hum":85,"rain":true}""")
         assertFalse(result.offline)
-        assertEquals("Rain", result.rainLabel)
+        assertEquals(true, result.rain)
     }
 
     @Test
-    fun `rain=false sets No rain label`() {
+    fun `rain=false sets rain boolean to false`() {
         val result = RouteWeather.parse("""{"temp":20,"hum":50,"rain":false}""")
-        assertEquals("No rain", result.rainLabel)
+        assertEquals(false, result.rain)
     }
 
     @Test

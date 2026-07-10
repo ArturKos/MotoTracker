@@ -69,7 +69,7 @@ data class RouteDetailUiState(
     val maxTile: StatTileUi = StatTileUi("", "km/h"),
     val leanTile: StatTileUi = StatTileUi("", "°"),
     val fuelTile: StatTileUi = StatTileUi("", "L"),
-    val weather: WeatherUi = WeatherUi(offline = true, tempDisplay = "—", humDisplay = "—", rainLabel = "—"),
+    val weather: WeatherUi = WeatherUi(offline = true, tempDisplay = "—", humDisplay = "—", rain = null),
     val speedStroke: String = "",
     val speedFill: String = "",
     val elevStroke: String = "",

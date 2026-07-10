@@ -293,7 +293,7 @@ class RouteDetailViewModelTest {
             assertFalse(weather.offline)
             assertEquals("22°C", weather.tempDisplay)
             assertEquals("60%", weather.humDisplay)
-            assertEquals("No rain", weather.rainLabel)
+            assertEquals(false, weather.rain)
             cancelAndIgnoreRemainingEvents()
         }
     }

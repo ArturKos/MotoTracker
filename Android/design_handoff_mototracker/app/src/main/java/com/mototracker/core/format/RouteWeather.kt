@@ -5,18 +5,19 @@ import org.json.JSONObject
 /**
  * Pre-formatted weather snapshot for the route-detail screen.
  *
- * All string fields are ready for direct display; the Composable does no computation.
+ * String fields are ready for direct display; [rain] is a raw boolean so the Composable
+ * can resolve it via localized string resources (`label_wx_rain_yes` / `label_wx_rain_no`).
  *
  * @param offline     `true` when no weather data is available (null JSON or missing temp).
  * @param tempDisplay Formatted temperature string, e.g. `"22°C"`, or `"—"` when offline.
  * @param humDisplay  Formatted humidity string, e.g. `"60%"`, or `"—"` when offline/absent.
- * @param rainLabel   Human-readable rain status, e.g. `"Rain"` / `"No rain"`, or `"—"` when offline.
+ * @param rain        `true` = raining, `false` = dry, `null` = no data (offline).
  */
 data class WeatherUi(
     val offline: Boolean,
     val tempDisplay: String,
     val humDisplay: String,
-    val rainLabel: String,
+    val rain: Boolean?,
 )
 
 /**
@@ -28,7 +29,7 @@ data class WeatherUi(
 object RouteWeather {
 
     private const val DASH = "—"
-    private val OFFLINE_UI = WeatherUi(offline = true, tempDisplay = DASH, humDisplay = DASH, rainLabel = DASH)
+    private val OFFLINE_UI = WeatherUi(offline = true, tempDisplay = DASH, humDisplay = DASH, rain = null)
 
     /**
      * Parses [wxJson] and returns a [WeatherUi] ready for display.
@@ -54,7 +55,7 @@ object RouteWeather {
                 offline = false,
                 tempDisplay = "$temp°C",
                 humDisplay = if (hum != null) "$hum%" else DASH,
-                rainLabel = if (rain) "Rain" else "No rain",
+                rain = rain,
             )
         } catch (_: Exception) {
             OFFLINE_UI

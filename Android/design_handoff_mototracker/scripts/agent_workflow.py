@@ -32,6 +32,7 @@ import datetime as dt
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -247,36 +248,50 @@ def run_agent(role: str, state: dict) -> dict:
         "--permission-mode", "bypassPermissions",
         "--output-format", "json",
     ]
+    # Launch in its OWN process group (start_new_session) so that on timeout we
+    # can kill the whole tree. Otherwise the agent's child builds (Gradle
+    # daemons, Kotlin/test JVMs) get orphaned when the agent is killed, hang on
+    # the daemon lock, and pile up as dozens of stray `java` processes.
+    proc = subprocess.Popen(
+        cmd, cwd=str(REPO), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, start_new_session=True,
+    )
     try:
-        proc = subprocess.run(
-            cmd, cwd=str(REPO), capture_output=True, text=True,
-            timeout=TIMEOUT[role],
-        )
+        out, err = proc.communicate(timeout=TIMEOUT[role])
+        rc = proc.returncode
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            out, err = proc.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            out, err = "", ""
         return {"ok": False, "verdict": None, "result": "",
                 "limit": False, "reset": None, "error": "timeout"}
 
-    raw = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    raw = (out or "") + "\n" + (err or "")
     # Persist transcript for debugging.
     tpath = TRANSCRIPTS / f"{state['iteration']:03d}-{role}-{state['attempts']}.txt"
     tpath.write_text(raw)
 
     result_text = ""
-    is_error = proc.returncode != 0
+    is_error = rc != 0
     api_status = None
     try:
-        data = json.loads(proc.stdout)
+        data = json.loads(out)
         result_text = data.get("result", "") or ""
         is_error = is_error or bool(data.get("is_error"))
         api_status = data.get("api_error_status")
     except (json.JSONDecodeError, TypeError):
-        result_text = proc.stdout or ""
+        result_text = out or ""
 
     combined = raw + "\n" + result_text
     # A usage/session/rate limit: the HTTP status is the most reliable signal,
     # with a text-marker fallback for messages the CLI surfaces without a code.
     if api_status in LIMIT_HTTP_STATUS or \
-       ((is_error or proc.returncode != 0) and looks_like_limit(combined)):
+       ((is_error or rc != 0) and looks_like_limit(combined)):
         return {"ok": False, "verdict": None, "result": result_text,
                 "limit": True, "reset": extract_reset_epoch(combined)}
 

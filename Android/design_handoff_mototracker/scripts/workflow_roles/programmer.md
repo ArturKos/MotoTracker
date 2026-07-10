@@ -34,6 +34,8 @@ target is a native Android app in **Kotlin + Jetpack Compose**.
 - Fix compile errors, lint errors, and failing tests you introduced before
   declaring done. Do not hand off broken code. (Instrumented tests that need an
   emulator are the tester's best-effort concern — don't block on them.)
+- When your self-check builds are done, run `./gradlew --stop` so no Gradle daemon
+  JVM lingers after you finish.
 
 ## If the spec is wrong or impossible
 If the architect's spec is contradictory or blocked, do minimal safe work and

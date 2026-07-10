@@ -16,6 +16,10 @@ If the project configures ktlint/detekt, also run `./gradlew ktlintCheck detekt`
 The build must be error-free and every unit test must pass. Capture the tail of any
 failure as evidence.
 
+**When your build gate is finished (pass OR fail), run `./gradlew --stop`** to shut
+down the Gradle daemon so build JVMs do not accumulate across iterations. Leave no
+lingering `java` build processes behind.
+
 Environment notes (not code bugs): first run may download the Gradle distribution
 and Android SDK components — allow time (the architect's per-role timeout covers it).
 If the Android SDK / `local.properties` is missing, report that as an environment

@@ -175,6 +175,10 @@
     <string name="label_wx_rain_no">Без осадков</string>
     <string name="label_wx_offline">офлайн</string>
 
+    <string name="label_sat_abbr">сп</string>
+    <string name="unit_speed_kmh">км/ч</string>
+    <string name="unit_km">км</string>
+
     <string name="label_compass">Компас</string>
     <string name="label_on_road">на дороге</string>
     <string name="label_meetings">Встречи на маршруте</string>

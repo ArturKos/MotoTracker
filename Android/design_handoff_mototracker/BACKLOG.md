@@ -63,7 +63,7 @@ license new SDK packages), the scaffold MUST target what is installed:
 | #  | Item | Status |
 |----|------|--------|
 | B1 | **Login screen**: server address / e-mail / password + "sign in & sync" and "continue without account" (guest mode → local-only). | 🔬 |
-| B2 | **Recording screen**: live map with growing track + position pulse, GPS/weather chips, wind rose, compass; speed/time/distance/altitude/fuel/lean tiles; start/pause/resume/finish controls; foreground location service; accelerometer-derived lean; save → route + toast (online/offline). | ⬜ |
+| B2 | **Recording screen**: live map with growing track + position pulse, GPS/weather chips, wind rose, compass; speed/time/distance/altitude/fuel/lean tiles; start/pause/resume/finish controls; foreground location service; accelerometer-derived lean; save → route + toast (online/offline). | 🔬 |
 | B3 | **Routes list**: summary tiles (count, total km), GPX import, per-route cards (track thumbnail, name, date · bike, sync/queue marker) → detail. | ⬜ |
 | B4 | **Route detail**: map with start/end markers; 6 stat tiles; weather card (or "offline"); speed chart + elevation profile; "meetups on route" (BT waves); export/share + send-to-server. | ⬜ |
 | B5 | **Riders**: riding group (add by phone), live feed (requires internet), Bluetooth "waves" (works offline). | ⬜ |

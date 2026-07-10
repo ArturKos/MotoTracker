@@ -175,6 +175,10 @@
     <string name="label_wx_rain_no">Bez opadów</string>
     <string name="label_wx_offline">offline</string>
 
+    <string name="label_sat_abbr">sat</string>
+    <string name="unit_speed_kmh">km/h</string>
+    <string name="unit_km">km</string>
+
     <string name="label_compass">Kompas</string>
     <string name="label_on_road">na drodze</string>
     <string name="label_meetings">Spotkania na trasie</string>

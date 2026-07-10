@@ -198,6 +198,11 @@
     <string name="label_wx_rain_no">No rain</string>
     <string name="label_wx_offline">offline</string>
 
+    <!-- Unit labels -->
+    <string name="label_sat_abbr">sat</string>
+    <string name="unit_speed_kmh">km/h</string>
+    <string name="unit_km">km</string>
+
     <!-- Misc -->
     <string name="label_compass">Compass</string>
     <string name="label_on_road">on road</string>

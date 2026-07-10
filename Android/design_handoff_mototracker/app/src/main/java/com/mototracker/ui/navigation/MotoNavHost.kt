@@ -14,13 +14,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
-import com.mototracker.ui.screens.RecordScreen
 import com.mototracker.ui.screens.RidersScreen
 import com.mototracker.ui.screens.RouteDetailScreen
 import com.mototracker.ui.screens.RoutesScreen
 import com.mototracker.ui.screens.SettingsScreen
 import com.mototracker.ui.screens.StatsScreen
 import com.mototracker.ui.screens.login.LoginScreen
+import com.mototracker.ui.screens.record.RecordingScreen
 import com.mototracker.ui.theme.MotoTracker
 
 /**
@@ -115,7 +115,7 @@ fun MotoApp(
                     },
                 )
             }
-            composable(MotoDestination.RECORD.route) { RecordScreen() }
+            composable(MotoDestination.RECORD.route) { RecordingScreen() }
             composable(MotoDestination.ROUTES.route) { RoutesScreen() }
             composable(MotoDestination.RIDERS.route) { RidersScreen() }
             composable(MotoDestination.STATS.route) { StatsScreen() }

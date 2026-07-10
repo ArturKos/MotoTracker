@@ -106,11 +106,69 @@ class WaveRepositoryImplTest {
         }
     }
 
+    // ── observeAll ────────────────────────────────────────────────────────────
+
+    @Test
+    fun `observeAll emits empty list when no waves exist`() = runTest {
+        repo.observeAll().test {
+            assertEquals(emptyList<com.mototracker.data.model.Wave>(), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observeAll returns all waves regardless of routeId`() = runTest {
+        dao.upsert(buildWaveEntity(id = "w1", routeId = "route-1"))
+        dao.upsert(buildWaveEntity(id = "w2", routeId = "route-2"))
+        dao.upsert(buildWaveEntity(id = "w3", routeId = null))
+
+        repo.observeAll().test {
+            val waves = awaitItem()
+            assertEquals(3, waves.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observeAll maps entity fields to domain Wave`() = runTest {
+        dao.upsert(
+            buildWaveEntity(
+                id = "w-all",
+                routeId = "route-x",
+                nick = "Rider",
+                bikeName = "Ninja",
+                place = "Zamek",
+                timeLabel = "11:30",
+            )
+        )
+
+        repo.observeAll().test {
+            val wave = awaitItem().first()
+            assertEquals("w-all", wave.id)
+            assertEquals("Rider", wave.nick)
+            assertEquals("Ninja", wave.bikeName)
+            assertEquals("Zamek", wave.place)
+            assertEquals("11:30", wave.timeLabel)
+            assertEquals("route-x", wave.routeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observeAll re-emits after upsert`() = runTest {
+        repo.observeAll().test {
+            assertEquals(0, awaitItem().size)
+            dao.upsert(buildWaveEntity(id = "w-new"))
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun buildWaveEntity(
         id: String = "wave-0",
-        routeId: String = "route-0",
+        routeId: String? = "route-0",
         nick: String = "Rider",
         bikeName: String = "MT-07",
         place: String = "Rynek",

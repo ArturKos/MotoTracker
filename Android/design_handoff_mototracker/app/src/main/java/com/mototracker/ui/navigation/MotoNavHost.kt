@@ -16,8 +16,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
-import com.mototracker.ui.screens.RidersScreen
 import com.mototracker.ui.screens.SettingsScreen
+import com.mototracker.ui.screens.riders.RidersScreen
 import com.mototracker.ui.screens.StatsScreen
 import com.mototracker.ui.screens.detail.RouteDetailScreen
 import com.mototracker.ui.screens.login.LoginScreen

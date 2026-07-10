@@ -23,4 +23,7 @@ class WaveRepositoryImpl @Inject constructor(
 
     override fun observeForRoute(routeId: String): Flow<List<Wave>> =
         waveDao.getByRouteId(routeId).map { entities -> entities.map { it.toDomain() } }
+
+    override fun observeAll(): Flow<List<Wave>> =
+        waveDao.getAll().map { entities -> entities.map { it.toDomain() } }
 }

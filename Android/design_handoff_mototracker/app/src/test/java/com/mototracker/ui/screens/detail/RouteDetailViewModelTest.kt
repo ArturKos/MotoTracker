@@ -46,6 +46,7 @@ private class FakeWaveRepository(waves: List<Wave> = emptyList()) : WaveReposito
     private val _flow = MutableStateFlow(waves)
     fun emit(waves: List<Wave>) { _flow.value = waves }
     override fun observeForRoute(routeId: String): Flow<List<Wave>> = _flow
+    override fun observeAll(): Flow<List<Wave>> = _flow
 }
 
 private class FakeSettingsSource(settings: AppSettings = AppSettings()) : AppSettingsSource {

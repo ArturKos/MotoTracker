@@ -8,9 +8,11 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.model.Wave
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
+import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +58,14 @@ private class FakeSettingsSource(settings: AppSettings = AppSettings()) : AppSet
     override val settings: Flow<AppSettings> = _flow
 }
 
+private class FakeSyncRepository : SyncRepository {
+    val enqueuedIds = mutableListOf<String>()
+    override val pendingCount: Flow<Int> = MutableStateFlow(0)
+    override suspend fun enqueue(routeId: String) { enqueuedIds += routeId }
+    override suspend fun syncNow(): Int = 0
+    override fun start(scope: CoroutineScope) { /* no-op */ }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,11 +85,12 @@ private fun makeRoute(
     wxJson: String? = null,
     speedJson: String? = null,
     elevProfileJson: String? = null,
+    pathJson: String? = null,
 ): Route = Route(
     id = id, name = name, dateEpochMs = 1_700_000_000_000L,
     bikeId = bikeId, km = km, durSec = durSec, avg = avg, max = max,
     lean = lean, elev = elev, fuel = fuel, synced = synced,
-    wxJson = wxJson, pathJson = null, speedJson = speedJson,
+    wxJson = wxJson, pathJson = pathJson, speedJson = speedJson,
     elevProfileJson = elevProfileJson, notes = null,
 )
 
@@ -100,6 +111,7 @@ private fun makeWave(
 class RouteDetailViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
+    private val fakeSyncRepo = FakeSyncRepository()
 
     @Before
     fun setUp() { Dispatchers.setMain(testDispatcher) }
@@ -113,12 +125,14 @@ class RouteDetailViewModelTest {
         bikes: List<Bike> = emptyList(),
         waves: List<Wave> = emptyList(),
         settings: AppSettings = AppSettings(),
+        syncRepo: FakeSyncRepository = fakeSyncRepo,
     ): RouteDetailViewModel = RouteDetailViewModel(
         savedStateHandle = SavedStateHandle(mapOf("routeId" to routeId)),
         routeRepository = FakeRouteRepository(stored = route),
         bikeRepository = FakeBikeRepository(bikes),
         waveRepository = FakeWaveRepository(waves),
         settingsSource = FakeSettingsSource(settings),
+        syncRepository = syncRepo,
     )
 
     // ── initial loading state ─────────────────────────────────────────────────
@@ -363,6 +377,87 @@ class RouteDetailViewModelTest {
         val vm = buildVm(route = makeRoute(elevProfileJson = json))
         vm.uiState.test {
             assertTrue(skipToLoaded().elevStroke.isNotEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── exportGpx event ───────────────────────────────────────────────────────
+
+    @Test
+    fun `exportGpx emits GpxSaved with non-blank content and expected fileName`() = runTest {
+        val route = makeRoute(id = "route-abc123", name = "Morning Ride")
+        val vm = buildVm(routeId = route.id, route = route)
+        // Wait for state to load so currentRoute is set
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.exportGpx()
+            val event = awaitItem()
+            assertTrue("Event must be GpxSaved", event is RouteDetailEvent.GpxSaved)
+            val gpxEvent = event as RouteDetailEvent.GpxSaved
+            assertTrue("GPX content must not be blank", gpxEvent.content.isNotBlank())
+            assertTrue("GPX content must contain <gpx", gpxEvent.content.contains("<gpx"))
+            assertTrue("fileName must end with .gpx", gpxEvent.fileName.endsWith(".gpx"))
+            assertTrue("fileName must contain route name slug", gpxEvent.fileName.contains("morning-ride"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `exportGpx is no-op when route not loaded`() = runTest {
+        val vm = buildVm(routeId = "nonexistent", route = null)
+        // Ensure state settled (route not found)
+        vm.uiState.test {
+            val state = awaitItem()
+            if (state.loading) awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.exportGpx()
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── shareRoute event ──────────────────────────────────────────────────────
+
+    @Test
+    fun `shareRoute emits LinkCopied with route url`() = runTest {
+        val route = makeRoute(id = "route-xyz")
+        val vm = buildVm(routeId = route.id, route = route)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.shareRoute()
+            val event = awaitItem()
+            assertTrue(event is RouteDetailEvent.LinkCopied)
+            val linkEvent = event as RouteDetailEvent.LinkCopied
+            assertTrue("URL must contain routeId", linkEvent.url.contains("route-xyz"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── sendToServer event ────────────────────────────────────────────────────
+
+    @Test
+    fun `sendToServer calls syncRepository enqueue with routeId and emits ServerSent`() = runTest {
+        val route = makeRoute(id = "route-sync-me")
+        val fakeSyncRepository = FakeSyncRepository()
+        val vm = buildVm(routeId = route.id, route = route, syncRepo = fakeSyncRepository)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.sendToServer()
+            val event = awaitItem()
+            assertTrue(event is RouteDetailEvent.ServerSent)
+            assertEquals(1, fakeSyncRepository.enqueuedIds.size)
+            assertEquals("route-sync-me", fakeSyncRepository.enqueuedIds.first())
             cancelAndIgnoreRemainingEvents()
         }
     }

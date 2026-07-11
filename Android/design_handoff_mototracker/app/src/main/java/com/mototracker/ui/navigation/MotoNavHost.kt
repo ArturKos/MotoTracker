@@ -4,8 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
@@ -24,6 +28,7 @@ import com.mototracker.ui.screens.login.LoginScreen
 import com.mototracker.ui.screens.record.RecordingScreen
 import com.mototracker.ui.screens.routes.RoutesScreen
 import com.mototracker.ui.theme.MotoTracker
+import kotlinx.coroutines.launch
 
 /**
  * Root composable for the MotoTracker app shell.
@@ -32,6 +37,9 @@ import com.mototracker.ui.theme.MotoTracker
  * are conditionally shown based on the current back-stack destination (via the pure
  * [showTopBar] / [showBottomBar] / [showBackArrow] functions), and hosts the
  * [NavHost] with composables for every destination.
+ *
+ * An app-level [SnackbarHostState] is shared across all screens that use the
+ * [onToast] callback pattern (e.g. [RidersScreen], [RouteDetailScreen]).
  *
  * The [startDestination] is driven by [authed]: authenticated users start at [MotoDestination.RECORD];
  * unauthenticated / guest users start at [MotoDestination.LOGIN].
@@ -56,6 +64,10 @@ fun MotoApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = MotoDestination.fromRoute(navBackStackEntry?.destination?.route)
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val showToast: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+
     val startDestination = if (authed) {
         MotoDestination.RECORD.route
     } else {
@@ -64,6 +76,7 @@ fun MotoApp(
 
     Scaffold(
         containerColor = MotoTracker.colors.bg,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (showTopBar(currentDest)) {
                 MotoTopAppBar(
@@ -123,7 +136,9 @@ fun MotoApp(
                     navController.navigate("route_detail/$routeId")
                 })
             }
-            composable(MotoDestination.RIDERS.route) { RidersScreen() }
+            composable(MotoDestination.RIDERS.route) {
+                RidersScreen(onToast = showToast)
+            }
             composable(MotoDestination.STATS.route) { StatsScreen() }
             composable(MotoDestination.SETTINGS.route) {
                 SettingsScreen(
@@ -139,7 +154,7 @@ fun MotoApp(
                 route = MotoDestination.ROUTE_DETAIL.route,
                 arguments = listOf(navArgument("routeId") { type = NavType.StringType }),
             ) {
-                RouteDetailScreen()
+                RouteDetailScreen(onToast = showToast)
             }
         }
     }

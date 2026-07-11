@@ -4,25 +4,31 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.core.format.ChartPolyline
+import com.mototracker.core.format.GpxExporter
 import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.core.format.RouteWeather
+import com.mototracker.core.format.UnitFormatter
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.Wave
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
+import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.ui.state.Units
-import com.mototracker.core.format.UnitFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,11 +43,15 @@ import kotlin.math.roundToInt
  * [WaveRepository.observeForRoute], and [AppSettingsSource.settings] into a single
  * [StateFlow]<[RouteDetailUiState]>.
  *
+ * One-shot [RouteDetailEvent]s are delivered via [events] using a [Channel] to ensure
+ * they are consumed exactly once regardless of recomposition.
+ *
  * @param savedStateHandle   Provides the `routeId` nav argument.
  * @param routeRepository    Source of the route to display.
  * @param bikeRepository     Source of bikes for name / sold-status resolution.
  * @param waveRepository     Source of Bluetooth wave meetups for this route.
  * @param settingsSource     Provides measurement units preference.
+ * @param syncRepository     Manages the outbound sync queue for server upload.
  */
 @HiltViewModel
 class RouteDetailViewModel @Inject constructor(
@@ -50,9 +60,17 @@ class RouteDetailViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val waveRepository: WaveRepository,
     private val settingsSource: AppSettingsSource,
+    private val syncRepository: SyncRepository,
 ) : ViewModel() {
 
     private val routeId: String = savedStateHandle["routeId"] ?: ""
+
+    private var currentRoute: Route? = null
+
+    private val _events = Channel<RouteDetailEvent>(Channel.BUFFERED)
+
+    /** One-shot UI events (export, share, server-send). Collect in the Composable. */
+    val events: Flow<RouteDetailEvent> = _events.receiveAsFlow()
 
     /** Live UI state exposed to [RouteDetailScreen]. */
     val uiState: StateFlow<RouteDetailUiState> = combine(
@@ -61,12 +79,60 @@ class RouteDetailViewModel @Inject constructor(
         waveRepository.observeForRoute(routeId),
         settingsSource.settings,
     ) { route, bikes, waves, settings ->
+        currentRoute = route
         buildUiState(route, bikes, waves, settings)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = RouteDetailUiState(),
     )
+
+    // ── Actions ──────────────────────────────────────────────────────────────
+
+    /**
+     * Builds GPX content for the current route and emits [RouteDetailEvent.GpxSaved].
+     *
+     * The Composable is responsible for the actual file write / share-sheet invocation (🔬).
+     * No-op if the route has not loaded yet.
+     */
+    fun exportGpx() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            _events.send(
+                RouteDetailEvent.GpxSaved(
+                    content = GpxExporter.toGpx(route),
+                    fileName = GpxExporter.fileName(route),
+                )
+            )
+        }
+    }
+
+    /**
+     * Emits [RouteDetailEvent.LinkCopied] with a deterministic route deep-link URL.
+     *
+     * The Composable is responsible for the actual clipboard write (🔬).
+     * No-op if the route has not loaded yet.
+     */
+    fun shareRoute() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            _events.send(RouteDetailEvent.LinkCopied(url = "mototracker://route/${route.id}"))
+        }
+    }
+
+    /**
+     * Enqueues the current route for server sync via [SyncRepository.enqueue] and emits
+     * [RouteDetailEvent.ServerSent].
+     *
+     * No-op if the route has not loaded yet.
+     */
+    fun sendToServer() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            syncRepository.enqueue(route.id)
+            _events.send(RouteDetailEvent.ServerSent)
+        }
+    }
 
     // ── Mapping ──────────────────────────────────────────────────────────────
 

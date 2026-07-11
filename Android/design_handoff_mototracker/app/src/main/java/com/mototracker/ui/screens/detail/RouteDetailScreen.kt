@@ -27,7 +27,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +52,7 @@ import com.mototracker.R
 import com.mototracker.core.format.WeatherUi
 import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Route Detail screen — shows track thumbnail, stat tiles, weather, speed/elevation charts,
@@ -56,26 +61,57 @@ import com.mototracker.ui.theme.MotoTracker
  * The screen reads all display data from [RouteDetailViewModel] (via Hilt) which reads the
  * `routeId` from [androidx.lifecycle.SavedStateHandle] injected by Navigation Compose.
  *
+ * Export-sheet visibility is kept as Compose-local state (not in the ViewModel). ViewModel
+ * one-shot [RouteDetailEvent]s are collected via a [LaunchedEffect] and forwarded to [onToast].
+ *
  * Map tiles and chart Canvas rendering are on-device-only concerns (🔬).
  *
  * @param modifier   Standard Compose modifier.
  * @param viewModel  Hilt-injected [RouteDetailViewModel].
- * @param onExport   Called when "Export / share" is tapped (B8 owns the sheet).
- * @param onSend     Called when "Send" is tapped (B8 owns the action).
+ * @param onToast    Called with a localised message string whenever an action completes.
  */
 @Composable
 fun RouteDetailScreen(
     modifier: Modifier = Modifier,
     viewModel: RouteDetailViewModel = hiltViewModel(),
-    onExport: () -> Unit = {},
-    onSend: () -> Unit = {},
+    onToast: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showExportSheet by remember { mutableStateOf(false) }
+
+    val gpxSavedMsg = stringResource(R.string.toast_gpx_saved)
+    val linkCopiedMsg = stringResource(R.string.toast_link_copied)
+    val serverSentMsg = stringResource(R.string.toast_server_sent)
+
+    LaunchedEffect(viewModel.events) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is RouteDetailEvent.GpxSaved -> onToast(gpxSavedMsg)
+                is RouteDetailEvent.LinkCopied -> onToast(linkCopiedMsg)
+                is RouteDetailEvent.ServerSent -> onToast(serverSentMsg)
+            }
+        }
+    }
 
     when {
         state.loading -> LoadingPane(modifier)
         state.routeNotFound -> NotFoundPane(modifier)
-        else -> DetailContent(state = state, modifier = modifier, onExport = onExport, onSend = onSend)
+        else -> DetailContent(
+            state = state,
+            modifier = modifier,
+            onExport = { showExportSheet = true },
+            onSend = { viewModel.sendToServer() },
+        )
+    }
+
+    if (showExportSheet) {
+        ExportSheet(
+            routeName = state.name,
+            onExportGpx = { viewModel.exportGpx() },
+            onShareRoute = { viewModel.shareRoute() },
+            onSendServer = { viewModel.sendToServer() },
+            onDismiss = { showExportSheet = false },
+        )
     }
 }
 

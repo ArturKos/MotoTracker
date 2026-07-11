@@ -358,5 +358,6 @@ class RecordingViewModelTest {
         settingsSource = FakeSettingsSource(settings),
         networkMonitor = FakeNetworkMonitor(isOnline = online),
         timeProvider = FakeTimeProvider(fixedTimeMs),
+        carBridge = com.mototracker.car.CarRecordingBridge(),
     )
 }

@@ -70,7 +70,7 @@ license new SDK packages), the scaffold MUST target what is installed:
 | B6 | **Stats**: 4 summary tiles; distance-per-month bar chart; riding-style summary (avg lean, avg speed, total ascent). | 🔬 |
 | B7 | **Settings**: account, my motorcycles (add/select/status), appearance & language, server & sync, sync queue, Bluetooth broadcast profile, system & privacy (work-without-internet, GPS road correction, Android Auto), preferences (units, auto-pause, keep screen on). | 🔬 |
 | B8 | **Export sheet + toasts**: GPX export, share link, send to GPStrack; confirmation toasts. | 🔬 |
-| B9 | **Android Auto view**: glanceable recording screen (Car App Library templates) — big speed, time/distance, lean/altitude, oversized start/pause/stop; night/day themes. | ⬜ |
+| B9 | **Android Auto view**: glanceable recording screen (Car App Library templates) — big speed, time/distance, lean/altitude, oversized start/pause/stop; night/day themes. | 🔬 |
 
 ## C. Out of scope (NOT tasks)
 

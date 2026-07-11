@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
     implementation(libs.datastore.preferences)
+    implementation(libs.androidx.car.app)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

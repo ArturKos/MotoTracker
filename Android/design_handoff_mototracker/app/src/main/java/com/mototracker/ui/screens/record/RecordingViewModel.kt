@@ -2,6 +2,7 @@ package com.mototracker.ui.screens.record
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.model.Route
@@ -11,6 +12,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.recording.RecordingEngine
+import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,6 +49,7 @@ import javax.inject.Inject
  * @param settingsSource    Read-only app settings stream.
  * @param networkMonitor    Online/offline connectivity.
  * @param timeProvider      Wall-clock source (injectable for tests).
+ * @param carBridge         App-scoped bridge that mirrors recording state to the Android Auto screen.
  */
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
@@ -57,6 +60,7 @@ class RecordingViewModel @Inject constructor(
     private val settingsSource: AppSettingsSource,
     private val networkMonitor: NetworkMonitor,
     private val timeProvider: TimeProvider,
+    private val carBridge: CarRecordingBridge,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -74,11 +78,21 @@ class RecordingViewModel @Inject constructor(
     private var leanJob: Job? = null
 
     init {
-        // Keep gpsOnRoad in sync with the user's GPS-correction setting.
+        // Keep gpsOnRoad in sync with the user's GPS-correction setting;
+        // also forward the active units preference to the Android Auto bridge.
         viewModelScope.launch {
             settingsSource.settings.collect { s ->
                 _uiState.update { it.copy(gpsOnRoad = s.gpsCorrect) }
+                carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)
             }
+        }
+        // Mirror uiState to the Android Auto bridge so the car screen stays in sync.
+        viewModelScope.launch {
+            uiState.collect { s -> carBridge.publish(s.metrics, s.phase) }
+        }
+        // Handle recording control commands coming from the car screen.
+        viewModelScope.launch {
+            carBridge.commands.collect { event -> onEvent(event) }
         }
     }
 

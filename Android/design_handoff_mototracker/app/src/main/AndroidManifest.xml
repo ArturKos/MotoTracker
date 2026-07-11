@@ -48,6 +48,24 @@
             android:foregroundServiceType="location"
             android:exported="false" />
 
+        <!-- Android Auto Car App Library service (IOT category for template-based recording view) -->
+        <service
+            android:name=".car.MotoTrackerCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.IOT" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.car.app.minCarApiLevel"
+                android:value="1" />
+        </service>
+
+        <!-- Declares this app supports Android Auto template rendering -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
     </application>
 
 </manifest>

@@ -25,6 +25,8 @@ package com.mototracker.data.settings
  * @param bcSocial            Bluetooth broadcast: social media handle.
  * @param debugLoggingEnabled Whether diagnostic ride logs are written to external storage.
  *                            Defaults to `false`; toggled by the B10 diagnostics UI.
+ * @param osrmBaseUrl         Base URL of the OSRM map-matching instance used for GPS road-correction.
+ *                            No Settings-screen UI yet (B13); persisted for A10 infrastructure.
  */
 data class AppSettings(
     val offline: Boolean = false,
@@ -45,4 +47,5 @@ data class AppSettings(
     val bcOrigin: String = "",
     val bcSocial: String = "",
     val debugLoggingEnabled: Boolean = false,
+    val osrmBaseUrl: String = "http://192.168.1.142:5001",
 )

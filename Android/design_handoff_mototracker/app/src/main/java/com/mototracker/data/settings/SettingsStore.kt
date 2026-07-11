@@ -63,4 +63,13 @@ interface SettingsStore : WritableSettingsSource {
 
     /** Persists the diagnostic ride-logging enabled flag. */
     suspend fun setDebugLoggingEnabled(value: Boolean)
+
+    /**
+     * Persists the OSRM map-matching base URL.
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this until
+     * the B13 Settings-screen UI wires it up.
+     */
+    suspend fun setOsrmBaseUrl(url: String) {}
 }

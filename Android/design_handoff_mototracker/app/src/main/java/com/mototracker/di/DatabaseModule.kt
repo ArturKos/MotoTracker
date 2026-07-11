@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.mototracker.data.local.MotoDatabase
 import com.mototracker.data.local.dao.BikeDao
+import com.mototracker.data.local.dao.CorrectionQueueDao
 import com.mototracker.data.local.dao.GroupDao
 import com.mototracker.data.local.dao.RouteDao
 import com.mototracker.data.local.dao.SyncQueueDao
@@ -59,4 +60,8 @@ object DatabaseModule {
     /** Provides the [SyncQueueDao] from the singleton database. */
     @Provides
     fun provideSyncQueueDao(db: MotoDatabase): SyncQueueDao = db.syncQueueDao()
+
+    /** Provides the [CorrectionQueueDao] from the singleton database. */
+    @Provides
+    fun provideCorrectionQueueDao(db: MotoDatabase): CorrectionQueueDao = db.correctionQueueDao()
 }

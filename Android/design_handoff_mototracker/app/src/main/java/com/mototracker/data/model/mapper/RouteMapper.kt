@@ -22,6 +22,9 @@ fun RouteEntity.toDomain(): Route = Route(
     speedJson = speedJson,
     elevProfileJson = elevProfileJson,
     notes = notes,
+    correctedPathJson = correctedPathJson,
+    correctionStatus = correctionStatus,
+    confidence = confidence,
 )
 
 /** Converts a [Route] domain model to its Room entity counterpart. */
@@ -43,4 +46,7 @@ fun Route.toEntity(): RouteEntity = RouteEntity(
     speedJson = speedJson,
     elevProfileJson = elevProfileJson,
     notes = notes,
+    correctedPathJson = correctedPathJson,
+    correctionStatus = correctionStatus,
+    confidence = confidence,
 )

@@ -47,6 +47,7 @@ class SettingsDataStore @Inject constructor(
         val BC_ORIGIN = stringPreferencesKey("bc_origin")
         val BC_SOCIAL = stringPreferencesKey("bc_social")
         val DEBUG_LOGGING_ENABLED = booleanPreferencesKey("debug_logging_enabled")
+        val OSRM_BASE_URL = stringPreferencesKey("osrm_base_url")
     }
 
     private val defaults = AppSettings()
@@ -72,6 +73,7 @@ class SettingsDataStore @Inject constructor(
             bcOrigin = prefs[Keys.BC_ORIGIN] ?: defaults.bcOrigin,
             bcSocial = prefs[Keys.BC_SOCIAL] ?: defaults.bcSocial,
             debugLoggingEnabled = prefs[Keys.DEBUG_LOGGING_ENABLED] ?: defaults.debugLoggingEnabled,
+            osrmBaseUrl = prefs[Keys.OSRM_BASE_URL] ?: defaults.osrmBaseUrl,
         )
     }
 
@@ -170,5 +172,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the diagnostic ride-logging enabled flag. */
     override suspend fun setDebugLoggingEnabled(value: Boolean) {
         dataStore.edit { it[Keys.DEBUG_LOGGING_ENABLED] = value }
+    }
+
+    /** Persists the OSRM map-matching base URL. */
+    override suspend fun setOsrmBaseUrl(url: String) {
+        dataStore.edit { it[Keys.OSRM_BASE_URL] = url }
     }
 }

@@ -4,12 +4,16 @@ import com.mototracker.core.time.SystemTimeProvider
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.network.AndroidNetworkMonitor
 import com.mototracker.data.network.DataStoreSessionStore
+import com.mototracker.data.network.GpsCorrectionClient
 import com.mototracker.data.network.GpStrackClient
 import com.mototracker.data.network.HttpGpStrackClient
 import com.mototracker.data.network.HttpTransport
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.network.OsrmGpsCorrectionClient
 import com.mototracker.data.network.SessionStore
 import com.mototracker.data.network.UrlConnectionHttpTransport
+import com.mototracker.data.repository.GpsCorrectionRepository
+import com.mototracker.data.repository.GpsCorrectionRepositoryImpl
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.SyncRepositoryImpl
 import com.mototracker.data.settings.AppSettingsSource
@@ -84,4 +88,14 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindSettingsStore(impl: SettingsDataStore): SettingsStore
+
+    /** Binds [OsrmGpsCorrectionClient] as the [GpsCorrectionClient] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindGpsCorrectionClient(impl: OsrmGpsCorrectionClient): GpsCorrectionClient
+
+    /** Binds [GpsCorrectionRepositoryImpl] as the [GpsCorrectionRepository] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindGpsCorrectionRepository(impl: GpsCorrectionRepositoryImpl): GpsCorrectionRepository
 }

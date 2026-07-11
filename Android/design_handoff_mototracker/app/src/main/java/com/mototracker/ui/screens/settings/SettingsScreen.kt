@@ -1,6 +1,8 @@
 package com.mototracker.ui.screens.settings
 
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -73,16 +75,21 @@ import com.mototracker.ui.theme.MotoTracker
  * Appearance changes (theme, accent, language, units) are routed through
  * [AppStateViewModel] intents for live UI update AND persisted via [SettingsViewModel].
  *
+ * [AppStateViewModel] is resolved against the enclosing [ComponentActivity]'s
+ * [androidx.lifecycle.ViewModelStoreOwner] — the same scope used by [com.mototracker.MainActivity]
+ * — so that both sides observe the **same instance** and theme/accent changes propagate immediately.
+ *
  * @param modifier       Standard Compose modifier.
  * @param viewModel      Hilt-injected [SettingsViewModel].
- * @param appStateVm     Hilt-injected [AppStateViewModel].
+ * @param appStateVm     [AppStateViewModel] resolved from the Activity scope; defaults to
+ *                       `hiltViewModel(activity)` so Settings and MainActivity share one instance.
  * @param onSignOut      Called after [AppStateViewModel.signOut]; the host navigates to Login.
  */
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
-    appStateVm: AppStateViewModel = hiltViewModel(),
+    appStateVm: AppStateViewModel = hiltViewModel(checkNotNull(LocalActivity.current) as ComponentActivity),
     onSignOut: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()

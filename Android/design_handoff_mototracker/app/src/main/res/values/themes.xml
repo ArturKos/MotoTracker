@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base app theme. Full design-token theming is implemented in A2. -->
-    <style name="Theme.MotoTracker" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- AppCompat-derived parent required by AppCompatActivity; preserves NoActionBar + DayNight behaviour. -->
+    <style name="Theme.MotoTracker" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>

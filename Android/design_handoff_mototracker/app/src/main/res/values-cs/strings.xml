@@ -189,6 +189,7 @@
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Uložit</string>
 
+    <string name="label_new_bike_default">Nová motorka</string>
     <string name="toast_add_bike">Přidat motorku — formulář</string>
     <string name="toast_add_member">SMS pozvánka odeslána</string>
     <string name="toast_bc_saved">Profil vysílání uložen</string>

@@ -33,7 +33,7 @@ data class AppSettings(
     val serverAddress: String = "http://192.168.1.145/gpstrack",
     val units: String = "metric",
     val theme: String = "cockpit",
-    val accent: String = "#00BCD4",
+    val accent: String = "#00D1B2",
     val lang: String = "pl",
     val autoPause: Boolean = true,
     val keepScreenOn: Boolean = false,

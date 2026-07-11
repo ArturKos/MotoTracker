@@ -189,6 +189,7 @@
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Speichern</string>
 
+    <string name="label_new_bike_default">Neues Motorrad</string>
     <string name="toast_add_bike">Motorrad hinzufügen — Formular</string>
     <string name="toast_add_member">SMS-Einladung gesendet</string>
     <string name="toast_bc_saved">Sendeprofil gespeichert</string>

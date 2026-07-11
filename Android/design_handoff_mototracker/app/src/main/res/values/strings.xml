@@ -218,6 +218,7 @@
     <string name="hint_pause_handlebar">Pause also via handlebar button</string>
 
     <!-- Riders toast messages -->
+    <string name="label_new_bike_default">New motorcycle</string>
     <string name="toast_add_bike">Add motorcycle — form</string>
     <string name="toast_add_member">SMS invite sent</string>
     <string name="toast_bc_saved">Broadcast profile saved</string>

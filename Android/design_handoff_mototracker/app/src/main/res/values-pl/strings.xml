@@ -189,6 +189,7 @@
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Zapisz</string>
 
+    <string name="label_new_bike_default">Nowy motocykl</string>
     <string name="toast_add_bike">Dodaj motocykl — formularz</string>
     <string name="toast_add_member">Zaproszenie SMS wysłane</string>
     <string name="toast_bc_saved">Zapisano profil rozgłaszania</string>

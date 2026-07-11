@@ -8,7 +8,6 @@ import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
-import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.data.settings.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

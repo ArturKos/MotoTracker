@@ -189,6 +189,7 @@
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Сохранить</string>
 
+    <string name="label_new_bike_default">Новый мотоцикл</string>
     <string name="toast_add_bike">Добавить мотоцикл — форма</string>
     <string name="toast_add_member">SMS-приглашение отправлено</string>
     <string name="toast_bc_saved">Профиль трансляции сохранён</string>

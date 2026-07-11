@@ -68,7 +68,7 @@ data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
     val currentBikeId: String? = null,
     val theme: String = "cockpit",
-    val accent: String = "#00BCD4",
+    val accent: String = "#00D1B2",
     val language: String = "pl",
     val units: String = "metric",
     val serverAddress: String = "http://192.168.1.145/gpstrack",

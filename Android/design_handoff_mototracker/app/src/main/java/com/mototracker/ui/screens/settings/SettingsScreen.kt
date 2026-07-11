@@ -1,5 +1,6 @@
 package com.mototracker.ui.screens.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -115,8 +117,14 @@ fun SettingsScreen(
             )
         }
         item {
+            val ctx = LocalContext.current
+            val addBikeMsg = stringResource(R.string.toast_add_bike)
+            val newBikeDefault = stringResource(R.string.label_new_bike_default)
             TextButton(
-                onClick = { viewModel.addBike(name = "New motorcycle", year = 2024, plate = "") },
+                onClick = {
+                    viewModel.addBike(name = newBikeDefault, year = 2024, plate = "")
+                    Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -642,6 +650,8 @@ private fun BroadcastSection(
     var phoneField by rememberSaveable { mutableStateOf(state.bcPhone) }
     var originField by rememberSaveable { mutableStateOf(state.bcOrigin) }
     var socialField by rememberSaveable { mutableStateOf(state.bcSocial) }
+    val context = LocalContext.current
+    val savedMsg = stringResource(R.string.toast_bc_saved)
 
     Column(modifier = modifier) {
         Text(
@@ -660,7 +670,10 @@ private fun BroadcastSection(
         BcReadOnly(label = stringResource(R.string.label_bc_total), value = state.bcTotalDisplay)
         Spacer(modifier = Modifier.height(8.dp))
         Button(
-            onClick = { onSave(nameField, phoneField, originField, socialField) },
+            onClick = {
+                onSave(nameField, phoneField, originField, socialField)
+                Toast.makeText(context, savedMsg, Toast.LENGTH_SHORT).show()
+            },
             colors = ButtonDefaults.buttonColors(containerColor = MotoTracker.colors.accent),
             modifier = Modifier.fillMaxWidth(),
         ) {

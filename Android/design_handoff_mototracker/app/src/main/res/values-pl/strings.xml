@@ -194,6 +194,11 @@
     <string name="toast_add_member">Zaproszenie SMS wysłane</string>
     <string name="toast_bc_saved">Zapisano profil rozgłaszania</string>
 
+    <!-- Location permission -->
+    <string name="perm_location_rationale">MotoTracker wymaga dostępu do lokalizacji, aby nagrywać trasę.</string>
+    <string name="perm_location_denied">Brak uprawnień do lokalizacji. Włącz lokalizację w ustawieniach aplikacji, aby nagrywać trasy.</string>
+    <string name="btn_grant_permission">Udziel uprawnienia</string>
+
     <string name="tod_morning">poranek</string>
     <string name="tod_afternoon">popołudnie</string>
     <string name="tod_evening">wieczór</string>

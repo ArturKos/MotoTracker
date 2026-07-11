@@ -328,6 +328,34 @@ class RecordingViewModelTest {
         assertEquals(fixedTime, repo.saved.first().dateEpochMs)
     }
 
+    // ── SecurityException resilience ─────────────────────────────────────────
+
+    @Test
+    fun `ViewModel stays in Recording phase when location flow throws SecurityException`() =
+        runTest(testDispatcher) {
+            val securityFlow = flow<LocationSample> { throw SecurityException("Permission denied") }
+            val vm = buildViewModel(locationClient = FakeLocationClient(securityFlow))
+
+            vm.uiState.test {
+                awaitItem() // Idle
+                vm.onEvent(RecordingEvent.Start)
+                val recordingState = awaitItem()
+                assertEquals(RecordingPhase.Recording, recordingState.phase)
+
+                // Advance enough for the SecurityException to propagate through the location job
+                // without using advanceUntilIdle() which hangs with the infinite ticker loop.
+                advanceTimeBy(200L)
+
+                assertEquals(
+                    "ViewModel should remain in Recording despite SecurityException in location flow",
+                    RecordingPhase.Recording,
+                    vm.uiState.value.phase,
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
+            vm.onEvent(RecordingEvent.Pause) // stop the ticker
+        }
+
     // ── Settings sync ────────────────────────────────────────────────────────
 
     @Test
@@ -350,8 +378,9 @@ class RecordingViewModelTest {
         settings: AppSettings = AppSettings(offline = offline, offlineOnly = offlineOnly),
         routeRepository: RouteRepository = routeRepo,
         fixedTimeMs: Long = 1_000_000L,
+        locationClient: LocationClient = FakeLocationClient(),
     ) = RecordingViewModel(
-        locationClient = FakeLocationClient(),
+        locationClient = locationClient,
         leanSensorSource = FakeLeanSensorSource(),
         routeRepository = routeRepository,
         syncRepository = syncRepo,

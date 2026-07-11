@@ -223,6 +223,11 @@
     <string name="toast_add_member">SMS invite sent</string>
     <string name="toast_bc_saved">Broadcast profile saved</string>
 
+    <!-- Location permission -->
+    <string name="perm_location_rationale">MotoTracker needs location access to record your ride.</string>
+    <string name="perm_location_denied">Location permission denied. Enable it in the app\'s system settings to record rides.</string>
+    <string name="btn_grant_permission">Grant permission</string>
+
     <!-- Time of day -->
     <string name="tod_morning">morning</string>
     <string name="tod_afternoon">afternoon</string>

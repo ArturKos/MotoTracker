@@ -62,14 +62,18 @@ class FusedLocationClientImpl @Inject constructor(
             override fun onProviderDisabled(provider: String) = Unit
         }
 
-        locationManager.requestLocationUpdates(
-            LocationManager.GPS_PROVIDER,
-            intervalMs,
-            0f,
-            listener,
-        )
-
-        awaitClose { locationManager.removeUpdates(listener) }
+        try {
+            locationManager.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                intervalMs,
+                0f,
+                listener,
+            )
+            awaitClose { locationManager.removeUpdates(listener) }
+        } catch (e: SecurityException) {
+            // ACCESS_FINE_LOCATION not granted — terminate the flow cleanly.
+            close(e)
+        }
     }
 
     private fun Location.toSample() = LocationSample(

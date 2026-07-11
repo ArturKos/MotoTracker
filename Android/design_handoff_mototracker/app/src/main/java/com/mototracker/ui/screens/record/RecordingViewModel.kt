@@ -186,9 +186,13 @@ class RecordingViewModel @Inject constructor(
 
     private fun startLocationUpdates() {
         locationJob = viewModelScope.launch {
-            locationClient.locationUpdates().collect { sample ->
-                val metrics = engine.onLocation(sample)
-                _uiState.update { it.copy(metrics = metrics) }
+            try {
+                locationClient.locationUpdates().collect { sample ->
+                    val metrics = engine.onLocation(sample)
+                    _uiState.update { it.copy(metrics = metrics) }
+                }
+            } catch (_: SecurityException) {
+                // Permission was revoked mid-session; recording continues on ticker/lean only.
             }
         }
     }

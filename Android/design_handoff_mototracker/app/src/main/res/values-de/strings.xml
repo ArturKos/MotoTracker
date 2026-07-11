@@ -194,6 +194,11 @@
     <string name="toast_add_member">SMS-Einladung gesendet</string>
     <string name="toast_bc_saved">Sendeprofil gespeichert</string>
 
+    <!-- Location permission -->
+    <string name="perm_location_rationale">MotoTracker benötigt Standortzugriff zum Aufzeichnen deiner Tour.</string>
+    <string name="perm_location_denied">Standortberechtigung verweigert. Aktiviere sie in den App-Einstellungen, um Touren aufzuzeichnen.</string>
+    <string name="btn_grant_permission">Berechtigung erteilen</string>
+
     <string name="tod_morning">Morgen</string>
     <string name="tod_afternoon">Nachmittag</string>
     <string name="tod_evening">Abend</string>

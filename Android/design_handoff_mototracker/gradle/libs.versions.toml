@@ -1,5 +1,5 @@
 [versions]
-agp = "8.9.2"
+agp = "8.13.2"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.28"
 appcompat = "1.7.0"
@@ -20,6 +20,7 @@ turbine = "1.2.0"
 robolectric = "4.13"
 androidxTestCore = "1.6.1"
 androidxTestExtJunit = "1.2.1"
+mockk = "1.13.12"
 
 [libraries]
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
@@ -50,6 +51,7 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
 androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

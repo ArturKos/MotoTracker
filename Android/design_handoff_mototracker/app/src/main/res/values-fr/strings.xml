@@ -194,6 +194,11 @@
     <string name="toast_add_member">Invitation SMS envoyée</string>
     <string name="toast_bc_saved">Profil de diffusion enregistré</string>
 
+    <!-- Location permission -->
+    <string name="perm_location_rationale">MotoTracker a besoin d\'accéder à la localisation pour enregistrer votre trajet.</string>
+    <string name="perm_location_denied">Permission de localisation refusée. Activez-la dans les paramètres de l\'application pour enregistrer des trajets.</string>
+    <string name="btn_grant_permission">Accorder la permission</string>
+
     <string name="tod_morning">matin</string>
     <string name="tod_afternoon">après-midi</string>
     <string name="tod_evening">soir</string>

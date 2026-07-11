@@ -194,6 +194,11 @@
     <string name="toast_add_member">SMS pozvánka odeslána</string>
     <string name="toast_bc_saved">Profil vysílání uložen</string>
 
+    <!-- Location permission -->
+    <string name="perm_location_rationale">MotoTracker potřebuje přístup k poloze pro záznam trasy.</string>
+    <string name="perm_location_denied">Přístup k poloze odepřen. Povolte ho v nastavení aplikace, aby bylo možné nahrávat trasy.</string>
+    <string name="btn_grant_permission">Udělit oprávnění</string>
+
     <string name="tod_morning">ráno</string>
     <string name="tod_afternoon">odpoledne</string>
     <string name="tod_evening">večer</string>

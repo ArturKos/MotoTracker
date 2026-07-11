@@ -194,6 +194,11 @@
     <string name="toast_add_member">SMS-приглашение отправлено</string>
     <string name="toast_bc_saved">Профиль трансляции сохранён</string>
 
+    <!-- Location permission -->
+    <string name="perm_location_rationale">MotoTracker нужен доступ к местоположению для записи маршрута.</string>
+    <string name="perm_location_denied">Доступ к местоположению запрещён. Включите его в настройках приложения для записи маршрутов.</string>
+    <string name="btn_grant_permission">Предоставить разрешение</string>
+
     <string name="tod_morning">утро</string>
     <string name="tod_afternoon">день</string>
     <string name="tod_evening">вечер</string>

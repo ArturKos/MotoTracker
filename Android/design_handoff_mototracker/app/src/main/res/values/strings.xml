@@ -217,6 +217,17 @@
     <string name="label_meetings_none">No meetups</string>
     <string name="hint_pause_handlebar">Pause also via handlebar button</string>
 
+    <!-- Add/edit motorcycle dialog -->
+    <string name="dialog_title_add_bike">Add motorcycle</string>
+    <string name="dialog_title_edit_bike">Edit motorcycle</string>
+    <string name="label_bike_name">Name</string>
+    <string name="label_bike_year">Year</string>
+    <string name="label_bike_plate">Plate number</string>
+    <string name="label_bike_status">Status</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="error_name_blank">Name is required</string>
+    <string name="error_year_invalid">Enter a valid year (1900–2030)</string>
+
     <!-- Riders toast messages -->
     <string name="label_new_bike_default">New motorcycle</string>
     <string name="toast_add_bike">Add motorcycle — form</string>

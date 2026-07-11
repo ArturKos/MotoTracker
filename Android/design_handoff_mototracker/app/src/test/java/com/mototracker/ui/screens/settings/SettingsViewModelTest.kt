@@ -83,7 +83,8 @@ private class FakeBikeRepository : BikeRepository {
     override fun observeAll(): Flow<List<Bike>> = _flow
     override suspend fun addBike(bike: Bike) {
         addedBikes += bike
-        _flow.value = _flow.value + bike
+        // Upsert: replace entry with the same id, append if new.
+        _flow.value = _flow.value.filter { it.id != bike.id } + bike
     }
 }
 
@@ -423,6 +424,125 @@ class SettingsViewModelTest {
         assertEquals(2, bikeRepo.addedBikes.size)
         val ids = bikeRepo.addedBikes.map { it.id }.toSet()
         assertEquals(2, ids.size)
+    }
+
+    @Test
+    fun `addBike persists given status`() = runTest {
+        vm.addBike("Honda CBR", 2022, "KR 5678", BikeStatus.SOLD)
+        val added = bikeRepo.addedBikes.last()
+        assertEquals(BikeStatus.SOLD, added.status)
+    }
+
+    @Test
+    fun `addBike no-ops on blank name`() = runTest {
+        val sizeBefore = bikeRepo.addedBikes.size
+        vm.addBike("  ", 2022, "KR 5678", BikeStatus.ACTIVE)
+        assertEquals(sizeBefore, bikeRepo.addedBikes.size)
+    }
+
+    @Test
+    fun `addBike no-ops on invalid year`() = runTest {
+        val sizeBefore = bikeRepo.addedBikes.size
+        vm.addBike("Honda CBR", 0, "KR 5678", BikeStatus.ACTIVE)
+        assertEquals(sizeBefore, bikeRepo.addedBikes.size)
+    }
+
+    // ── updateBike intent ─────────────────────────────────────────────────────
+
+    @Test
+    fun `updateBike upserts with the same id and new fields`() = runTest {
+        bikeRepo.emit(listOf(makeBike("b1", name = "Old name", year = 2020, plate = "OLD 1")))
+        vm.updateBike("b1", "New name", 2023, "NEW 2", BikeStatus.SOLD)
+        val updated = bikeRepo.addedBikes.last()
+        assertEquals("b1", updated.id)
+        assertEquals("New name", updated.name)
+        assertEquals(2023, updated.year)
+        assertEquals("NEW 2", updated.plate)
+        assertEquals(BikeStatus.SOLD, updated.status)
+    }
+
+    @Test
+    fun `updateBike upserted bike appears in observeAll`() = runTest {
+        bikeRepo.emit(listOf(makeBike("b1", name = "Old name")))
+        vm.updateBike("b1", "New name", 2023, "NEW 2", BikeStatus.ACTIVE)
+        vm.uiState.test {
+            val state = awaitItem()
+            val found = state.bikes.find { it.id == "b1" }
+            requireNotNull(found)
+            assertEquals("New name", found.name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `updateBike no-ops on blank name`() = runTest {
+        val sizeBefore = bikeRepo.addedBikes.size
+        vm.updateBike("b1", "  ", 2020, "WA 1234", BikeStatus.ACTIVE)
+        assertEquals(sizeBefore, bikeRepo.addedBikes.size)
+    }
+
+    @Test
+    fun `updateBike no-ops on invalid year`() = runTest {
+        val sizeBefore = bikeRepo.addedBikes.size
+        vm.updateBike("b1", "Honda CBR", 1800, "WA 1234", BikeStatus.ACTIVE)
+        assertEquals(sizeBefore, bikeRepo.addedBikes.size)
+    }
+
+    // ── BikeFormValidation (pure unit tests) ──────────────────────────────────
+
+    @Test
+    fun `BikeFormValidation returns NameBlank for empty name`() {
+        assertEquals(BikeFormResult.NameBlank, BikeFormValidation.validate("", "2022", "WA 1234"))
+    }
+
+    @Test
+    fun `BikeFormValidation returns NameBlank for whitespace-only name`() {
+        assertEquals(BikeFormResult.NameBlank, BikeFormValidation.validate("   ", "2022", "WA 1234"))
+    }
+
+    @Test
+    fun `BikeFormValidation returns YearInvalid for non-numeric year`() {
+        assertEquals(BikeFormResult.YearInvalid, BikeFormValidation.validate("Honda CBR", "abc", "WA 1234"))
+    }
+
+    @Test
+    fun `BikeFormValidation returns YearInvalid for year below range`() {
+        assertEquals(BikeFormResult.YearInvalid, BikeFormValidation.validate("Honda CBR", "1899", "WA 1234"))
+    }
+
+    @Test
+    fun `BikeFormValidation returns YearInvalid for year above range`() {
+        assertEquals(BikeFormResult.YearInvalid, BikeFormValidation.validate("Honda CBR", "2031", "WA 1234"))
+    }
+
+    @Test
+    fun `BikeFormValidation returns YearInvalid for zero year`() {
+        assertEquals(BikeFormResult.YearInvalid, BikeFormValidation.validate("Honda CBR", "0", "WA 1234"))
+    }
+
+    @Test
+    fun `BikeFormValidation returns Valid for correct inputs`() {
+        val result = BikeFormValidation.validate("  Honda CBR  ", "2022", "  WA 1234  ")
+        assertTrue(result is BikeFormResult.Valid)
+        val valid = result as BikeFormResult.Valid
+        assertEquals("Honda CBR", valid.name)
+        assertEquals(2022, valid.year)
+        assertEquals("WA 1234", valid.plate)
+    }
+
+    @Test
+    fun `BikeFormValidation Valid trims name and plate`() {
+        val result = BikeFormValidation.validate("  MT-07  ", "2020", "  WA 07  ")
+        assertTrue(result is BikeFormResult.Valid)
+        val valid = result as BikeFormResult.Valid
+        assertEquals("MT-07", valid.name)
+        assertEquals("WA 07", valid.plate)
+    }
+
+    @Test
+    fun `BikeFormValidation allows blank plate`() {
+        val result = BikeFormValidation.validate("MT-07", "2020", "")
+        assertTrue(result is BikeFormResult.Valid)
     }
 
     // ── Settings state reflected in uiState ───────────────────────────────────

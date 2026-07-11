@@ -189,6 +189,17 @@
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Speichern</string>
 
+    <!-- Add/edit motorcycle dialog -->
+    <string name="dialog_title_add_bike">Motorrad hinzufügen</string>
+    <string name="dialog_title_edit_bike">Motorrad bearbeiten</string>
+    <string name="label_bike_name">Name</string>
+    <string name="label_bike_year">Baujahr</string>
+    <string name="label_bike_plate">Kennzeichen</string>
+    <string name="label_bike_status">Status</string>
+    <string name="btn_cancel">Abbrechen</string>
+    <string name="error_name_blank">Name erforderlich</string>
+    <string name="error_year_invalid">Gültiges Baujahr (1900–2030)</string>
+
     <string name="label_new_bike_default">Neues Motorrad</string>
     <string name="toast_add_bike">Motorrad hinzufügen — Formular</string>
     <string name="toast_add_member">SMS-Einladung gesendet</string>

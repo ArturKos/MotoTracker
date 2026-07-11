@@ -75,6 +75,8 @@ class SettingsViewModel @Inject constructor(
                 yearPlate = "${bike.year} · ${bike.plate}",
                 status = bike.status,
                 isCurrent = bike.id == settings.currentBikeId,
+                year = bike.year,
+                plate = bike.plate,
             )
         }
 
@@ -137,19 +139,64 @@ class SettingsViewModel @Inject constructor(
     /**
      * Adds a new motorcycle with a generated UUID.
      *
-     * @param name  Display name, e.g. "Yamaha MT-07".
-     * @param year  Model year.
-     * @param plate Registration plate.
+     * Input is validated via [BikeFormValidation.validate]; the call is a no-op on
+     * [BikeFormResult.NameBlank] or [BikeFormResult.YearInvalid].
+     *
+     * @param name   Display name, e.g. "Yamaha MT-07".
+     * @param year   Model year (must be in 1900–2030).
+     * @param plate  Registration plate (may be blank).
+     * @param status Lifecycle status; defaults to [BikeStatus.ACTIVE].
      */
-    fun addBike(name: String, year: Int, plate: String) {
+    fun addBike(
+        name: String,
+        year: Int,
+        plate: String,
+        status: BikeStatus = BikeStatus.ACTIVE,
+    ) {
+        val result = BikeFormValidation.validate(name, year.toString(), plate)
+        if (result !is BikeFormResult.Valid) return
         viewModelScope.launch {
             bikeRepository.addBike(
                 Bike(
                     id = UUID.randomUUID().toString(),
-                    name = name,
-                    year = year,
-                    plate = plate,
-                    status = BikeStatus.ACTIVE,
+                    name = result.name,
+                    year = result.year,
+                    plate = result.plate,
+                    status = status,
+                )
+            )
+        }
+    }
+
+    /**
+     * Updates an existing motorcycle identified by [id], preserving its UUID (upsert).
+     *
+     * Input is validated via [BikeFormValidation.validate]; the call is a no-op on
+     * [BikeFormResult.NameBlank] or [BikeFormResult.YearInvalid].
+     *
+     * @param id     UUID of the bike to update.
+     * @param name   New display name.
+     * @param year   New model year (must be in 1900–2030).
+     * @param plate  New registration plate (may be blank).
+     * @param status New lifecycle status.
+     */
+    fun updateBike(
+        id: String,
+        name: String,
+        year: Int,
+        plate: String,
+        status: BikeStatus,
+    ) {
+        val result = BikeFormValidation.validate(name, year.toString(), plate)
+        if (result !is BikeFormResult.Valid) return
+        viewModelScope.launch {
+            bikeRepository.addBike(
+                Bike(
+                    id = id,
+                    name = result.name,
+                    year = result.year,
+                    plate = result.plate,
+                    status = status,
                 )
             )
         }

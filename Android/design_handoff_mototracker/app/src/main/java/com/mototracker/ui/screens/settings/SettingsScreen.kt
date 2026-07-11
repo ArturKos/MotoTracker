@@ -21,9 +21,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -44,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -82,6 +88,32 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appState by appStateVm.uiState.collectAsStateWithLifecycle()
 
+    val ctx = LocalContext.current
+    val addBikeMsg = stringResource(R.string.toast_add_bike)
+
+    // Dialog state: null editBikeId = add mode; non-null = edit mode for that bike id.
+    var showBikeDialog by rememberSaveable { mutableStateOf(false) }
+    var editBikeId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    if (showBikeDialog) {
+        val editBike = editBikeId?.let { id -> state.bikes.find { it.id == id } }
+        AddEditBikeDialog(
+            initial = editBike,
+            onConfirm = { name, year, plate, status ->
+                if (editBikeId != null) {
+                    viewModel.updateBike(editBikeId!!, name, year, plate, status)
+                } else {
+                    viewModel.addBike(name, year, plate, status)
+                    Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDismiss = {
+                showBikeDialog = false
+                editBikeId = null
+            },
+        )
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -114,16 +146,17 @@ fun SettingsScreen(
             BikeRow(
                 bike = bike,
                 onSelect = { viewModel.selectBike(bike.id) },
+                onEdit = {
+                    editBikeId = bike.id
+                    showBikeDialog = true
+                },
             )
         }
         item {
-            val ctx = LocalContext.current
-            val addBikeMsg = stringResource(R.string.toast_add_bike)
-            val newBikeDefault = stringResource(R.string.label_new_bike_default)
             TextButton(
                 onClick = {
-                    viewModel.addBike(name = newBikeDefault, year = 2024, plate = "")
-                    Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
+                    editBikeId = null
+                    showBikeDialog = true
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -398,11 +431,17 @@ private fun AccountSection(
     }
 }
 
-/** Single bike row: name, year·plate, status badge, CURRENT tag. */
+/**
+ * Single bike row: name, year·plate, status badge, CURRENT tag.
+ *
+ * Tapping the row marks it as the currently active bike ([onSelect]).
+ * The pencil icon opens the edit dialog ([onEdit]).
+ */
 @Composable
 private fun BikeRow(
     bike: BikeUi,
     onSelect: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -416,7 +455,7 @@ private fun BikeRow(
             Text(text = bike.name, color = MotoTracker.colors.text, style = MotoTracker.typography.body)
             Text(text = bike.yearPlate, color = MotoTracker.colors.dim, style = MotoTracker.typography.label)
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(4.dp))
         if (bike.isCurrent) {
             StatusChip(text = stringResource(R.string.tag_current), accent = true)
             Spacer(modifier = Modifier.width(6.dp))
@@ -427,6 +466,15 @@ private fun BikeRow(
             stringResource(R.string.status_sold)
         }
         StatusChip(text = statusText, accent = bike.status == BikeStatus.ACTIVE)
+        Spacer(modifier = Modifier.width(4.dp))
+        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = stringResource(R.string.dialog_title_edit_bike),
+                tint = MotoTracker.colors.dim,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
@@ -686,19 +734,21 @@ private fun BroadcastSection(
     }
 }
 
-/** Editable broadcast field. */
+/** Editable text field used in the broadcast profile and add/edit bike dialog. */
 @Composable
 private fun BcTextField(
     label: String,
     value: String,
     onValue: (String) -> Unit,
     modifier: Modifier = Modifier,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValue,
         label = { Text(label, color = MotoTracker.colors.dim, style = MotoTracker.typography.label) },
         singleLine = true,
+        keyboardOptions = keyboardOptions,
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = MotoTracker.colors.text,
             unfocusedTextColor = MotoTracker.colors.text,
@@ -708,6 +758,135 @@ private fun BcTextField(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp),
+    )
+}
+
+/**
+ * Dialog for adding a new motorcycle (when [initial] is null) or editing an existing one.
+ *
+ * Form state is held locally with [rememberSaveable] / [remember]. Validation is
+ * performed via [BikeFormValidation.validate] on confirm; the dialog stays open and
+ * highlights the offending field on invalid input.
+ *
+ * @param initial    Pre-fills the form for edit mode; null means add mode.
+ * @param onConfirm  Called with validated values when the user taps Save.
+ * @param onDismiss  Called when the user taps Cancel or dismisses the dialog.
+ */
+@Composable
+private fun AddEditBikeDialog(
+    initial: BikeUi?,
+    onConfirm: (name: String, year: Int, plate: String, status: BikeStatus) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var nameText by rememberSaveable { mutableStateOf(initial?.name ?: "") }
+    var yearText by rememberSaveable {
+        mutableStateOf(if (initial != null && initial.year > 0) initial.year.toString() else "")
+    }
+    var plateText by rememberSaveable { mutableStateOf(initial?.plate ?: "") }
+    var status by remember { mutableStateOf(initial?.status ?: BikeStatus.ACTIVE) }
+    var nameError by rememberSaveable { mutableStateOf(false) }
+    var yearError by rememberSaveable { mutableStateOf(false) }
+
+    val title = if (initial == null) stringResource(R.string.dialog_title_add_bike)
+    else stringResource(R.string.dialog_title_edit_bike)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MotoTracker.colors.bg,
+        titleContentColor = MotoTracker.colors.text,
+        textContentColor = MotoTracker.colors.text,
+        title = {
+            Text(text = title, style = MotoTracker.typography.body.copy(fontWeight = FontWeight.Bold))
+        },
+        text = {
+            Column {
+                BcTextField(
+                    label = stringResource(R.string.label_bike_name),
+                    value = nameText,
+                    onValue = { nameText = it; nameError = false },
+                )
+                if (nameError) {
+                    Text(
+                        text = stringResource(R.string.error_name_blank),
+                        color = Color.Red,
+                        style = MotoTracker.typography.label,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    )
+                }
+                BcTextField(
+                    label = stringResource(R.string.label_bike_year),
+                    value = yearText,
+                    onValue = { yearText = it; yearError = false },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                if (yearError) {
+                    Text(
+                        text = stringResource(R.string.error_year_invalid),
+                        color = Color.Red,
+                        style = MotoTracker.typography.label,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    )
+                }
+                BcTextField(
+                    label = stringResource(R.string.label_bike_plate),
+                    value = plateText,
+                    onValue = { plateText = it },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.label_bike_status),
+                    color = MotoTracker.colors.dim,
+                    style = MotoTracker.typography.label,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        BikeStatus.ACTIVE to stringResource(R.string.status_active),
+                        BikeStatus.SOLD to stringResource(R.string.status_sold),
+                    ).forEach { (s, label) ->
+                        val isSelected = status == s
+                        val bg = if (isSelected) MotoTracker.colors.accent else MotoTracker.colors.panel2
+                        val textColor = if (isSelected) MotoTracker.colors.onAccent else MotoTracker.colors.text
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(bg)
+                                .clickable { status = s }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Text(text = label, color = textColor, style = MotoTracker.typography.label)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                when (val result = BikeFormValidation.validate(nameText, yearText, plateText)) {
+                    is BikeFormResult.NameBlank -> nameError = true
+                    is BikeFormResult.YearInvalid -> yearError = true
+                    is BikeFormResult.Valid -> {
+                        onConfirm(result.name, result.year, result.plate, status)
+                        onDismiss()
+                    }
+                }
+            }) {
+                Text(
+                    text = stringResource(R.string.btn_save),
+                    color = MotoTracker.colors.accent,
+                    style = MotoTracker.typography.label,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                    style = MotoTracker.typography.label,
+                )
+            }
+        },
     )
 }
 

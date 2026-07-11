@@ -46,6 +46,7 @@ class SettingsDataStore @Inject constructor(
         val BC_PHONE = stringPreferencesKey("bc_phone")
         val BC_ORIGIN = stringPreferencesKey("bc_origin")
         val BC_SOCIAL = stringPreferencesKey("bc_social")
+        val DEBUG_LOGGING_ENABLED = booleanPreferencesKey("debug_logging_enabled")
     }
 
     private val defaults = AppSettings()
@@ -70,6 +71,7 @@ class SettingsDataStore @Inject constructor(
             bcPhone = prefs[Keys.BC_PHONE] ?: defaults.bcPhone,
             bcOrigin = prefs[Keys.BC_ORIGIN] ?: defaults.bcOrigin,
             bcSocial = prefs[Keys.BC_SOCIAL] ?: defaults.bcSocial,
+            debugLoggingEnabled = prefs[Keys.DEBUG_LOGGING_ENABLED] ?: defaults.debugLoggingEnabled,
         )
     }
 
@@ -163,5 +165,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the broadcast profile social media handle. */
     override suspend fun setBcSocial(social: String) {
         dataStore.edit { it[Keys.BC_SOCIAL] = social }
+    }
+
+    /** Persists the diagnostic ride-logging enabled flag. */
+    override suspend fun setDebugLoggingEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.DEBUG_LOGGING_ENABLED] = value }
     }
 }

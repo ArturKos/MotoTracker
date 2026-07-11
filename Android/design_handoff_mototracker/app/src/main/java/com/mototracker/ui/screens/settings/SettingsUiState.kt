@@ -62,11 +62,14 @@ data class SyncQueueItemUi(
  * @param bcBikeDisplay      Auto: current bike name+year (read-only in broadcast section).
  * @param bcTodayDisplay     Auto: km ridden today (read-only in broadcast section).
  * @param bcTotalDisplay     Auto: total km in app (read-only in broadcast section).
- * @param offlineOnly        System: disable all network activity.
- * @param gpsCorrect         System: enable GPS road-correction (map-matching).
- * @param androidAutoEnabled System: show on car display.
- * @param autoPause          Preference: auto-pause recording when stationary.
- * @param keepScreenOn       Preference: keep display on during a ride.
+ * @param offlineOnly          System: disable all network activity.
+ * @param gpsCorrect           System: enable GPS road-correction (map-matching).
+ * @param androidAutoEnabled   System: show on car display.
+ * @param autoPause            Preference: auto-pause recording when stationary.
+ * @param keepScreenOn         Preference: keep display on during a ride.
+ * @param debugLoggingEnabled  Diagnostics: write per-ride log files to external storage.
+ *                             Exposed here so B10 can bind a toggle; no Settings row
+ *                             is added in A8.
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -91,4 +94,5 @@ data class SettingsUiState(
     val androidAutoEnabled: Boolean = false,
     val autoPause: Boolean = true,
     val keepScreenOn: Boolean = false,
+    val debugLoggingEnabled: Boolean = false,
 )

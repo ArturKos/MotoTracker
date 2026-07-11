@@ -60,4 +60,7 @@ interface SettingsStore : WritableSettingsSource {
 
     /** Persists the broadcast profile social media handle. */
     suspend fun setBcSocial(social: String)
+
+    /** Persists the diagnostic ride-logging enabled flag. */
+    suspend fun setDebugLoggingEnabled(value: Boolean)
 }

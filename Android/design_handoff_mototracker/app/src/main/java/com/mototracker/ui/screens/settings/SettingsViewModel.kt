@@ -126,6 +126,7 @@ class SettingsViewModel @Inject constructor(
             androidAutoEnabled = settings.androidAutoEnabled,
             autoPause = settings.autoPause,
             keepScreenOn = settings.keepScreenOn,
+            debugLoggingEnabled = settings.debugLoggingEnabled,
         )
     }
 

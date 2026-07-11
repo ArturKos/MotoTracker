@@ -23,6 +23,8 @@ package com.mototracker.data.settings
  * @param bcPhone             Bluetooth broadcast: rider phone number.
  * @param bcOrigin            Bluetooth broadcast: riding-from city.
  * @param bcSocial            Bluetooth broadcast: social media handle.
+ * @param debugLoggingEnabled Whether diagnostic ride logs are written to external storage.
+ *                            Defaults to `false`; toggled by the B10 diagnostics UI.
  */
 data class AppSettings(
     val offline: Boolean = false,
@@ -42,4 +44,5 @@ data class AppSettings(
     val bcPhone: String = "",
     val bcOrigin: String = "",
     val bcSocial: String = "",
+    val debugLoggingEnabled: Boolean = false,
 )

@@ -186,6 +186,9 @@
     <string name="label_meetings_none">Žádná setkání</string>
     <string name="hint_pause_handlebar">Pauza i tlačítkem na řídítkách</string>
 
+    <string name="label_account_authed_name">Jan Kowalski</string>
+    <string name="btn_save">Uložit</string>
+
     <string name="toast_add_bike">Přidat motorku — formulář</string>
     <string name="toast_add_member">SMS pozvánka odeslána</string>
     <string name="toast_bc_saved">Profil vysílání uložen</string>

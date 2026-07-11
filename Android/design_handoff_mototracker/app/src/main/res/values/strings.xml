@@ -132,6 +132,12 @@
     <string name="btn_send_server">Send to GPStrack server</string>
     <string name="desc_send_server">192.168.1.145/gpstrack</string>
 
+    <!-- Settings — account placeholder name (shown when authed; real name comes from server) -->
+    <string name="label_account_authed_name">Jan Kowalski</string>
+
+    <!-- Save button (broadcast profile) -->
+    <string name="btn_save">Save</string>
+
     <!-- Toast messages -->
     <string name="toast_import">GPX import — pick a .gpx file</string>
     <string name="toast_gpx_saved">GPX file saved</string>

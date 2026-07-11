@@ -47,6 +47,7 @@ private class FakeBikeRepository(
     fun emit(bikes: List<Bike>) { _flow.value = bikes }
 
     override fun observeAll(): Flow<List<Bike>> = _flow
+    override suspend fun addBike(bike: Bike) { _flow.value = _flow.value + bike }
 }
 
 private class FakeSettingsSource(

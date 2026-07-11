@@ -186,6 +186,9 @@
     <string name="label_meetings_none">Aucune rencontre</string>
     <string name="hint_pause_handlebar">Pause aussi au bouton guidon</string>
 
+    <string name="label_account_authed_name">Jan Kowalski</string>
+    <string name="btn_save">Enregistrer</string>
+
     <string name="toast_add_bike">Ajouter une moto — formulaire</string>
     <string name="toast_add_member">Invitation SMS envoyée</string>
     <string name="toast_bc_saved">Profil de diffusion enregistré</string>

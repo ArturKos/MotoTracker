@@ -3,6 +3,7 @@ package com.mototracker.data.repository
 import com.mototracker.data.local.dao.BikeDao
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.mapper.toDomain
+import com.mototracker.data.model.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -23,4 +24,8 @@ class BikeRepositoryImpl @Inject constructor(
 
     override fun observeAll(): Flow<List<Bike>> =
         bikeDao.getAll().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun addBike(bike: Bike) {
+        bikeDao.upsert(bike.toEntity())
+    }
 }

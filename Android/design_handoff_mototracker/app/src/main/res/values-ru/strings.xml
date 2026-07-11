@@ -186,6 +186,9 @@
     <string name="label_meetings_none">Нет встреч</string>
     <string name="hint_pause_handlebar">Пауза также кнопкой на руле</string>
 
+    <string name="label_account_authed_name">Jan Kowalski</string>
+    <string name="btn_save">Сохранить</string>
+
     <string name="toast_add_bike">Добавить мотоцикл — форма</string>
     <string name="toast_add_member">SMS-приглашение отправлено</string>
     <string name="toast_bc_saved">Профиль трансляции сохранён</string>

@@ -26,7 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class SettingsDataStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-) : WritableSettingsSource {
+) : SettingsStore {
 
     private object Keys {
         val OFFLINE = booleanPreferencesKey("offline")
@@ -39,6 +39,13 @@ class SettingsDataStore @Inject constructor(
         val THEME = stringPreferencesKey("theme")
         val ACCENT = stringPreferencesKey("accent")
         val LANG = stringPreferencesKey("lang")
+        val AUTO_PAUSE = booleanPreferencesKey("auto_pause")
+        val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val ANDROID_AUTO_ENABLED = booleanPreferencesKey("android_auto_enabled")
+        val BC_NAME = stringPreferencesKey("bc_name")
+        val BC_PHONE = stringPreferencesKey("bc_phone")
+        val BC_ORIGIN = stringPreferencesKey("bc_origin")
+        val BC_SOCIAL = stringPreferencesKey("bc_social")
     }
 
     private val defaults = AppSettings()
@@ -56,26 +63,33 @@ class SettingsDataStore @Inject constructor(
             theme = prefs[Keys.THEME] ?: defaults.theme,
             accent = prefs[Keys.ACCENT] ?: defaults.accent,
             lang = prefs[Keys.LANG] ?: defaults.lang,
+            autoPause = prefs[Keys.AUTO_PAUSE] ?: defaults.autoPause,
+            keepScreenOn = prefs[Keys.KEEP_SCREEN_ON] ?: defaults.keepScreenOn,
+            androidAutoEnabled = prefs[Keys.ANDROID_AUTO_ENABLED] ?: defaults.androidAutoEnabled,
+            bcName = prefs[Keys.BC_NAME] ?: defaults.bcName,
+            bcPhone = prefs[Keys.BC_PHONE] ?: defaults.bcPhone,
+            bcOrigin = prefs[Keys.BC_ORIGIN] ?: defaults.bcOrigin,
+            bcSocial = prefs[Keys.BC_SOCIAL] ?: defaults.bcSocial,
         )
     }
 
     /** Persists the [offline] flag. */
-    suspend fun setOffline(value: Boolean) {
+    override suspend fun setOffline(value: Boolean) {
         dataStore.edit { it[Keys.OFFLINE] = value }
     }
 
     /** Persists the [autoSync] flag. */
-    suspend fun setAutoSync(value: Boolean) {
+    override suspend fun setAutoSync(value: Boolean) {
         dataStore.edit { it[Keys.AUTO_SYNC] = value }
     }
 
     /** Persists the [offlineOnly] flag. */
-    suspend fun setOfflineOnly(value: Boolean) {
+    override suspend fun setOfflineOnly(value: Boolean) {
         dataStore.edit { it[Keys.OFFLINE_ONLY] = value }
     }
 
     /** Persists the [gpsCorrect] flag. */
-    suspend fun setGpsCorrect(value: Boolean) {
+    override suspend fun setGpsCorrect(value: Boolean) {
         dataStore.edit { it[Keys.GPS_CORRECT] = value }
     }
 
@@ -84,7 +98,7 @@ class SettingsDataStore @Inject constructor(
      *
      * @param bikeId UUID of the selected bike, or null to deselect.
      */
-    suspend fun setCurrentBikeId(bikeId: String?) {
+    override suspend fun setCurrentBikeId(bikeId: String?) {
         dataStore.edit { prefs ->
             if (bikeId != null) prefs[Keys.CURRENT_BIKE_ID] = bikeId
             else prefs.remove(Keys.CURRENT_BIKE_ID)
@@ -97,22 +111,57 @@ class SettingsDataStore @Inject constructor(
     }
 
     /** Persists the measurement system ("metric" or "imperial"). */
-    suspend fun setUnits(units: String) {
+    override suspend fun setUnits(units: String) {
         dataStore.edit { it[Keys.UNITS] = units }
     }
 
     /** Persists the visual theme key ("cockpit", "grid", or "light"). */
-    suspend fun setTheme(theme: String) {
+    override suspend fun setTheme(theme: String) {
         dataStore.edit { it[Keys.THEME] = theme }
     }
 
     /** Persists the accent colour as a hex string. */
-    suspend fun setAccent(accent: String) {
+    override suspend fun setAccent(accent: String) {
         dataStore.edit { it[Keys.ACCENT] = accent }
     }
 
     /** Persists the BCP-47 language tag. */
-    suspend fun setLang(lang: String) {
+    override suspend fun setLang(lang: String) {
         dataStore.edit { it[Keys.LANG] = lang }
+    }
+
+    /** Persists the auto-pause preference. */
+    override suspend fun setAutoPause(value: Boolean) {
+        dataStore.edit { it[Keys.AUTO_PAUSE] = value }
+    }
+
+    /** Persists the keep-screen-on preference. */
+    override suspend fun setKeepScreenOn(value: Boolean) {
+        dataStore.edit { it[Keys.KEEP_SCREEN_ON] = value }
+    }
+
+    /** Persists the Android Auto enabled flag. */
+    override suspend fun setAndroidAutoEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.ANDROID_AUTO_ENABLED] = value }
+    }
+
+    /** Persists the broadcast profile name/handle. */
+    override suspend fun setBcName(name: String) {
+        dataStore.edit { it[Keys.BC_NAME] = name }
+    }
+
+    /** Persists the broadcast profile phone number. */
+    override suspend fun setBcPhone(phone: String) {
+        dataStore.edit { it[Keys.BC_PHONE] = phone }
+    }
+
+    /** Persists the broadcast profile origin city. */
+    override suspend fun setBcOrigin(origin: String) {
+        dataStore.edit { it[Keys.BC_ORIGIN] = origin }
+    }
+
+    /** Persists the broadcast profile social media handle. */
+    override suspend fun setBcSocial(social: String) {
+        dataStore.edit { it[Keys.BC_SOCIAL] = social }
     }
 }

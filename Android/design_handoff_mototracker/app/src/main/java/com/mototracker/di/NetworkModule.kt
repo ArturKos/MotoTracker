@@ -10,6 +10,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.SyncRepositoryImpl
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.data.settings.SettingsDataStore
+import com.mototracker.data.settings.SettingsStore
 import com.mototracker.data.settings.WritableSettingsSource
 import dagger.Binds
 import dagger.Module
@@ -61,4 +62,12 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindWritableSettingsSource(impl: SettingsDataStore): WritableSettingsSource
+
+    /**
+     * Exposes [SettingsDataStore] through [SettingsStore] so the Settings screen
+     * ViewModel can read and write all settings without depending on DataStore directly.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindSettingsStore(impl: SettingsDataStore): SettingsStore
 }

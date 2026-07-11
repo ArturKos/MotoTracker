@@ -16,8 +16,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
-import com.mototracker.ui.screens.SettingsScreen
 import com.mototracker.ui.screens.riders.RidersScreen
+import com.mototracker.ui.screens.settings.SettingsScreen
 import com.mototracker.ui.screens.stats.StatsScreen
 import com.mototracker.ui.screens.detail.RouteDetailScreen
 import com.mototracker.ui.screens.login.LoginScreen
@@ -125,7 +125,16 @@ fun MotoApp(
             }
             composable(MotoDestination.RIDERS.route) { RidersScreen() }
             composable(MotoDestination.STATS.route) { StatsScreen() }
-            composable(MotoDestination.SETTINGS.route) { SettingsScreen() }
+            composable(MotoDestination.SETTINGS.route) {
+                SettingsScreen(
+                    onSignOut = {
+                        navController.navigate(MotoDestination.LOGIN.route) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
             composable(
                 route = MotoDestination.ROUTE_DETAIL.route,
                 arguments = listOf(navArgument("routeId") { type = NavType.StringType }),

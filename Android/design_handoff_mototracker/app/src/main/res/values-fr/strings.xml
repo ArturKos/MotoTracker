@@ -199,6 +199,10 @@
     <string name="perm_location_denied">Permission de localisation refusée. Activez-la dans les paramètres de l\'application pour enregistrer des trajets.</string>
     <string name="btn_grant_permission">Accorder la permission</string>
 
+    <!-- Bluetooth / Waves permission -->
+    <string name="perm_bt_rationale">L\'accès Bluetooth est nécessaire pour recevoir des Waves des pilotes à proximité.</string>
+    <string name="perm_bt_denied">Permission Bluetooth refusée. Activez-la dans les réglages de l\'application pour utiliser les Waves.</string>
+
     <string name="tod_morning">matin</string>
     <string name="tod_afternoon">après-midi</string>
     <string name="tod_evening">soir</string>

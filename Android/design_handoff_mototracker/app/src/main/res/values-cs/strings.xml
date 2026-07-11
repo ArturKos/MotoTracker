@@ -199,6 +199,10 @@
     <string name="perm_location_denied">Přístup k poloze odepřen. Povolte ho v nastavení aplikace, aby bylo možné nahrávat trasy.</string>
     <string name="btn_grant_permission">Udělit oprávnění</string>
 
+    <!-- Bluetooth / Waves permission -->
+    <string name="perm_bt_rationale">Přístup k Bluetooth je potřebný pro příjem Pozdravů od jezdců v okolí.</string>
+    <string name="perm_bt_denied">Oprávnění Bluetooth odepřeno. Povolte ho v nastavení aplikace pro použití Pozdravů.</string>
+
     <string name="tod_morning">ráno</string>
     <string name="tod_afternoon">odpoledne</string>
     <string name="tod_evening">večer</string>

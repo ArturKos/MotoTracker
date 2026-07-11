@@ -228,6 +228,10 @@
     <string name="perm_location_denied">Location permission denied. Enable it in the app\'s system settings to record rides.</string>
     <string name="btn_grant_permission">Grant permission</string>
 
+    <!-- Bluetooth / Waves permission -->
+    <string name="perm_bt_rationale">Bluetooth access is needed to receive waves from nearby riders.</string>
+    <string name="perm_bt_denied">Bluetooth permission denied. Enable it in the app settings to use Waves.</string>
+
     <!-- Time of day -->
     <string name="tod_morning">morning</string>
     <string name="tod_afternoon">afternoon</string>

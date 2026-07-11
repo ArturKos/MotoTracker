@@ -26,6 +26,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -42,10 +45,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.data.model.FeedType
+import com.mototracker.ui.permissions.AppFeaturePermission
+import com.mototracker.ui.permissions.PermissionDeniedBanner
+import com.mototracker.ui.permissions.PermissionRequirements
+import com.mototracker.ui.permissions.rememberFeaturePermission
 import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.flow.collectLatest
@@ -83,6 +91,21 @@ fun RidersScreen(
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
+
+    // Bluetooth waves permission — gate on first interaction with the Waves section.
+    val context = LocalContext.current
+    val sdkInt = Build.VERSION.SDK_INT
+    val requiredBtPerms = remember(sdkInt) {
+        PermissionRequirements.permissionsFor(AppFeaturePermission.BLUETOOTH_WAVES, sdkInt)
+    }
+    var wavesEnabled by remember {
+        mutableStateOf(
+            requiredBtPerms.all {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            },
+        )
+    }
+    val wavesPerm = rememberFeaturePermission(AppFeaturePermission.BLUETOOTH_WAVES)
 
     LazyColumn(
         modifier = modifier
@@ -161,16 +184,37 @@ fun RidersScreen(
         item {
             SectionHeader(
                 title = stringResource(R.string.riders_waves_title).uppercase(),
-                badge = stringResource(R.string.label_works_offline),
+                badge = if (wavesEnabled) stringResource(R.string.label_works_offline) else null,
                 badgeAccent = MotoTracker.colors.accent,
             )
         }
 
-        if (state.waves.isEmpty()) {
-            item { Spacer(Modifier.height(8.dp)) }
-        } else {
-            items(state.waves) { wave ->
-                WaveRow(wave = wave)
+        when {
+            wavesPerm.denied -> {
+                item {
+                    PermissionDeniedBanner(
+                        text = stringResource(R.string.perm_bt_denied),
+                        onRetry = { wavesPerm.requestThen { wavesEnabled = true } },
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+            }
+            !wavesEnabled -> {
+                item {
+                    PermissionDeniedBanner(
+                        text = stringResource(R.string.perm_bt_rationale),
+                        onRetry = { wavesPerm.requestThen { wavesEnabled = true } },
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+            }
+            state.waves.isEmpty() -> {
+                item { Spacer(Modifier.height(8.dp)) }
+            }
+            else -> {
+                items(state.waves) { wave ->
+                    WaveRow(wave = wave)
+                }
             }
         }
 

@@ -199,6 +199,10 @@
     <string name="perm_location_denied">Standortberechtigung verweigert. Aktiviere sie in den App-Einstellungen, um Touren aufzuzeichnen.</string>
     <string name="btn_grant_permission">Berechtigung erteilen</string>
 
+    <!-- Bluetooth / Waves permission -->
+    <string name="perm_bt_rationale">Bluetooth-Zugriff wird benötigt, um Waves von Fahrern in der Nähe zu empfangen.</string>
+    <string name="perm_bt_denied">Bluetooth-Berechtigung verweigert. In den App-Einstellungen aktivieren, um Waves zu nutzen.</string>
+
     <string name="tod_morning">Morgen</string>
     <string name="tod_afternoon">Nachmittag</string>
     <string name="tod_evening">Abend</string>

@@ -1,12 +1,7 @@
 package com.mototracker.ui.screens.record
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,10 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +48,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.service.RecordingService
+import com.mototracker.ui.permissions.AppFeaturePermission
+import com.mototracker.ui.permissions.PermissionDeniedBanner
+import com.mototracker.ui.permissions.rememberFeaturePermission
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
 import kotlin.math.abs
@@ -78,39 +73,15 @@ fun RecordingScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    var permissionDenied by remember { mutableStateOf(false) }
-
-    val permissionsToRequest = remember {
-        buildList {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }.toTypedArray()
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grants ->
-        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-            permissionDenied = false
-            viewModel.onEvent(RecordingEvent.Start)
-        } else {
-            permissionDenied = true
-        }
-    }
+    // Shared permission layer: gate Start on LOCATION; request NOTIFICATIONS alongside (best-effort).
+    val locationPerm = rememberFeaturePermission(
+        feature = AppFeaturePermission.LOCATION,
+        companion = listOf(AppFeaturePermission.NOTIFICATIONS),
+    )
 
     fun dispatchEvent(event: RecordingEvent) {
         if (event is RecordingEvent.Start) {
-            val granted = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_FINE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (granted) {
-                permissionDenied = false
-                viewModel.onEvent(event)
-            } else {
-                permissionLauncher.launch(permissionsToRequest)
-            }
+            locationPerm.requestThen { viewModel.onEvent(event) }
         } else {
             viewModel.onEvent(event)
         }
@@ -189,9 +160,12 @@ fun RecordingScreen(
                 Spacer(Modifier.height(6.dp))
                 LeanCompassRow(state)
                 Spacer(Modifier.height(12.dp))
-                if (permissionDenied && state.phase == RecordingPhase.Idle) {
-                    LocationPermissionDeniedBanner(
-                        onRetry = { permissionLauncher.launch(permissionsToRequest) },
+                if (locationPerm.denied && state.phase == RecordingPhase.Idle) {
+                    PermissionDeniedBanner(
+                        text = stringResource(R.string.perm_location_denied),
+                        onRetry = {
+                            locationPerm.requestThen { viewModel.onEvent(RecordingEvent.Start) }
+                        },
                     )
                 } else {
                     RecordingControlRow(phase = state.phase, onEvent = ::dispatchEvent)
@@ -741,45 +715,6 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
                     )
                 }
             }
-        }
-    }
-}
-
-/**
- * Inline banner shown on the Recording screen when [Manifest.permission.ACCESS_FINE_LOCATION]
- * has been denied.  Displays a rationale message and a retry button.
- *
- * @param onRetry Called when the user taps "Grant permission"; should re-launch the system dialog.
- */
-@Composable
-private fun LocationPermissionDeniedBanner(onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MotoTracker.colors.panel, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.perm_location_denied),
-            style = MotoTracker.typography.bodySmall,
-            color = MotoTracker.colors.text,
-        )
-        Button(
-            onClick = onRetry,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MotoTracker.colors.accent,
-                contentColor = MotoTracker.colors.onAccent,
-            ),
-            shape = RoundedCornerShape(8.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.btn_grant_permission),
-                style = MotoTracker.typography.routeTitle,
-            )
         }
     }
 }

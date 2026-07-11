@@ -199,6 +199,10 @@
     <string name="perm_location_denied">Доступ к местоположению запрещён. Включите его в настройках приложения для записи маршрутов.</string>
     <string name="btn_grant_permission">Предоставить разрешение</string>
 
+    <!-- Bluetooth / Waves permission -->
+    <string name="perm_bt_rationale">Доступ к Bluetooth необходим для получения «Волн» от ближайших мотоциклистов.</string>
+    <string name="perm_bt_denied">Разрешение Bluetooth отклонено. Включите его в настройках приложения для использования «Волн».</string>
+
     <string name="tod_morning">утро</string>
     <string name="tod_afternoon">день</string>
     <string name="tod_evening">вечер</string>

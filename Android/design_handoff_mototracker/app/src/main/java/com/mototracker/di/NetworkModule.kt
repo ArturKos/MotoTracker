@@ -3,9 +3,13 @@ package com.mototracker.di
 import com.mototracker.core.time.SystemTimeProvider
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.network.AndroidNetworkMonitor
+import com.mototracker.data.network.DataStoreSessionStore
 import com.mototracker.data.network.GpStrackClient
 import com.mototracker.data.network.HttpGpStrackClient
+import com.mototracker.data.network.HttpTransport
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.network.SessionStore
+import com.mototracker.data.network.UrlConnectionHttpTransport
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.SyncRepositoryImpl
 import com.mototracker.data.settings.AppSettingsSource
@@ -26,6 +30,16 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class NetworkModule {
+
+    /** Binds [UrlConnectionHttpTransport] as the [HttpTransport] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindHttpTransport(impl: UrlConnectionHttpTransport): HttpTransport
+
+    /** Binds [DataStoreSessionStore] as the [SessionStore] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindSessionStore(impl: DataStoreSessionStore): SessionStore
 
     /** Binds [HttpGpStrackClient] as the [GpStrackClient] singleton. */
     @Binds

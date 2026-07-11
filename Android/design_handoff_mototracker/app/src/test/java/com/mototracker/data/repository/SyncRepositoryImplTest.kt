@@ -57,6 +57,9 @@ private class FakeGpStrackClient : GpStrackClient {
     }
     fun setSuccess() { nextResult = Result.success(Unit) }
 
+    override suspend fun login(serverAddress: String, email: String, password: String): Result<Unit> =
+        Result.success(Unit)
+
     override suspend fun uploadRoute(serverAddress: String, route: Route): Result<Unit> {
         println("DEBUG uploadRoute called: $serverAddress, ${route.id}")
         calls.add(serverAddress to route)

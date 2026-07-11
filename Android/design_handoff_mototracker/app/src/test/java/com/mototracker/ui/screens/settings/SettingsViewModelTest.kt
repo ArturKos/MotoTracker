@@ -73,6 +73,7 @@ private class FakeSettingsStore(
     override suspend fun setBcPhone(phone: String) { lastBcPhone = phone; _flow.value = _flow.value.copy(bcPhone = phone) }
     override suspend fun setBcOrigin(origin: String) { lastBcOrigin = origin; _flow.value = _flow.value.copy(bcOrigin = origin) }
     override suspend fun setBcSocial(social: String) { lastBcSocial = social; _flow.value = _flow.value.copy(bcSocial = social) }
+    override suspend fun setDebugLoggingEnabled(value: Boolean) { _flow.value = _flow.value.copy(debugLoggingEnabled = value) }
 }
 
 private class FakeBikeRepository : BikeRepository {

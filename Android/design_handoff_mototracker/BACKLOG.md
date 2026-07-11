@@ -58,6 +58,7 @@ license new SDK packages), the scaffold MUST target what is installed:
 | A6 | **Local persistence**: Room schema for routes/bikes/group/waves + settings (DataStore); an outbound **sync queue** table with retry state. Migrations. | ✅ |
 | A7 | **GPStrack sync layer**: HTTP client to `http://192.168.1.145/gpstrack` (server address configurable); repository + sync-queue drainer with offline/online + auto-sync toggles. Client behind an interface (unit-testable with fakes). | ✅ |
 | A8 | **Diagnostics logging infrastructure**: `RideDebugLogger` interface (`beginRide()` / `log(tag, message)` / `endRide()`) + `@Singleton` `FileRideDebugLogger` writing plain-text, ISO-8601-UTC, one-line-per-event logs to `context.getExternalFilesDir("ride-logs")/ride-<ts>.log`; writes serialized via a `Channel` on `Dispatchers.IO` (never blocks the 1 Hz recording loop); ALL I/O wrapped in try/catch so logging can never crash a ride; a true no-op when disabled (no file created, cheap early return). Add `debugLoggingEnabled: Boolean = false` to the settings model + `SettingsDataStore`/`WritableSettingsSource`, exposed in `SettingsUiState`. Register a `FileProvider` (`<provider>` in `AndroidManifest.xml` + `res/xml/file_paths.xml`) for later sharing (avoids `FileUriExposedException` on API 24+). Logs live in app-specific storage (not world-readable). Unit-test on a temp dir: enabled → file created + line format correct; disabled → no file, no-op. Depends on A6 (persistence). | ⬜ |
+| A9 | **GPStrack authentication (infra, extends A7)**: add `login(server, email, password)` to the GPStrack client — **POST form-encoded credentials, capture the `Set-Cookie` session**, store it in a persisted cookie jar (DataStore), and attach the session cookie to all subsequent GPStrack requests; expose an auth/session state and handle 401 / expired session (surface re-login). Client stays behind the A7 interface (unit-testable with fakes). Unit-test on a fake HTTP client: form-body encoding, `Set-Cookie` capture, cookie attached on the next request, 401 handling. Depends on A7. | ⬜ |
 
 ## B. Screens & features (from README §Screens)
 
@@ -73,15 +74,18 @@ license new SDK packages), the scaffold MUST target what is installed:
 | B8 | **Export sheet + toasts**: GPX export, share link, send to GPStrack; confirmation toasts. | 🔬 |
 | B9 | **Android Auto view**: glanceable recording screen (Car App Library templates) — big speed, time/distance, lean/altitude, oversized start/pause/stop; night/day themes. | 🔬 |
 | B10 | **Diagnostics UI + ride-logging wiring** (needs A8): in Settings → System & privacy add a **"Diagnostyka"** group with (a) a toggle *"Zapisuj logi diagnostyczne podczas jazdy"* bound to the A8 `debugLoggingEnabled` setting (default off), (b) a *"Udostępnij log"* row that shares the latest ride log via `FileProvider` + `Intent.ACTION_SEND`, and (c) a *"Wyczyść logi"* row that deletes all files in `ride-logs`, with a used-space counter. Wire `RideDebugLogger` into `RecordingViewModel`: `beginRide()` on start; log GPS samples, lean, weather calls, lifecycle (pause/resume/finish) and caught errors; `endRide()` on finish. All new user-facing strings in all 6 languages (pl/en/de/fr/cs/ru). Unit-test: toggle persistence (`SettingsViewModel`, fake source), clear-deletes-files, and the share-`Intent` URI builder (thin wrapper). `🔬`: real share sheet + on-device file writing during a live ride. | ⬜ |
+| B11 | **Real online map (osmdroid) — replaces the schematic placeholder** (fixes "map doesn't render on the Record screen"). Add the osmdroid dependency; replace `RecordingMapPlaceholder` (a `Canvas` sine-wave stand-in) with a real `MapView` hosted via `AndroidView` with proper lifecycle handling (`onResume`/`onPause`/`onDetach`): a live growing track polyline + position marker on **Record** (B2), and a route polyline + start/end markers on **Route detail** (B4). Keep the `gpsCorrect` seam. Uses the already-declared `INTERNET` permission; raster OSM tiles cached on disk (an offline tile pack remains a future epic — still section C). Unit-test the testable seam: GPS→screen projection / polyline building. `🔬`: actual map rendering + tiles on-device. | ⬜ |
+| B12 | **Wire Login to real GPStrack auth** (needs A9): connect the Login screen (B1) to A9 — "sign in & sync" calls `login()`, on success sets `authed = true` and drains the sync queue, on failure shows an inline error; "continue without account" (guest / local-only) stays. The server-address field feeds A7/A9. Unit-test `LoginViewModel` states (idle/loading/success/error) with a fake auth client. All new user-facing strings in all 6 languages (pl/en/de/fr/cs/ru). `🔬`: real sign-in against a live GPStrack server on-device. | ⬜ |
 
 ## C. Out of scope (NOT tasks)
 
-- Real offline vector map tiles + a full offline map-matching engine (Valhalla/
-  GraphHopper on downloaded OSM). Ship with an online map + the `gpsCorrect`
-  option/seam; full offline routing is a later epic.
+- **Full offline** vector map tiles + a full offline map-matching engine (Valhalla/
+  GraphHopper on downloaded OSM) — later epic. (The online map + the `gpsCorrect`
+  option/seam is now **in scope as B11**, using osmdroid raster tiles.)
 - iOS / cross-platform build.
 - Server-side (GPStrack backend) changes — that lives in the MotoTracker `backend/`.
-- Real Google/OAuth sign-in backend (the login screen targets the GPStrack server).
+- **Third-party / Google OAuth** sign-in — out of scope. (Real e-mail/password auth
+  against the GPStrack server IS now in scope: **A9 + B12**.)
 
 ## D. Bugs / priority fixes
 

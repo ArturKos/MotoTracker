@@ -37,8 +37,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -103,6 +107,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appState by appStateVm.uiState.collectAsStateWithLifecycle()
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val addBikeMsg = stringResource(R.string.toast_add_bike)
@@ -175,6 +180,8 @@ fun SettingsScreen(
 
     SettingsContent(
         state = state,
+        selectedTab = selectedTab,
+        onSelectTab = viewModel::selectTab,
         authed = appState.authed,
         onSignOut = {
             appStateVm.signOut()
@@ -234,10 +241,13 @@ fun SettingsScreen(
 }
 
 /**
- * Pure renderer for the Settings screen: nine sections in a scrollable list.
- * Extracted for Paparazzi screenshot testing — no ViewModels or Activity references.
+ * Pure renderer for the Settings screen: a pinned [ScrollableTabRow] above a [LazyColumn]
+ * that renders only the sections belonging to [selectedTab].
+ * Extracted for Roborazzi screenshot testing — no ViewModels or Activity references.
  *
  * @param state                Pre-computed settings UI state.
+ * @param selectedTab          The currently active tab; defaults to [SettingsTab.ACCOUNT].
+ * @param onSelectTab          Called when the user taps a tab.
  * @param authed               Whether the user is currently signed in (drives Account section).
  * @param onSignOut            Called when the user taps Sign out or Login (navigates away).
  * @param onSelectBike         Called with the bike UUID when the user selects it as active.
@@ -265,6 +275,8 @@ fun SettingsScreen(
 @Composable
 fun SettingsContent(
     state: SettingsUiState,
+    selectedTab: SettingsTab = SettingsTab.ACCOUNT,
+    onSelectTab: (SettingsTab) -> Unit = {},
     authed: Boolean = false,
     onSignOut: () -> Unit = {},
     onSelectBike: (String) -> Unit = {},
@@ -314,220 +326,253 @@ fun SettingsContent(
         )
     }
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MotoTracker.colors.bg)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+            .background(MotoTracker.colors.bg),
     ) {
-        // ── §1 Account ────────────────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_account))
-            AccountSection(
-                authed = authed,
-                onLogout = onSignOut,
-                onLogin = onSignOut,
-            )
-            SectionDivider()
-        }
-
-        // ── §2 My motorcycles ─────────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_bikes))
-        }
-        items(state.bikes) { bike ->
-            BikeRow(
-                bike = bike,
-                onSelect = { onSelectBike(bike.id) },
-                onEdit = {
-                    editBikeId = bike.id
-                    showBikeDialog = true
-                },
-            )
-        }
-        item {
-            TextButton(
-                onClick = {
-                    editBikeId = null
-                    showBikeDialog = true
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = stringResource(R.string.btn_add_bike),
+        // ── Tab row (pinned) ──────────────────────────────────────────────────
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab.ordinal,
+            containerColor = MotoTracker.colors.bg,
+            contentColor = MotoTracker.colors.accent,
+            indicator = { tabPositions ->
+                SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab.ordinal]),
                     color = MotoTracker.colors.accent,
-                    style = MotoTracker.typography.label,
+                )
+            },
+            divider = { HorizontalDivider(color = MotoTracker.colors.line) },
+        ) {
+            SettingsTab.entries.forEach { tab ->
+                Tab(
+                    selected = selectedTab == tab,
+                    onClick = { onSelectTab(tab) },
+                    text = {
+                        Text(
+                            text = stringResource(tab.titleRes),
+                            color = if (selectedTab == tab) MotoTracker.colors.accent else MotoTracker.colors.dim,
+                            style = MotoTracker.typography.label,
+                        )
+                    },
                 )
             }
-            SectionDivider()
         }
 
-        // ── §3 Appearance & language ──────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_appearance))
-            AppearanceSection(
-                theme = state.theme,
-                accent = state.accent,
-                language = state.language,
-                units = state.units,
-                onTheme = onTheme,
-                onAccent = onAccent,
-                onLanguage = onLanguage,
-                onUnits = onUnits,
-            )
-            SectionDivider()
-        }
+        // ── Tab content ───────────────────────────────────────────────────────
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            when (selectedTab) {
 
-        // ── §4 Server & sync ──────────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_server))
-            ServerSection(
-                serverAddress = state.serverAddress,
-                offline = state.offline,
-                autoSync = state.autoSync,
-                onServerAddress = onServerAddress,
-                onOffline = onOffline,
-                onAutoSync = onAutoSync,
-            )
-            SectionDivider()
-        }
+                // ── ACCOUNT ───────────────────────────────────────────────────
+                SettingsTab.ACCOUNT -> {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_account))
+                        AccountSection(
+                            authed = authed,
+                            onLogout = onSignOut,
+                            onLogin = onSignOut,
+                        )
+                    }
+                }
 
-        // ── §5 Sync queue ─────────────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_sync_queue))
-            if (state.pendingRoutes.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.label_all_synced),
-                    color = MotoTracker.colors.dim,
-                    style = MotoTracker.typography.label,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-            } else {
-                Button(
-                    onClick = onSyncNow,
-                    colors = ButtonDefaults.buttonColors(containerColor = MotoTracker.colors.accent),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = stringResource(R.string.btn_send_all),
-                        color = MotoTracker.colors.onAccent,
-                        style = MotoTracker.typography.label,
-                    )
+                // ── MOTORCYCLES ───────────────────────────────────────────────
+                SettingsTab.MOTORCYCLES -> {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_bikes))
+                    }
+                    items(state.bikes) { bike ->
+                        BikeRow(
+                            bike = bike,
+                            onSelect = { onSelectBike(bike.id) },
+                            onEdit = {
+                                editBikeId = bike.id
+                                showBikeDialog = true
+                            },
+                        )
+                    }
+                    item {
+                        TextButton(
+                            onClick = {
+                                editBikeId = null
+                                showBikeDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.btn_add_bike),
+                                color = MotoTracker.colors.accent,
+                                style = MotoTracker.typography.label,
+                            )
+                        }
+                    }
+                }
+
+                // ── APPEARANCE ────────────────────────────────────────────────
+                SettingsTab.APPEARANCE -> {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_appearance))
+                        AppearanceSection(
+                            theme = state.theme,
+                            accent = state.accent,
+                            language = state.language,
+                            units = state.units,
+                            onTheme = onTheme,
+                            onAccent = onAccent,
+                            onLanguage = onLanguage,
+                            onUnits = onUnits,
+                        )
+                    }
+                }
+
+                // ── SERVER_SYNC ───────────────────────────────────────────────
+                SettingsTab.SERVER_SYNC -> {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_server))
+                        ServerSection(
+                            serverAddress = state.serverAddress,
+                            offline = state.offline,
+                            autoSync = state.autoSync,
+                            onServerAddress = onServerAddress,
+                            onOffline = onOffline,
+                            onAutoSync = onAutoSync,
+                        )
+                        SectionDivider()
+                        SectionHeader(title = stringResource(R.string.section_sync_queue))
+                        if (state.pendingRoutes.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.label_all_synced),
+                                color = MotoTracker.colors.dim,
+                                style = MotoTracker.typography.label,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                            )
+                        } else {
+                            Button(
+                                onClick = onSyncNow,
+                                colors = ButtonDefaults.buttonColors(containerColor = MotoTracker.colors.accent),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.btn_send_all),
+                                    color = MotoTracker.colors.onAccent,
+                                    style = MotoTracker.typography.label,
+                                )
+                            }
+                        }
+                    }
+                    items(state.pendingRoutes) { item ->
+                        SyncQueueRow(
+                            item = item,
+                            onSend = onSyncNow,
+                        )
+                    }
+                    item {
+                        SectionDivider()
+                        SectionHeader(title = stringResource(R.string.section_broadcast))
+                        BroadcastSection(
+                            state = state,
+                            onSave = onSaveBroadcastProfile,
+                        )
+                    }
+                }
+
+                // ── SYSTEM_DIAGNOSTICS ────────────────────────────────────────
+                SettingsTab.SYSTEM_DIAGNOSTICS -> {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_system))
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_offline_only),
+                            desc = stringResource(R.string.desc_offline_only),
+                            checked = state.offlineOnly,
+                            onChecked = onOfflineOnly,
+                        )
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_gps_correct),
+                            desc = stringResource(R.string.desc_gps_correct),
+                            checked = state.gpsCorrect,
+                            onChecked = onGpsCorrect,
+                        )
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_android_auto),
+                            desc = stringResource(R.string.desc_android_auto),
+                            checked = state.androidAutoEnabled,
+                            onChecked = onAndroidAutoEnabled,
+                        )
+
+                        // Diagnostics sub-group
+                        SectionHeader(title = stringResource(R.string.section_diagnostics))
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_debug_logging),
+                            desc = stringResource(R.string.desc_debug_logging),
+                            checked = state.debugLoggingEnabled,
+                            onChecked = onDebugLogging,
+                        )
+                        DiagnosticsActionRow(
+                            label = stringResource(R.string.action_share_log),
+                            enabled = state.debugLoggingEnabled && state.rideLogUsedBytes > 0,
+                            onClick = onShareLog,
+                        )
+                        DiagnosticsActionRow(
+                            label = stringResource(
+                                R.string.diag_used_space,
+                                Formatter.formatFileSize(ctx, state.rideLogUsedBytes),
+                            ),
+                            sublabel = stringResource(R.string.action_clear_logs),
+                            enabled = state.debugLoggingEnabled,
+                            onClick = onClearLogs,
+                        )
+
+                        // Backup sub-group
+                        SectionHeader(title = stringResource(R.string.section_backup))
+                        DiagnosticsActionRow(
+                            label = stringResource(R.string.action_create_backup),
+                            sublabel = stringResource(R.string.desc_create_backup),
+                            enabled = true,
+                            onClick = onExportBackup,
+                        )
+                        DiagnosticsActionRow(
+                            label = stringResource(R.string.action_restore_backup),
+                            sublabel = stringResource(R.string.desc_restore_backup),
+                            enabled = true,
+                            onClick = onImportBackup,
+                        )
+                    }
+                }
+
+                // ── PREFERENCES ───────────────────────────────────────────────
+                SettingsTab.PREFERENCES -> {
+                    item {
+                        SectionHeader(title = stringResource(R.string.section_preferences))
+                        UnitsSelector(
+                            units = state.units,
+                            onUnits = onUnits,
+                        )
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_auto_pause),
+                            desc = null,
+                            checked = state.autoPause,
+                            onChecked = onAutoPause,
+                        )
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_screen_on),
+                            desc = null,
+                            checked = state.keepScreenOn,
+                            onChecked = onKeepScreenOn,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.label_version_info),
+                            color = MotoTracker.colors.dim,
+                            style = MotoTracker.typography.label,
+                            modifier = Modifier.padding(bottom = 24.dp),
+                        )
+                    }
                 }
             }
-        }
-        items(state.pendingRoutes) { item ->
-            SyncQueueRow(
-                item = item,
-                onSend = onSyncNow,
-            )
-        }
-        item { SectionDivider() }
-
-        // ── §6 Bluetooth broadcast ────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_broadcast))
-            BroadcastSection(
-                state = state,
-                onSave = onSaveBroadcastProfile,
-            )
-            SectionDivider()
-        }
-
-        // ── §7 System & privacy ───────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_system))
-            LabeledSwitch(
-                label = stringResource(R.string.label_offline_only),
-                desc = stringResource(R.string.desc_offline_only),
-                checked = state.offlineOnly,
-                onChecked = onOfflineOnly,
-            )
-            LabeledSwitch(
-                label = stringResource(R.string.label_gps_correct),
-                desc = stringResource(R.string.desc_gps_correct),
-                checked = state.gpsCorrect,
-                onChecked = onGpsCorrect,
-            )
-            LabeledSwitch(
-                label = stringResource(R.string.label_android_auto),
-                desc = stringResource(R.string.desc_android_auto),
-                checked = state.androidAutoEnabled,
-                onChecked = onAndroidAutoEnabled,
-            )
-
-            // Diagnostics sub-group
-            SectionHeader(title = stringResource(R.string.section_diagnostics))
-            LabeledSwitch(
-                label = stringResource(R.string.label_debug_logging),
-                desc = stringResource(R.string.desc_debug_logging),
-                checked = state.debugLoggingEnabled,
-                onChecked = onDebugLogging,
-            )
-            DiagnosticsActionRow(
-                label = stringResource(R.string.action_share_log),
-                enabled = state.debugLoggingEnabled && state.rideLogUsedBytes > 0,
-                onClick = onShareLog,
-            )
-            DiagnosticsActionRow(
-                label = stringResource(
-                    R.string.diag_used_space,
-                    Formatter.formatFileSize(ctx, state.rideLogUsedBytes),
-                ),
-                sublabel = stringResource(R.string.action_clear_logs),
-                enabled = state.debugLoggingEnabled,
-                onClick = onClearLogs,
-            )
-
-            // Backup sub-group
-            SectionHeader(title = stringResource(R.string.section_backup))
-            DiagnosticsActionRow(
-                label = stringResource(R.string.action_create_backup),
-                sublabel = stringResource(R.string.desc_create_backup),
-                enabled = true,
-                onClick = onExportBackup,
-            )
-            DiagnosticsActionRow(
-                label = stringResource(R.string.action_restore_backup),
-                sublabel = stringResource(R.string.desc_restore_backup),
-                enabled = true,
-                onClick = onImportBackup,
-            )
-            SectionDivider()
-        }
-
-        // ── §8 Preferences ────────────────────────────────────────────────────
-        item {
-            SectionHeader(title = stringResource(R.string.section_preferences))
-            UnitsSelector(
-                units = state.units,
-                onUnits = onUnits,
-            )
-            LabeledSwitch(
-                label = stringResource(R.string.label_auto_pause),
-                desc = null,
-                checked = state.autoPause,
-                onChecked = onAutoPause,
-            )
-            LabeledSwitch(
-                label = stringResource(R.string.label_screen_on),
-                desc = null,
-                checked = state.keepScreenOn,
-                onChecked = onKeepScreenOn,
-            )
-            SectionDivider()
-        }
-
-        // ── §9 Version footer ─────────────────────────────────────────────────
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.label_version_info),
-                color = MotoTracker.colors.dim,
-                style = MotoTracker.typography.label,
-                modifier = Modifier.padding(bottom = 24.dp),
-            )
         }
     }
 }

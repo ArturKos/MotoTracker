@@ -696,4 +696,21 @@ class SettingsViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    // ── Tab selection (B18) ───────────────────────────────────────────────────
+
+    @Test
+    fun `selectedTab defaults to ACCOUNT`() {
+        assertEquals(SettingsTab.ACCOUNT, vm.selectedTab.value)
+    }
+
+    @Test
+    fun `selectTab emits new tab value`() = runTest {
+        vm.selectedTab.test {
+            assertEquals(SettingsTab.ACCOUNT, awaitItem())
+            vm.selectTab(SettingsTab.MOTORCYCLES)
+            assertEquals(SettingsTab.MOTORCYCLES, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

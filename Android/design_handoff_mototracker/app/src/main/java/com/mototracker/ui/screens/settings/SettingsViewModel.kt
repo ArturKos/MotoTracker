@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +62,24 @@ class SettingsViewModel @Inject constructor(
     private val shareIntentFactory: RideLogShareIntentFactory,
     private val backupRepository: BackupRepository,
 ) : ViewModel() {
+
+    private val _selectedTab = MutableStateFlow(SettingsTab.ACCOUNT)
+
+    /**
+     * Currently selected tab on the Settings screen.
+     *
+     * In-memory only — not persisted to DataStore. Defaults to [SettingsTab.ACCOUNT].
+     */
+    val selectedTab: StateFlow<SettingsTab> = _selectedTab.asStateFlow()
+
+    /**
+     * Switches the active Settings tab to [tab].
+     *
+     * @param tab The tab to select.
+     */
+    fun selectTab(tab: SettingsTab) {
+        _selectedTab.value = tab
+    }
 
     private val _rideLogUsedBytes = MutableStateFlow(0L)
 

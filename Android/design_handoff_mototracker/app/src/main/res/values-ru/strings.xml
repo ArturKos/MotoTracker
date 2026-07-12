@@ -271,4 +271,19 @@
     <string name="badge_mountain_goat">Горный козёл</string>
     <string name="badge_marathon_month">Марафонский месяц</string>
     <string name="badge_streak_3">Серия 3 дней</string>
+
+    <!-- Резервное копирование / восстановление (B16) -->
+    <string name="section_backup">Резервная копия</string>
+    <string name="action_create_backup">Создать резервную копию</string>
+    <string name="desc_create_backup">Экспорт маршрутов, мотоциклов и настроек в JSON</string>
+    <string name="action_restore_backup">Восстановить из копии</string>
+    <string name="desc_restore_backup">Импорт маршрутов, мотоциклов и настроек из JSON</string>
+    <string name="dialog_restore_title">Восстановить резервную копию</string>
+    <string name="dialog_restore_message">Как применить импортированные данные?</string>
+    <string name="dialog_restore_merge">Объединить</string>
+    <string name="dialog_restore_replace">Заменить</string>
+    <string name="toast_backup_created">Файл резервной копии создан</string>
+    <string name="toast_backup_failed">Ошибка создания резервной копии</string>
+    <string name="toast_restore_ok">Восстановление завершено</string>
+    <string name="toast_restore_failed">Ошибка восстановления — недействительный файл</string>
 </resources>

@@ -6,11 +6,14 @@ import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
+import com.mototracker.data.repository.BackupRepository
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.SettingsStore
+import com.mototracker.domain.backup.ImportSummary
+import com.mototracker.domain.backup.RestoreMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -91,6 +94,7 @@ private class FakeBikeRepository : BikeRepository {
         // Upsert: replace entry with the same id, append if new.
         _flow.value = _flow.value.filter { it.id != bike.id } + bike
     }
+    override suspend fun deleteAll() { _flow.value = emptyList() }
 }
 
 private class FakeRouteRepository : RouteRepository {
@@ -102,6 +106,7 @@ private class FakeRouteRepository : RouteRepository {
     override suspend fun getById(id: String): Route? = _flow.value.find { it.id == id }
     override fun observeById(id: String): Flow<Route?> = MutableStateFlow(_flow.value.find { it.id == id })
     override suspend fun clearCorrectedTrace(id: String) { /* stub */ }
+    override suspend fun deleteAll() { _flow.value = emptyList() }
 }
 
 private class FakeSyncRepository : SyncRepository {
@@ -133,6 +138,12 @@ private class FakeRideLogStore(
 
     fun setBytes(bytes: Long) { bytesValue = bytes }
     fun setLatestFile(file: File?) { latestFile = file }
+}
+
+private class FakeBackupRepository : BackupRepository {
+    override suspend fun exportBackup(): Result<String> = Result.success("{}")
+    override suspend fun importBackup(json: String, mode: RestoreMode): Result<ImportSummary> =
+        Result.success(ImportSummary(0, 0, 0, 0))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,6 +197,7 @@ class SettingsViewModelTest {
     private lateinit var routeRepo: FakeRouteRepository
     private lateinit var syncRepo: FakeSyncRepository
     private lateinit var logStore: FakeRideLogStore
+    private lateinit var backupRepo: FakeBackupRepository
     private lateinit var vm: SettingsViewModel
 
     @Before
@@ -196,7 +208,8 @@ class SettingsViewModelTest {
         routeRepo = FakeRouteRepository()
         syncRepo = FakeSyncRepository()
         logStore = FakeRideLogStore()
-        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory())
+        backupRepo = FakeBackupRepository()
+        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo)
     }
 
     @After
@@ -601,7 +614,7 @@ class SettingsViewModelTest {
     @Test
     fun `rideLogUsedBytes reflects store totalBytes on init`() = runTest {
         logStore.setBytes(2048L)
-        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory())
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo)
         // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
         // Drain until we find the non-zero value emitted after the init block completes.
         localVm.uiState.test {
@@ -615,7 +628,7 @@ class SettingsViewModelTest {
     @Test
     fun `clearRideLogs calls store clear and updates rideLogUsedBytes to 0`() = runTest {
         logStore.setBytes(4096L)
-        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory())
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo)
         // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
         // Drain until we see the init-loaded state (4096L) before testing clear.
         localVm.uiState.test {

@@ -271,4 +271,19 @@
     <string name="badge_mountain_goat">Bouquetin</string>
     <string name="badge_marathon_month">Mois marathon</string>
     <string name="badge_streak_3">Série de 3 jours</string>
+
+    <!-- Sauvegarde / restauration (B16) -->
+    <string name="section_backup">Sauvegarde</string>
+    <string name="action_create_backup">Créer une sauvegarde</string>
+    <string name="desc_create_backup">Exporter trajets, motos et paramètres en JSON</string>
+    <string name="action_restore_backup">Restaurer une sauvegarde</string>
+    <string name="desc_restore_backup">Importer trajets, motos et paramètres depuis un JSON</string>
+    <string name="dialog_restore_title">Restaurer la sauvegarde</string>
+    <string name="dialog_restore_message">Comment appliquer les données importées?</string>
+    <string name="dialog_restore_merge">Fusionner</string>
+    <string name="dialog_restore_replace">Remplacer</string>
+    <string name="toast_backup_created">Fichier de sauvegarde créé</string>
+    <string name="toast_backup_failed">Échec de la sauvegarde</string>
+    <string name="toast_restore_ok">Restauration terminée</string>
+    <string name="toast_restore_failed">Restauration échouée — fichier invalide</string>
 </resources>

@@ -36,6 +36,11 @@ private class FakeBikeDao : BikeDao {
     override fun getAll(): Flow<List<BikeEntity>> = allFlow
 
     override suspend fun getById(id: String): BikeEntity? = store[id]
+
+    override suspend fun deleteAll() {
+        store.clear()
+        allFlow.value = emptyList()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

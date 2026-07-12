@@ -271,4 +271,19 @@
     <string name="badge_mountain_goat">Górska koza</string>
     <string name="badge_marathon_month">Maraton miesiąca</string>
     <string name="badge_streak_3">Seria 3 dni</string>
+
+    <!-- Kopia zapasowa / przywracanie (B16) -->
+    <string name="section_backup">Kopia zapasowa</string>
+    <string name="action_create_backup">Utwórz kopię zapasową</string>
+    <string name="desc_create_backup">Eksportuj trasy, motocykle i ustawienia do pliku JSON</string>
+    <string name="action_restore_backup">Przywróć kopię zapasową</string>
+    <string name="desc_restore_backup">Importuj trasy, motocykle i ustawienia z pliku JSON</string>
+    <string name="dialog_restore_title">Przywróć kopię zapasową</string>
+    <string name="dialog_restore_message">Jak zastosować importowane dane?</string>
+    <string name="dialog_restore_merge">Scal</string>
+    <string name="dialog_restore_replace">Zastąp</string>
+    <string name="toast_backup_created">Plik kopii zapasowej utworzony</string>
+    <string name="toast_backup_failed">Tworzenie kopii zapasowej nie powiodło się</string>
+    <string name="toast_restore_ok">Przywracanie zakończone</string>
+    <string name="toast_restore_failed">Przywracanie nie powiodło się — nieprawidłowy plik</string>
 </resources>

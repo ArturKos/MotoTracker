@@ -28,4 +28,9 @@ class BikeRepositoryImpl @Inject constructor(
     override suspend fun addBike(bike: Bike) {
         bikeDao.upsert(bike.toEntity())
     }
+
+    /** Removes every bike row from the database; used for REPLACE-mode backup restore. */
+    override suspend fun deleteAll() {
+        bikeDao.deleteAll()
+    }
 }

@@ -61,6 +61,7 @@ private class FakeRouteRepository : RouteRepository {
     override suspend fun getById(id: String): Route? = saved.find { it.id == id }
     override fun observeById(id: String): Flow<Route?> = MutableStateFlow(saved.find { it.id == id })
     override suspend fun clearCorrectedTrace(id: String) { /* stub */ }
+    override suspend fun deleteAll() { saved.clear(); allFlow.value = emptyList() }
 }
 
 private class FakeSyncRepository : SyncRepository {

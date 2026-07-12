@@ -77,4 +77,14 @@ interface RouteDao {
      */
     @Query("UPDATE routes SET correctedPathJson = NULL, correctionStatus = 'NONE', confidence = NULL WHERE id = :id")
     suspend fun clearCorrection(id: String)
+
+    /**
+     * Deletes every row from the routes table.
+     *
+     * Used exclusively by [com.mototracker.data.repository.BackupRepositoryImpl] during a
+     * [com.mototracker.domain.backup.RestoreMode.REPLACE] import to clear stale data before
+     * inserting the imported set.
+     */
+    @Query("DELETE FROM routes")
+    suspend fun deleteAll()
 }

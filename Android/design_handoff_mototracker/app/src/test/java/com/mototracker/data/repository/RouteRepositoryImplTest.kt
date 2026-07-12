@@ -47,6 +47,11 @@ private class FakeRouteDaoImpl : RouteDao {
     override suspend fun clearCorrection(id: String) {
         store[id]?.let { store[id] = it.copy(correctedPathJson = null, correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
     }
+
+    override suspend fun deleteAll() {
+        store.clear()
+        allFlow.value = emptyList()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

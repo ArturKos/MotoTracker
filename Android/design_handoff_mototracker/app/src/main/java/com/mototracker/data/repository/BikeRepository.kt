@@ -25,4 +25,12 @@ interface BikeRepository {
      * @param bike The bike to persist.
      */
     suspend fun addBike(bike: Bike)
+
+    /**
+     * Deletes every bike from local storage.
+     *
+     * Called during a [com.mototracker.domain.backup.RestoreMode.REPLACE] import to remove
+     * all existing data before inserting the imported set.
+     */
+    suspend fun deleteAll()
 }

@@ -45,4 +45,14 @@ interface BikeDao {
      */
     @Query("SELECT * FROM bikes WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): BikeEntity?
+
+    /**
+     * Deletes every row from the bikes table.
+     *
+     * Used exclusively by [com.mototracker.data.repository.BackupRepositoryImpl] during a
+     * [com.mototracker.domain.backup.RestoreMode.REPLACE] import to clear stale data before
+     * inserting the imported set.
+     */
+    @Query("DELETE FROM bikes")
+    suspend fun deleteAll()
 }

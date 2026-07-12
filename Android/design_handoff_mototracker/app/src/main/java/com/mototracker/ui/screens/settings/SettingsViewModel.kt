@@ -8,16 +8,21 @@ import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
+import com.mototracker.data.repository.BackupRepository
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.SettingsStore
+import com.mototracker.domain.backup.RestoreMode
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +49,7 @@ import javax.inject.Inject
  * @param syncRepository     Drains the outbound sync queue.
  * @param rideLogStore       Read-only access to ride-log files (size + delete).
  * @param shareIntentFactory Selects the file to share in the Diagnostics section.
+ * @param backupRepository   Handles JSON backup export and import.
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -53,6 +59,7 @@ class SettingsViewModel @Inject constructor(
     private val syncRepository: SyncRepository,
     private val rideLogStore: RideLogStore,
     private val shareIntentFactory: RideLogShareIntentFactory,
+    private val backupRepository: BackupRepository,
 ) : ViewModel() {
 
     private val _rideLogUsedBytes = MutableStateFlow(0L)
@@ -329,4 +336,43 @@ class SettingsViewModel @Inject constructor(
      * via `FileProvider.getUriForFile` and launches `Intent.ACTION_SEND`.
      */
     fun getShareTargetFile(): File? = shareIntentFactory.shareTargetFile(rideLogStore)
+
+    // ── Backup / restore (B16) ────────────────────────────────────────────────
+
+    /**
+     * One-shot events emitted after a restore completes (success or failure).
+     * The Composable collects this to show a Toast.
+     */
+    private val _restoreEvent = MutableSharedFlow<Result<Unit>>(extraBufferCapacity = 1)
+
+    /** Observed by the Composable to display restore outcome toasts. */
+    val restoreEvent: SharedFlow<Result<Unit>> = _restoreEvent.asSharedFlow()
+
+    /**
+     * Serialises all local data to a JSON string on [Dispatchers.IO].
+     *
+     * The Composable calls this, receives the string, and writes it to the SAF
+     * [OutputStream] itself — keeping file I/O out of the ViewModel.
+     *
+     * @return [Result.success] with the JSON payload, or [Result.failure] on error.
+     */
+    suspend fun buildBackup(): Result<String> = withContext(Dispatchers.IO) {
+        backupRepository.exportBackup()
+    }
+
+    /**
+     * Parses [json] and merges or replaces local data according to [mode], then emits
+     * a [Result] on [restoreEvent] for the Composable to display as a toast.
+     *
+     * Runs on [Dispatchers.IO] so Room writes are main-safe.
+     *
+     * @param json Raw backup JSON string read from a SAF [InputStream].
+     * @param mode [RestoreMode.MERGE] or [RestoreMode.REPLACE].
+     */
+    fun restore(json: String, mode: RestoreMode) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = backupRepository.importBackup(json, mode)
+            _restoreEvent.emit(result.map { })
+        }
+    }
 }

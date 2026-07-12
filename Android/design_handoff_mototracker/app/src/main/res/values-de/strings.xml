@@ -271,4 +271,19 @@
     <string name="badge_mountain_goat">Bergziege</string>
     <string name="badge_marathon_month">Marathonmonat</string>
     <string name="badge_streak_3">3-Tages-Serie</string>
+
+    <!-- Datensicherung / Wiederherstellung (B16) -->
+    <string name="section_backup">Datensicherung</string>
+    <string name="action_create_backup">Sicherung erstellen</string>
+    <string name="desc_create_backup">Touren, Motorräder und Einstellungen als JSON exportieren</string>
+    <string name="action_restore_backup">Sicherung wiederherstellen</string>
+    <string name="desc_restore_backup">Touren, Motorräder und Einstellungen aus JSON importieren</string>
+    <string name="dialog_restore_title">Sicherung wiederherstellen</string>
+    <string name="dialog_restore_message">Wie sollen die importierten Daten angewendet werden?</string>
+    <string name="dialog_restore_merge">Zusammenführen</string>
+    <string name="dialog_restore_replace">Ersetzen</string>
+    <string name="toast_backup_created">Sicherungsdatei erstellt</string>
+    <string name="toast_backup_failed">Sicherung fehlgeschlagen</string>
+    <string name="toast_restore_ok">Wiederherstellung abgeschlossen</string>
+    <string name="toast_restore_failed">Wiederherstellung fehlgeschlagen — ungültige Datei</string>
 </resources>

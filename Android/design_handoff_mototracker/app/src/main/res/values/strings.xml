@@ -284,6 +284,21 @@
     <string name="label_confidence">Confidence</string>
     <string name="toast_correction_queued">GPS correction queued</string>
 
+    <!-- Backup / restore (B16) -->
+    <string name="section_backup">Backup</string>
+    <string name="action_create_backup">Create backup</string>
+    <string name="desc_create_backup">Export routes, bikes &amp; settings to a JSON file</string>
+    <string name="action_restore_backup">Restore backup</string>
+    <string name="desc_restore_backup">Import routes, bikes &amp; settings from a JSON file</string>
+    <string name="dialog_restore_title">Restore backup</string>
+    <string name="dialog_restore_message">How should the imported data be applied?</string>
+    <string name="dialog_restore_merge">Merge</string>
+    <string name="dialog_restore_replace">Replace all</string>
+    <string name="toast_backup_created">Backup file created</string>
+    <string name="toast_backup_failed">Backup failed</string>
+    <string name="toast_restore_ok">Restore completed</string>
+    <string name="toast_restore_failed">Restore failed — invalid file</string>
+
     <!-- Stats — personal records &amp; achievements (B15) -->
     <string name="stats_records_title">Personal records</string>
     <string name="stats_achievements_title">Achievements</string>

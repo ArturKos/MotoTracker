@@ -46,4 +46,9 @@ class RouteRepositoryImpl @Inject constructor(
     override suspend fun clearCorrectedTrace(id: String) {
         routeDao.clearCorrection(id)
     }
+
+    /** Removes every route row from the database; used for REPLACE-mode backup restore. */
+    override suspend fun deleteAll() {
+        routeDao.deleteAll()
+    }
 }

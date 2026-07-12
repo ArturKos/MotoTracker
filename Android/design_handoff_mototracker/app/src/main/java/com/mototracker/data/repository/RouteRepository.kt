@@ -48,4 +48,12 @@ interface RouteRepository {
      * @param id The route UUID to clear.
      */
     suspend fun clearCorrectedTrace(id: String)
+
+    /**
+     * Deletes every route from local storage.
+     *
+     * Called during a [com.mototracker.domain.backup.RestoreMode.REPLACE] import to remove
+     * all existing data before inserting the imported set.
+     */
+    suspend fun deleteAll()
 }

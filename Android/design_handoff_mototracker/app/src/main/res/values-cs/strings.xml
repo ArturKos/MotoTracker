@@ -271,4 +271,19 @@
     <string name="badge_mountain_goat">Horský kozel</string>
     <string name="badge_marathon_month">Maratonský měsíc</string>
     <string name="badge_streak_3">Série 3 dní</string>
+
+    <!-- Záloha / obnovení (B16) -->
+    <string name="section_backup">Záloha</string>
+    <string name="action_create_backup">Vytvořit zálohu</string>
+    <string name="desc_create_backup">Exportovat trasy, motocykly a nastavení do JSON</string>
+    <string name="action_restore_backup">Obnovit zálohu</string>
+    <string name="desc_restore_backup">Importovat trasy, motocykly a nastavení z JSON</string>
+    <string name="dialog_restore_title">Obnovit zálohu</string>
+    <string name="dialog_restore_message">Jak použít importovaná data?</string>
+    <string name="dialog_restore_merge">Sloučit</string>
+    <string name="dialog_restore_replace">Nahradit</string>
+    <string name="toast_backup_created">Záložní soubor vytvořen</string>
+    <string name="toast_backup_failed">Vytvoření zálohy selhalo</string>
+    <string name="toast_restore_ok">Obnovení dokončeno</string>
+    <string name="toast_restore_failed">Obnovení selhalo — neplatný soubor</string>
 </resources>

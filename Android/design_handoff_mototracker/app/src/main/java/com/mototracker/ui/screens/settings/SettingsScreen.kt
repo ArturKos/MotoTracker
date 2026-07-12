@@ -5,6 +5,8 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,9 +42,11 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,12 +65,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.data.local.entity.BikeStatus
+import com.mototracker.domain.backup.RestoreMode
 import com.mototracker.ui.state.AppStateViewModel
 import com.mototracker.ui.state.Language
 import com.mototracker.ui.state.Units
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
 import com.mototracker.ui.theme.MotoTracker
+import kotlinx.coroutines.launch
 
 /**
  * Settings screen (B7) — nine sections rendered in a [LazyColumn].
@@ -98,7 +104,74 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appState by appStateVm.uiState.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val addBikeMsg = stringResource(R.string.toast_add_bike)
+    val backupOkMsg = stringResource(R.string.toast_backup_created)
+    val backupFailMsg = stringResource(R.string.toast_backup_failed)
+    val restoreOkMsg = stringResource(R.string.toast_restore_ok)
+    val restoreFailMsg = stringResource(R.string.toast_restore_failed)
+
+    // SAF launcher: create a new JSON file for export
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = viewModel.buildBackup()
+            result.onSuccess { json ->
+                try {
+                    ctx.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                    Toast.makeText(ctx, backupOkMsg, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(ctx, backupFailMsg, Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure {
+                Toast.makeText(ctx, backupFailMsg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Pending import JSON and mode dialog state
+    var pendingImportJson by remember { mutableStateOf<String?>(null) }
+
+    // SAF launcher: open an existing JSON file for import
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            try {
+                val json = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+                    ?: return@launch
+                pendingImportJson = json
+            } catch (e: Exception) {
+                Toast.makeText(ctx, restoreFailMsg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Restore-mode dialog
+    pendingImportJson?.let { json ->
+        RestoreModeDialog(
+            onMerge = {
+                viewModel.restore(json, RestoreMode.MERGE)
+                pendingImportJson = null
+            },
+            onReplace = {
+                viewModel.restore(json, RestoreMode.REPLACE)
+                pendingImportJson = null
+            },
+            onDismiss = { pendingImportJson = null },
+        )
+    }
+
+    // Toast on restore result
+    LaunchedEffect(viewModel) {
+        viewModel.restoreEvent.collect { result ->
+            val msg = if (result.isSuccess) restoreOkMsg else restoreFailMsg
+            Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     SettingsContent(
         state = state,
@@ -154,6 +227,8 @@ fun SettingsScreen(
         onClearLogs = viewModel::clearRideLogs,
         onAutoPause = viewModel::setAutoPause,
         onKeepScreenOn = viewModel::setKeepScreenOn,
+        onExportBackup = { exportLauncher.launch("mototracker-backup.json") },
+        onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
         modifier = modifier,
     )
 }
@@ -212,6 +287,8 @@ fun SettingsContent(
     onClearLogs: () -> Unit = {},
     onAutoPause: (Boolean) -> Unit = {},
     onKeepScreenOn: (Boolean) -> Unit = {},
+    onExportBackup: () -> Unit = {},
+    onImportBackup: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val ctx = LocalContext.current
@@ -401,6 +478,21 @@ fun SettingsContent(
                 sublabel = stringResource(R.string.action_clear_logs),
                 enabled = state.debugLoggingEnabled,
                 onClick = onClearLogs,
+            )
+
+            // Backup sub-group
+            SectionHeader(title = stringResource(R.string.section_backup))
+            DiagnosticsActionRow(
+                label = stringResource(R.string.action_create_backup),
+                sublabel = stringResource(R.string.desc_create_backup),
+                enabled = true,
+                onClick = onExportBackup,
+            )
+            DiagnosticsActionRow(
+                label = stringResource(R.string.action_restore_backup),
+                sublabel = stringResource(R.string.desc_restore_backup),
+                enabled = true,
+                onClick = onImportBackup,
             )
             SectionDivider()
         }
@@ -1066,6 +1158,69 @@ private fun DiagnosticsActionRow(
             }
         }
     }
+}
+
+/**
+ * Dialog shown after the user picks a backup file to restore.
+ *
+ * Offers three choices: merge imported data with existing data, replace all data,
+ * or cancel the import.
+ *
+ * @param onMerge   Called when the user taps Scal (merge).
+ * @param onReplace Called when the user taps Zastąp (replace).
+ * @param onDismiss Called when the user taps Anuluj or dismisses the dialog.
+ */
+@Composable
+private fun RestoreModeDialog(
+    onMerge: () -> Unit,
+    onReplace: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MotoTracker.colors.bg,
+        titleContentColor = MotoTracker.colors.text,
+        textContentColor = MotoTracker.colors.text,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_restore_title),
+                style = MotoTracker.typography.body.copy(fontWeight = FontWeight.Bold),
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.dialog_restore_message),
+                style = MotoTracker.typography.label,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onMerge) {
+                Text(
+                    text = stringResource(R.string.dialog_restore_merge),
+                    color = MotoTracker.colors.accent,
+                    style = MotoTracker.typography.label,
+                )
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onReplace) {
+                    Text(
+                        text = stringResource(R.string.dialog_restore_replace),
+                        color = MotoTracker.colors.accent,
+                        style = MotoTracker.typography.label,
+                    )
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(R.string.btn_cancel),
+                        color = MotoTracker.colors.dim,
+                        style = MotoTracker.typography.label,
+                    )
+                }
+            }
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -61,6 +61,7 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
             confidence = null,
         )
     }
+    override suspend fun deleteAll() { _flow.value = null }
 }
 
 private class FakeBikeRepository(bikes: List<Bike> = emptyList()) : BikeRepository {
@@ -68,6 +69,7 @@ private class FakeBikeRepository(bikes: List<Bike> = emptyList()) : BikeReposito
     fun emit(bikes: List<Bike>) { _flow.value = bikes }
     override fun observeAll(): Flow<List<Bike>> = _flow
     override suspend fun addBike(bike: Bike) { _flow.value = _flow.value + bike }
+    override suspend fun deleteAll() { _flow.value = emptyList() }
 }
 
 private class FakeWaveRepository(waves: List<Wave> = emptyList()) : WaveRepository {

@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -47,6 +49,12 @@ android {
             isIncludeAndroidResources = true
             all { test ->
                 test.testLogging { events("started", "passed", "failed", "skipped") }
+                // Hard backstop: a hung test (e.g. runTest cleanup spinning on a
+                // never-completing flow) must fail the task instead of pinning CPU
+                // forever and piling up Gradle daemons. The full suite runs in ~30s,
+                // so this only trips on a genuine hang. testLogging above names the
+                // culprit (last test STARTED with no PASSED). See ONBOARDING/BACKLOG.
+                test.timeout.set(Duration.ofMinutes(10))
             }
         }
     }

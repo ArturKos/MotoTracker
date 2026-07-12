@@ -314,4 +314,7 @@
     <!-- BLE-Wellen-Sendestatus (B21) -->
     <string name="ble_unsupported">Bluetooth-Winken auf diesem Gerät nicht unterstützt</string>
     <string name="ble_scanning_riders">Suche nach Fahrern in der Nähe…</string>
+
+    <!-- Hinweis auf abgelaufene Sitzung im Anmeldebildschirm (B22) -->
+    <string name="login_session_expired">Sitzung abgelaufen — bitte erneut anmelden</string>
 </resources>

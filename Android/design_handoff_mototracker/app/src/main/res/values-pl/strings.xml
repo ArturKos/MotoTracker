@@ -314,4 +314,7 @@
     <!-- Stan rozgłaszania BLE (B21) -->
     <string name="ble_unsupported">Pomachania Bluetooth nieobsługiwane na tym urządzeniu</string>
     <string name="ble_scanning_riders">Skanowanie pobliskich motocyklistów…</string>
+
+    <!-- Powiadomienie o wygaśnięciu sesji na ekranie logowania (B22) -->
+    <string name="login_session_expired">Sesja wygasła — zaloguj się ponownie</string>
 </resources>

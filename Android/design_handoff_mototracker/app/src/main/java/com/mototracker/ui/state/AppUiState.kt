@@ -38,8 +38,8 @@ enum class Units { METRIC, IMPERIAL }
  * Defaults mirror the prototype initial state: login screen, unauthenticated guest,
  * Polish language, Cockpit theme, Teal accent, Metric units.
  *
- * NOTE: Persistence is deferred to task A6, which will back this state with DataStore.
- * Until then, state is in-memory only and resets on process death.
+ * NOTE: Auth choice ([screen]/[authed]) is now persisted via [com.mototracker.data.auth.AuthStateStore]
+ * (B22). Theme, accent, and units persistence remains D4 scope — in-memory only until then.
  *
  * @param screen        Which top-level screen is currently active.
  * @param authed        Whether the user has authenticated (false = guest / local-only).

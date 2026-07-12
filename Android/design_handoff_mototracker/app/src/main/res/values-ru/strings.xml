@@ -314,4 +314,7 @@
     <!-- Статус BLE-трансляции (B21) -->
     <string name="ble_unsupported">Bluetooth-приветствия не поддерживаются на этом устройстве</string>
     <string name="ble_scanning_riders">Поиск ближайших мотоциклистов…</string>
+
+    <!-- Уведомление об истечении сессии на экране входа (B22) -->
+    <string name="login_session_expired">Сессия истекла — войдите снова</string>
 </resources>

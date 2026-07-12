@@ -344,4 +344,7 @@
     <!-- BLE wave broadcast status (B21) -->
     <string name="ble_unsupported">Bluetooth waves not supported on this device</string>
     <string name="ble_scanning_riders">Scanning for nearby riders…</string>
+
+    <!-- Session expired notice on Login screen (B22) -->
+    <string name="login_session_expired">Session expired — please sign in again</string>
 </resources>

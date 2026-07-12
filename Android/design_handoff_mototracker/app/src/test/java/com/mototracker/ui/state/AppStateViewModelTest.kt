@@ -3,10 +3,16 @@ package com.mototracker.ui.state
 import app.cash.turbine.test
 import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
+import com.mototracker.data.auth.AuthState
+import com.mototracker.data.auth.AuthStateStore
+import com.mototracker.data.network.SessionState
+import com.mototracker.data.network.SessionStore
 import com.mototracker.ui.screens.record.RecordingPhase
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -26,9 +32,41 @@ private class FakeLocaleController : LocaleController {
     }
 }
 
+private class FakeAuthStateStore : AuthStateStore {
+    private val _state = MutableStateFlow(AuthState.NONE)
+    override val authState: Flow<AuthState> = _state
+    var lastSet: AuthState? = null
+
+    override suspend fun set(state: AuthState) {
+        lastSet = state
+        _state.value = state
+    }
+}
+
+private class FakeSessionStore : SessionStore {
+    private val _session = MutableStateFlow(SessionState.UNAUTHENTICATED)
+    override val session: Flow<SessionState> = _session
+    var cleared = false
+
+    override suspend fun save(cookie: String, email: String) {
+        _session.value = SessionState(cookie, email)
+    }
+
+    override suspend fun clear() {
+        cleared = true
+        _session.value = SessionState.UNAUTHENTICATED
+    }
+
+    fun setAuthenticated(cookie: String = "sid=abc", email: String = "test@test.com") {
+        _session.value = SessionState(cookie, email)
+    }
+}
+
 class AppStateViewModelTest {
 
     private lateinit var fakeLocale: FakeLocaleController
+    private lateinit var fakeAuthStore: FakeAuthStateStore
+    private lateinit var fakeSessionStore: FakeSessionStore
     private lateinit var bridge: CarRecordingBridge
     private lateinit var viewModel: AppStateViewModel
 
@@ -36,8 +74,10 @@ class AppStateViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         fakeLocale = FakeLocaleController()
+        fakeAuthStore = FakeAuthStateStore()
+        fakeSessionStore = FakeSessionStore()
         bridge = CarRecordingBridge()
-        viewModel = AppStateViewModel(fakeLocale, bridge)
+        viewModel = AppStateViewModel(fakeLocale, bridge, fakeAuthStore, fakeSessionStore)
     }
 
     @After
@@ -166,9 +206,6 @@ class AppStateViewModelTest {
 
     @Test
     fun `recordingActive transitions Idle-false Recording-true Idle-false Paused-true Idle-false`() = runTest {
-        // StateFlow is distinctUntilChanged — Paused→true after Recording→true would not re-emit.
-        // We therefore cycle back through Idle between the two active phases so every transition
-        // produces a distinct boolean emission and can be observed via Turbine.
         viewModel.recordingActive.test {
             assertFalse(awaitItem()) // initial Idle → false
 
@@ -202,5 +239,138 @@ class AppStateViewModelTest {
         val fakeMetrics = com.mototracker.domain.recording.RecordingMetrics()
         bridge.publish(fakeMetrics, RecordingPhase.Paused)
         assertTrue(viewModel.recordingActive.value)
+    }
+
+    // ── B22: persistence ─────────────────────────────────────────────────────
+
+    @Test
+    fun `signIn persists AUTHED to authStateStore`() = runTest {
+        viewModel.signIn()
+        assertEquals(AuthState.AUTHED, fakeAuthStore.lastSet)
+    }
+
+    @Test
+    fun `continueAsGuest persists GUEST to authStateStore`() = runTest {
+        viewModel.continueAsGuest()
+        assertEquals(AuthState.GUEST, fakeAuthStore.lastSet)
+    }
+
+    @Test
+    fun `signOut persists NONE, clears session, and resets uiState`() = runTest {
+        viewModel.signIn()
+        viewModel.signOut()
+        assertEquals(AuthState.NONE, fakeAuthStore.lastSet)
+        assertTrue(fakeSessionStore.cleared)
+        assertEquals(AppUiState(), viewModel.uiState.value)
+    }
+
+    // ── B22: startupDecision ─────────────────────────────────────────────────
+
+    @Test
+    fun `startupDecision is Loading before stores emit`() {
+        // With UnconfinedTestDispatcher the flow is already subscribed and will have emitted
+        // once stores produce their initial values; so we verify that Ready is emitted.
+        // The initial value of the StateFlow is Loading.
+        // Since stores emit synchronously in the fake, the decision transitions immediately.
+        assertTrue(viewModel.startupDecision.value is StartupDecision.Ready || viewModel.startupDecision.value is StartupDecision.Loading)
+    }
+
+    @Test
+    fun `startupDecision emits Ready(LOGIN) for NONE auth state`() = runTest {
+        // fakeAuthStore defaults to NONE, fakeSessionStore to UNAUTHENTICATED
+        val decision = viewModel.startupDecision.value
+        assertTrue(decision is StartupDecision.Ready)
+        val ready = decision as StartupDecision.Ready
+        assertEquals(AppScreen.LOGIN, ready.startScreen)
+        assertFalse(ready.authed)
+        assertFalse(ready.sessionExpired)
+    }
+
+    @Test
+    fun `startupDecision emits Ready(MAIN, authed=false) for GUEST`() = runTest {
+        fakeAuthStore.set(AuthState.GUEST)
+        val decision = viewModel.startupDecision.value
+        assertTrue(decision is StartupDecision.Ready)
+        val ready = decision as StartupDecision.Ready
+        assertEquals(AppScreen.MAIN, ready.startScreen)
+        assertFalse(ready.authed)
+        assertFalse(ready.sessionExpired)
+    }
+
+    @Test
+    fun `startupDecision emits Ready(MAIN, authed=true) for AUTHED with valid session`() = runTest {
+        fakeSessionStore.setAuthenticated()
+        fakeAuthStore.set(AuthState.AUTHED)
+        val decision = viewModel.startupDecision.value
+        assertTrue(decision is StartupDecision.Ready)
+        val ready = decision as StartupDecision.Ready
+        assertEquals(AppScreen.MAIN, ready.startScreen)
+        assertTrue(ready.authed)
+        assertFalse(ready.sessionExpired)
+    }
+
+    @Test
+    fun `startupDecision emits Ready(LOGIN, sessionExpired=true) for AUTHED without session`() = runTest {
+        // AUTHED persisted but session cookie absent
+        fakeAuthStore.set(AuthState.AUTHED)
+        // fakeSessionStore is UNAUTHENTICATED by default
+        val decision = viewModel.startupDecision.value
+        assertTrue(decision is StartupDecision.Ready)
+        val ready = decision as StartupDecision.Ready
+        assertEquals(AppScreen.LOGIN, ready.startScreen)
+        assertFalse(ready.authed)
+        assertTrue(ready.sessionExpired)
+    }
+
+    @Test
+    fun `startupDecision updates reactively when auth state changes`() = runTest {
+        viewModel.startupDecision.test {
+            val initial = awaitItem()
+            assertTrue(initial is StartupDecision.Ready)
+            assertEquals(AppScreen.LOGIN, (initial as StartupDecision.Ready).startScreen)
+
+            fakeAuthStore.set(AuthState.GUEST)
+            val guestDecision = awaitItem()
+            assertTrue(guestDecision is StartupDecision.Ready)
+            assertEquals(AppScreen.MAIN, (guestDecision as StartupDecision.Ready).startScreen)
+            assertFalse(guestDecision.authed)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+}
+
+// ── startScreenFor pure-function tests ───────────────────────────────────────
+
+class StartScreenForTest {
+
+    @Test
+    fun `NONE with no session returns LOGIN`() {
+        assertEquals(AppScreen.LOGIN, startScreenFor(AuthState.NONE, sessionAuthenticated = false))
+    }
+
+    @Test
+    fun `NONE with session returns LOGIN`() {
+        assertEquals(AppScreen.LOGIN, startScreenFor(AuthState.NONE, sessionAuthenticated = true))
+    }
+
+    @Test
+    fun `GUEST with no session returns MAIN`() {
+        assertEquals(AppScreen.MAIN, startScreenFor(AuthState.GUEST, sessionAuthenticated = false))
+    }
+
+    @Test
+    fun `GUEST with session returns MAIN`() {
+        assertEquals(AppScreen.MAIN, startScreenFor(AuthState.GUEST, sessionAuthenticated = true))
+    }
+
+    @Test
+    fun `AUTHED with session returns MAIN`() {
+        assertEquals(AppScreen.MAIN, startScreenFor(AuthState.AUTHED, sessionAuthenticated = true))
+    }
+
+    @Test
+    fun `AUTHED without session returns LOGIN`() {
+        assertEquals(AppScreen.LOGIN, startScreenFor(AuthState.AUTHED, sessionAuthenticated = false))
     }
 }

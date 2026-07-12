@@ -314,4 +314,7 @@
     <!-- État de diffusion BLE (B21) -->
     <string name="ble_unsupported">Saluts Bluetooth non pris en charge sur cet appareil</string>
     <string name="ble_scanning_riders">Recherche de pilotes à proximité…</string>
+
+    <!-- Avis de session expirée sur l\'écran de connexion (B22) -->
+    <string name="login_session_expired">Session expirée — veuillez vous reconnecter</string>
 </resources>

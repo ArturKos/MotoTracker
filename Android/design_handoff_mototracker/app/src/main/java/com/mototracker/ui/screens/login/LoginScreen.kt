@@ -48,15 +48,18 @@ import com.mototracker.ui.theme.MotoTracker
  * Navigation is driven by one-shot [LoginEvent]s from [viewModel.events]:
  * [LoginEvent.NavigateToMain] with `authed = true` calls [onSignedIn].
  *
- * @param onSignedIn Called after a successful sign-in flow.
- * @param onGuest    Called when the user chooses to continue without an account.
- * @param modifier   Applied to the root container.
- * @param viewModel  Hilt-injected [LoginViewModel].
+ * @param onSignedIn     Called after a successful sign-in flow.
+ * @param onGuest        Called when the user chooses to continue without an account.
+ * @param sessionExpired When `true`, an inline notice informs the user their previous session
+ *                       has expired and they must sign in again (B22). 🔬 on-device UI.
+ * @param modifier       Applied to the root container.
+ * @param viewModel      Hilt-injected [LoginViewModel].
  */
 @Composable
 fun LoginScreen(
     onSignedIn: () -> Unit,
     onGuest: () -> Unit,
+    sessionExpired: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -72,6 +75,7 @@ fun LoginScreen(
 
     LoginContent(
         uiState = uiState,
+        sessionExpired = sessionExpired,
         onServerAddress = viewModel::updateServerAddress,
         onEmail = viewModel::updateEmail,
         onPassword = viewModel::updatePassword,
@@ -86,6 +90,7 @@ fun LoginScreen(
  * Extracted for Paparazzi screenshot testing — no ViewModels or side-effects.
  *
  * @param uiState          Snapshot of all form field values and loading/error state.
+ * @param sessionExpired   When `true`, shows an inline session-expired notice above the form (B22). 🔬
  * @param onServerAddress  Called when the server-address field changes.
  * @param onEmail          Called when the e-mail field changes.
  * @param onPassword       Called when the password field changes.
@@ -96,6 +101,7 @@ fun LoginScreen(
 @Composable
 fun LoginContent(
     uiState: LoginUiState,
+    sessionExpired: Boolean = false,
     onServerAddress: (String) -> Unit = {},
     onEmail: (String) -> Unit = {},
     onPassword: (String) -> Unit = {},
@@ -147,6 +153,18 @@ fun LoginContent(
             style = MotoTracker.typography.bodySmall,
             color = MotoTracker.colors.dim,
         )
+
+        // 🔬 Session-expired notice (B22) — shown when AUTHED was persisted but cookie is gone.
+        if (sessionExpired) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.login_session_expired),
+                style = MotoTracker.typography.bodySmall,
+                color = MotoTracker.colors.accent2,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         Spacer(Modifier.height(32.dp))
 

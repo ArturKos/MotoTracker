@@ -43,8 +43,10 @@ import kotlinx.coroutines.launch
  * An app-level [SnackbarHostState] is shared across all screens that use the
  * [onToast] callback pattern (e.g. [RidersScreen], [RouteDetailScreen]).
  *
- * The [startDestination] is driven by [authed]: authenticated users start at [MotoDestination.RECORD];
- * unauthenticated / guest users start at [MotoDestination.LOGIN].
+ * The [startDestination] is driven by [startAtMain]: users who previously signed in or
+ * chose guest mode start at [MotoDestination.RECORD]; unauthenticated users start at
+ * [MotoDestination.LOGIN]. A guest ([startAtMain]=true, not authenticated) also lands at
+ * [MotoDestination.RECORD] so guest-mode data is immediately accessible (B22).
  *
  * Both sign-in callbacks ([onSignIn] and [onContinueAsGuest]) invoke the app-level state update
  * and then navigate to [MotoDestination.RECORD], popping the login destination from the back stack
@@ -52,7 +54,10 @@ import kotlinx.coroutines.launch
  *
  * Must be called inside [com.mototracker.ui.theme.MotoTrackerTheme].
  *
- * @param authed              Whether the current session is authenticated. Controls start destination.
+ * @param startAtMain         Whether to start at the main shell ([MotoDestination.RECORD]).
+ *                            `true` for AUTHED (with session) and GUEST users; `false` for NONE
+ *                            or AUTHED-without-session.
+ * @param sessionExpired      When `true`, the Login screen shows a session-expired notice (B22).
  * @param onSignIn            Callback invoked when the user completes sign-in (authed = true).
  * @param onContinueAsGuest   Callback invoked when the user taps "Continue as Guest" (authed = false).
  * @param recordingActive     Whether a recording session is currently active. When `true`, bottom-nav
@@ -61,7 +66,8 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun MotoApp(
-    authed: Boolean = false,
+    startAtMain: Boolean = false,
+    sessionExpired: Boolean = false,
     onSignIn: () -> Unit = {},
     onContinueAsGuest: () -> Unit = {},
     recordingActive: Boolean = false,
@@ -80,7 +86,7 @@ fun MotoApp(
         showToast(navLockedMessage)
     }
 
-    val startDestination = if (authed) {
+    val startDestination = if (startAtMain) {
         MotoDestination.RECORD.route
     } else {
         MotoDestination.LOGIN.route
@@ -128,6 +134,7 @@ fun MotoApp(
         ) {
             composable(MotoDestination.LOGIN.route) {
                 LoginScreen(
+                    sessionExpired = sessionExpired,
                     onSignedIn = {
                         onSignIn()
                         navController.navigate(MotoDestination.RECORD.route) {

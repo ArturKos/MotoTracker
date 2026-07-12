@@ -1,7 +1,10 @@
 package com.mototracker.ui.screens.record
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +29,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -109,6 +113,23 @@ fun RecordingScreen(
             RecordingPhase.Recording -> startRecordingService(context)
             RecordingPhase.Idle -> stopRecordingService(context)
             RecordingPhase.Paused -> Unit
+        }
+    }
+
+    // Lock orientation to portrait while recording/paused so the accelerometer axes stay
+    // consistent with lean-angle calibration.  Released (Unspecified) on Idle or disposal.
+    // (🔬 physical rotation lock + lean correctness verified on-device)
+    DisposableEffect(state.phase) {
+        val activity = context.findActivity()
+        val orientation = requestedOrientationFor(state.phase)
+        if (activity != null) {
+            activity.requestedOrientation = when (orientation) {
+                RecordOrientation.LockedPortrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                RecordOrientation.Unspecified -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -646,6 +667,16 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
 // ─────────────────────────────────────────────────────────────────────────────
 // Service helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Walks the [ContextWrapper] chain to find the host [Activity], or null if not found. */
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 private fun startRecordingService(context: Context) {
     context.startForegroundService(Intent(context, RecordingService::class.java))

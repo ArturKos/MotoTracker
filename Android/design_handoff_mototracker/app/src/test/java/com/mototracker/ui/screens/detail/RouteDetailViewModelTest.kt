@@ -39,6 +39,7 @@ import org.junit.Test
 
 private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     private val _flow = MutableStateFlow(stored)
+    val renameCallArgs = mutableListOf<Pair<String, String>>()
 
     /** Push a new route value (used by tests to simulate DB updates). */
     fun emit(route: Route?) { _flow.value = route }
@@ -61,6 +62,13 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
             confidence = null,
         )
     }
+
+    override suspend fun rename(id: String, name: String) {
+        renameCallArgs += id to name
+        val r = _flow.value?.takeIf { it.id == id } ?: return
+        _flow.value = r.copy(name = name)
+    }
+
     override suspend fun deleteAll() { _flow.value = null }
 }
 
@@ -761,6 +769,92 @@ class RouteDetailViewModelTest {
 
             assertTrue(after.hasCorrectedTrace)
             assertEquals(TrackView.CORRECTED, after.selectedTrackView)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── B17 rename ────────────────────────────────────────────────────────────
+
+    @Test
+    fun `rename calls repository with route id and trimmed name`() = runTest {
+        val route = makeRoute(id = "route-rename-me", name = "Old Name")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.rename("New Name")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, fakeRepo.renameCallArgs.size)
+        assertEquals("route-rename-me", fakeRepo.renameCallArgs.first().first)
+        assertEquals("New Name", fakeRepo.renameCallArgs.first().second)
+    }
+
+    @Test
+    fun `rename trims leading and trailing whitespace before persisting`() = runTest {
+        val route = makeRoute(id = "route-trim", name = "Old")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.rename("  Trimmed Name  ")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Trimmed Name", fakeRepo.renameCallArgs.first().second)
+    }
+
+    @Test
+    fun `rename with blank string is a no-op`() = runTest {
+        val route = makeRoute(id = "route-noop", name = "Original")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.rename("   ")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("blank rename should not call repo", fakeRepo.renameCallArgs.isEmpty())
+    }
+
+    @Test
+    fun `rename with empty string is a no-op`() = runTest {
+        val route = makeRoute(id = "route-noop2", name = "Original")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.rename("")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("empty rename should not call repo", fakeRepo.renameCallArgs.isEmpty())
+    }
+
+    @Test
+    fun `rename updates uiState name reactively after repo write`() = runTest {
+        val route = makeRoute(id = "route-live", name = "Before")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+
+        vm.uiState.test {
+            val before = skipToLoaded()
+            assertEquals("Before", before.name)
+
+            vm.rename("After")
+            val after = awaitItem()
+            assertEquals("After", after.name)
+
             cancelAndIgnoreRemainingEvents()
         }
     }

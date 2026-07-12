@@ -1,7 +1,11 @@
 package com.mototracker.di
 
+import com.mototracker.core.resource.ContextStringResolver
+import com.mototracker.core.resource.StringResolver
+import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
 import com.mototracker.data.location.LocationClient
+import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.BikeRepositoryImpl
 import com.mototracker.data.repository.RouteRepository
@@ -51,4 +55,14 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindWaveRepository(impl: WaveRepositoryImpl): WaveRepository
+
+    /** Binds [AndroidReverseGeocoder] as the [ReverseGeocoder] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindReverseGeocoder(impl: AndroidReverseGeocoder): ReverseGeocoder
+
+    /** Binds [ContextStringResolver] as the [StringResolver] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindStringResolver(impl: ContextStringResolver): StringResolver
 }

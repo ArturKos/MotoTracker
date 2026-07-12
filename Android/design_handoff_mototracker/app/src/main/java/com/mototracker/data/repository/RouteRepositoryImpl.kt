@@ -47,6 +47,15 @@ class RouteRepositoryImpl @Inject constructor(
         routeDao.clearCorrection(id)
     }
 
+    /**
+     * Updates the display name of the route with [id] via a targeted SQL UPDATE.
+     *
+     * The [name] must already be trimmed by the caller.
+     */
+    override suspend fun rename(id: String, name: String) {
+        routeDao.setName(id, name)
+    }
+
     /** Removes every route row from the database; used for REPLACE-mode backup restore. */
     override suspend fun deleteAll() {
         routeDao.deleteAll()

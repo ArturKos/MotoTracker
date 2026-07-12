@@ -2,18 +2,24 @@ package com.mototracker.ui.screens.record
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mototracker.R
 import com.mototracker.car.CarRecordingBridge
+import com.mototracker.core.resource.StringResolver
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
+import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.domain.naming.PartOfDay
+import com.mototracker.domain.naming.RouteNameComposer
 import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.ui.map.GeoCoord
+import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -27,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 
@@ -38,13 +45,15 @@ import javax.inject.Inject
  * - A 1-second ticker that advances elapsed time via [RecordingEngine.tick].
  * - Location updates from [LocationClient] feeding [RecordingEngine.onLocation].
  * - Lean-sensor readings from [LeanSensorSource] feeding [RecordingEngine.onLean].
- * - On Finish: persists the route via [RouteRepository] and queues it for upload
- *   via [SyncRepository]; emits a [RecordingEffect.Saved] with the online/offline flag.
+ * - On Finish: composes a sensible default route name (using [RouteNameComposer] +
+ *   [ReverseGeocoder] when online), persists the route via [RouteRepository], and
+ *   queues it for upload via [SyncRepository]; emits a [RecordingEffect.Saved] with
+ *   the online/offline flag.
  *
  * All collaborators are injectable interfaces so the ViewModel is fully unit-testable
  * with fakes (no Android runtime needed).
  *
- * @param locationClient  GPS location updates.
+ * @param locationClient    GPS location updates.
  * @param leanSensorSource  Gravity-sensor lean angles.
  * @param routeRepository   Persistence for completed routes.
  * @param syncRepository    Outbound sync queue.
@@ -56,6 +65,9 @@ import javax.inject.Inject
  *                          file when diagnostics are enabled (no-op otherwise).
  *                          Note: weather logging is not wired here — there is no weather seam
  *                          in this ViewModel; weather events are logged at the data layer.
+ * @param reverseGeocoder   Converts GPS coordinates to area names for the default route name.
+ *                          Only called when the device is online.
+ * @param stringResolver    Resolves localized string resources for the composed route name.
  */
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
@@ -68,6 +80,8 @@ class RecordingViewModel @Inject constructor(
     private val timeProvider: TimeProvider,
     private val carBridge: CarRecordingBridge,
     private val rideDebugLogger: RideDebugLogger,
+    private val reverseGeocoder: ReverseGeocoder,
+    private val stringResolver: StringResolver,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -83,6 +97,9 @@ class RecordingViewModel @Inject constructor(
     private var tickerJob: Job? = null
     private var locationJob: Job? = null
     private var leanJob: Job? = null
+
+    /** Epoch-ms timestamp captured at recording start; used for part-of-day naming. */
+    private var recordingStartMs: Long = 0L
 
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
@@ -120,6 +137,7 @@ class RecordingViewModel @Inject constructor(
     private fun doStart() {
         engine.reset()
         rideDebugLogger.beginRide()
+        recordingStartMs = timeProvider.nowEpochMs()
         _uiState.update { it.copy(phase = RecordingPhase.Recording, trackPoints = emptyList()) }
         startTicker()
         startLocationUpdates()
@@ -154,9 +172,37 @@ class RecordingViewModel @Inject constructor(
             val offline = settings.offline || settings.offlineOnly || !isOnline
 
             val result = engine.buildRoutePayload()
+
+            // Compose a sensible default name from part-of-day + optional reverse geocoding.
+            val startMs = if (recordingStartMs > 0L) recordingStartMs else timeProvider.nowEpochMs()
+            val pod = RouteNameComposer.partOfDay(startMs, ZoneId.systemDefault())
+            val rideLabelResId = when (pod) {
+                PartOfDay.MORNING   -> R.string.route_name_ride_morning
+                PartOfDay.AFTERNOON -> R.string.route_name_ride_afternoon
+                PartOfDay.EVENING   -> R.string.route_name_ride_evening
+                PartOfDay.NIGHT     -> R.string.route_name_ride_night
+            }
+            val rideLabel = stringResolver.getString(rideLabelResId)
+            val routeName = if (!offline) {
+                val pts = TrackGeometry.parsePathJson(result.pathJson)
+                val sampled = sampleEvenly(pts, maxCount = 5)
+                val areas = sampled.map { pt ->
+                    try { reverseGeocoder.areaName(pt.lat, pt.lon) } catch (_: Exception) { null }
+                }
+                val area = RouteNameComposer.dominantArea(areas)
+                if (area != null) {
+                    val template = stringResolver.getString(R.string.route_name_with_area)
+                    RouteNameComposer.compose(rideLabel, area, template)
+                } else {
+                    rideLabel
+                }
+            } else {
+                rideLabel
+            }
+
             val route = Route(
                 id = UUID.randomUUID().toString(),
-                name = "",
+                name = routeName,
                 dateEpochMs = timeProvider.nowEpochMs(),
                 bikeId = settings.currentBikeId,
                 km = result.metrics.distanceKm,
@@ -225,5 +271,14 @@ class RecordingViewModel @Inject constructor(
                 _uiState.update { it.copy(metrics = engine.snapshot()) }
             }
         }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Returns up to [maxCount] evenly-spaced points sampled from [points]. */
+    private fun sampleEvenly(points: List<GeoCoord>, maxCount: Int): List<GeoCoord> {
+        if (points.size <= maxCount) return points
+        val step = points.size.toDouble() / maxCount
+        return List(maxCount) { i -> points[(i * step).toInt()] }
     }
 }

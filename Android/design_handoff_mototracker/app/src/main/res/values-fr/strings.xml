@@ -286,4 +286,14 @@
     <string name="toast_backup_failed">Échec de la sauvegarde</string>
     <string name="toast_restore_ok">Restauration terminée</string>
     <string name="toast_restore_failed">Restauration échouée — fichier invalide</string>
+
+    <!-- Nom par défaut du trajet &amp; renommage (B17) -->
+    <string name="route_name_ride_morning">balade du matin</string>
+    <string name="route_name_ride_afternoon">balade de l\'après-midi</string>
+    <string name="route_name_ride_evening">balade du soir</string>
+    <string name="route_name_ride_night">balade nocturne</string>
+    <string name="route_name_with_area">%1$s – %2$s</string>
+    <string name="action_rename">Renommer</string>
+    <string name="dialog_rename_title">Renommer le trajet</string>
+    <string name="dialog_rename_hint">Nom du trajet</string>
 </resources>

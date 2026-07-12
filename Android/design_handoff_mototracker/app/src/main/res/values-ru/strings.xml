@@ -286,4 +286,14 @@
     <string name="toast_backup_failed">Ошибка создания резервной копии</string>
     <string name="toast_restore_ok">Восстановление завершено</string>
     <string name="toast_restore_failed">Ошибка восстановления — недействительный файл</string>
+
+    <!-- Название маршрута по умолчанию и переименование (B17) -->
+    <string name="route_name_ride_morning">утренняя поездка</string>
+    <string name="route_name_ride_afternoon">дневная поездка</string>
+    <string name="route_name_ride_evening">вечерняя поездка</string>
+    <string name="route_name_ride_night">ночная поездка</string>
+    <string name="route_name_with_area">%1$s – %2$s</string>
+    <string name="action_rename">Переименовать</string>
+    <string name="dialog_rename_title">Переименовать маршрут</string>
+    <string name="dialog_rename_hint">Название маршрута</string>
 </resources>

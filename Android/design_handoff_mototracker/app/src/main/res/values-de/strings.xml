@@ -286,4 +286,14 @@
     <string name="toast_backup_failed">Sicherung fehlgeschlagen</string>
     <string name="toast_restore_ok">Wiederherstellung abgeschlossen</string>
     <string name="toast_restore_failed">Wiederherstellung fehlgeschlagen — ungültige Datei</string>
+
+    <!-- Standardname der Route &amp; Umbenennen (B17) -->
+    <string name="route_name_ride_morning">Morgenfahrt</string>
+    <string name="route_name_ride_afternoon">Nachmittagsfahrt</string>
+    <string name="route_name_ride_evening">Abendfahrt</string>
+    <string name="route_name_ride_night">Nachtfahrt</string>
+    <string name="route_name_with_area">%1$s – %2$s</string>
+    <string name="action_rename">Umbenennen</string>
+    <string name="dialog_rename_title">Route umbenennen</string>
+    <string name="dialog_rename_hint">Routenname</string>
 </resources>

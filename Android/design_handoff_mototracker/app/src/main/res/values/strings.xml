@@ -299,6 +299,16 @@
     <string name="toast_restore_ok">Restore completed</string>
     <string name="toast_restore_failed">Restore failed — invalid file</string>
 
+    <!-- Route default naming &amp; rename (B17) -->
+    <string name="route_name_ride_morning">morning ride</string>
+    <string name="route_name_ride_afternoon">afternoon ride</string>
+    <string name="route_name_ride_evening">evening ride</string>
+    <string name="route_name_ride_night">night ride</string>
+    <string name="route_name_with_area">%1$s – %2$s</string>
+    <string name="action_rename">Rename</string>
+    <string name="dialog_rename_title">Rename route</string>
+    <string name="dialog_rename_hint">Route name</string>
+
     <!-- Stats — personal records &amp; achievements (B15) -->
     <string name="stats_records_title">Personal records</string>
     <string name="stats_achievements_title">Achievements</string>

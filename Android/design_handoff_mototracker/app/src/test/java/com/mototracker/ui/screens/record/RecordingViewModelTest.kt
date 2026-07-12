@@ -1,9 +1,12 @@
 package com.mototracker.ui.screens.record
 
 import app.cash.turbine.test
+import com.mototracker.R
+import com.mototracker.core.resource.StringResolver
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
+import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.repository.RouteRepository
@@ -62,6 +65,7 @@ private class FakeRouteRepository : RouteRepository {
     override fun observeById(id: String): Flow<Route?> = MutableStateFlow(saved.find { it.id == id })
     override suspend fun clearCorrectedTrace(id: String) { /* stub */ }
     override suspend fun deleteAll() { saved.clear(); allFlow.value = emptyList() }
+    override suspend fun rename(id: String, name: String) { /* stub */ }
 }
 
 private class FakeSyncRepository : SyncRepository {
@@ -92,6 +96,29 @@ private class FakeRideDebugLogger : RideDebugLogger {
     override fun beginRide() { beginRideCalls += Unit }
     override fun endRide() { endRideCalls += Unit }
     override fun log(tag: String, message: String) { logCalls += tag to message }
+}
+
+private class FakeReverseGeocoder(
+    private val result: String? = null,
+    private val shouldThrow: Boolean = false,
+) : ReverseGeocoder {
+    override suspend fun areaName(lat: Double, lng: Double): String? {
+        if (shouldThrow) throw RuntimeException("geocoder error")
+        return result
+    }
+}
+
+/** Fake [StringResolver] backed by the actual R.string constants (available via isIncludeAndroidResources). */
+private class FakeStringResolver : StringResolver {
+    override fun getString(resId: Int): String = when (resId) {
+        R.string.route_name_ride_morning   -> "morning ride"
+        R.string.route_name_ride_afternoon -> "afternoon ride"
+        R.string.route_name_ride_evening   -> "evening ride"
+        R.string.route_name_ride_night     -> "night ride"
+        R.string.route_name_with_area      -> "%1\$s – %2\$s"
+        else -> "stub_string_$resId"
+    }
+    override fun getString(resId: Int, vararg args: Any): String = getString(resId)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -487,6 +514,86 @@ class RecordingViewModelTest {
         vm.onEvent(RecordingEvent.Pause)
     }
 
+    // ── B17 — route name composition ─────────────────────────────────────────
+
+    @Test
+    fun `Finish online with geocoder area — route name contains area`() = runTest(testDispatcher) {
+        val repo = FakeRouteRepository()
+        // Emit a couple of GPS fixes so the path is non-empty and geocoding is attempted.
+        val locationFlow = kotlinx.coroutines.flow.flowOf(
+            LocationSample(lat = 53.43, lng = 14.55, speedMps = 16.0, altitudeM = 10.0, bearingDeg = 90f, timeMs = 1_000_000L),
+            LocationSample(lat = 53.44, lng = 14.56, speedMps = 18.0, altitudeM = 12.0, bearingDeg = 90f, timeMs = 1_001_000L),
+        )
+        val vm = buildViewModel(
+            online = true,
+            offline = false,
+            routeRepository = repo,
+            reverseGeocoder = FakeReverseGeocoder(result = "Szczecin"),
+            locationClient = FakeLocationClient(locationFlow),
+        )
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(200L) // allow location flow to emit into engine
+        vm.onEvent(RecordingEvent.Finish)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val name = repo.saved.firstOrNull()?.name ?: ""
+        assertTrue("name should contain area 'Szczecin'", name.contains("Szczecin"))
+    }
+
+    @Test
+    fun `Finish offline — route name does not include area`() = runTest(testDispatcher) {
+        val repo = FakeRouteRepository()
+        val vm = buildViewModel(
+            online = false,
+            offline = false,
+            routeRepository = repo,
+            reverseGeocoder = FakeReverseGeocoder(result = "Szczecin"),
+        )
+        vm.onEvent(RecordingEvent.Start)
+        vm.onEvent(RecordingEvent.Finish)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val name = repo.saved.firstOrNull()?.name ?: ""
+        assertFalse("offline route name should not include area", name.contains("Szczecin"))
+        assertTrue("offline route name should be non-blank", name.isNotBlank())
+    }
+
+    @Test
+    fun `Finish online geocoder returns null — falls back to ride label only`() = runTest(testDispatcher) {
+        val repo = FakeRouteRepository()
+        val vm = buildViewModel(
+            online = true,
+            offline = false,
+            routeRepository = repo,
+            reverseGeocoder = FakeReverseGeocoder(result = null),
+        )
+        vm.onEvent(RecordingEvent.Start)
+        vm.onEvent(RecordingEvent.Finish)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val name = repo.saved.firstOrNull()?.name ?: ""
+        assertTrue("null-geocoder route name should be non-blank", name.isNotBlank())
+        assertFalse("null-geocoder route name should not contain en-dash separator", name.contains("–"))
+    }
+
+    @Test
+    fun `Finish online geocoder throws — falls back to ride label only`() = runTest(testDispatcher) {
+        val repo = FakeRouteRepository()
+        val vm = buildViewModel(
+            online = true,
+            offline = false,
+            routeRepository = repo,
+            reverseGeocoder = FakeReverseGeocoder(shouldThrow = true),
+        )
+        vm.onEvent(RecordingEvent.Start)
+        vm.onEvent(RecordingEvent.Finish)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val name = repo.saved.firstOrNull()?.name ?: ""
+        assertTrue("throwing-geocoder route name should be non-blank", name.isNotBlank())
+        assertFalse("throwing-geocoder route name should not contain en-dash separator", name.contains("–"))
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun buildViewModel(
@@ -499,6 +606,8 @@ class RecordingViewModelTest {
         locationClient: LocationClient = FakeLocationClient(),
         leanSensorSource: LeanSensorSource = FakeLeanSensorSource(),
         rideDebugLogger: RideDebugLogger = fakeLogger,
+        reverseGeocoder: ReverseGeocoder = FakeReverseGeocoder(),
+        stringResolver: StringResolver = FakeStringResolver(),
     ) = RecordingViewModel(
         locationClient = locationClient,
         leanSensorSource = leanSensorSource,
@@ -509,5 +618,7 @@ class RecordingViewModelTest {
         timeProvider = FakeTimeProvider(fixedTimeMs),
         carBridge = com.mototracker.car.CarRecordingBridge(),
         rideDebugLogger = rideDebugLogger,
+        reverseGeocoder = reverseGeocoder,
+        stringResolver = stringResolver,
     )
 }

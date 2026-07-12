@@ -286,4 +286,14 @@
     <string name="toast_backup_failed">Vytvoření zálohy selhalo</string>
     <string name="toast_restore_ok">Obnovení dokončeno</string>
     <string name="toast_restore_failed">Obnovení selhalo — neplatný soubor</string>
+
+    <!-- Výchozí název trasy a přejmenování (B17) -->
+    <string name="route_name_ride_morning">ranní projížďka</string>
+    <string name="route_name_ride_afternoon">odpolední projížďka</string>
+    <string name="route_name_ride_evening">večerní projížďka</string>
+    <string name="route_name_ride_night">noční projížďka</string>
+    <string name="route_name_with_area">%1$s – %2$s</string>
+    <string name="action_rename">Přejmenovat</string>
+    <string name="dialog_rename_title">Přejmenovat trasu</string>
+    <string name="dialog_rename_hint">Název trasy</string>
 </resources>

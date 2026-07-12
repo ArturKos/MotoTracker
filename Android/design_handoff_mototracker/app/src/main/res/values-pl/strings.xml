@@ -254,6 +254,16 @@
     <string name="label_confidence">Pewność</string>
     <string name="toast_correction_queued">Korekcja GPS zlecona</string>
 
+    <!-- Domyślna nazwa trasy i zmiana nazwy (B17) -->
+    <string name="route_name_ride_morning">poranna przejażdżka</string>
+    <string name="route_name_ride_afternoon">popołudniowa przejażdżka</string>
+    <string name="route_name_ride_evening">wieczorna przejażdżka</string>
+    <string name="route_name_ride_night">nocna przejażdżka</string>
+    <string name="route_name_with_area">%1$s – %2$s</string>
+    <string name="action_rename">Zmień nazwę</string>
+    <string name="dialog_rename_title">Zmień nazwę trasy</string>
+    <string name="dialog_rename_hint">Nazwa trasy</string>
+
     <!-- Stats — rekordy osobiste i osiągnięcia (B15) -->
     <string name="stats_records_title">Rekordy osobiste</string>
     <string name="stats_achievements_title">Osiągnięcia</string>

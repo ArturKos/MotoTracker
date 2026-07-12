@@ -18,14 +18,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -102,6 +106,7 @@ fun RouteDetailScreen(
         onSelectTrackView = { viewModel.selectTrackView(it) },
         onCorrectNow = { viewModel.correctNow() },
         onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
+        onRename = { viewModel.rename(it) },
         mapSlot = {
             OsmTrackMap(
                 points = state.trackPoints,
@@ -135,6 +140,7 @@ fun RouteDetailScreen(
  * @param onSelectTrackView      Called when the Raw|Corrected toggle changes.
  * @param onCorrectNow           Called when the user taps "Popraw teraz".
  * @param onDeleteCorrectedTrace Called when the user confirms deleting the corrected trace.
+ * @param onRename               Called with the new name when the user confirms the rename dialog.
  * @param mapSlot                Composable rendered in the map slot; in production this is [OsmTrackMap],
  *                               in Paparazzi tests a static placeholder Box is used instead.
  * @param modifier               Standard Compose modifier.
@@ -147,6 +153,7 @@ fun RouteDetailContent(
     onSelectTrackView: (TrackView) -> Unit = {},
     onCorrectNow: () -> Unit = {},
     onDeleteCorrectedTrace: () -> Unit = {},
+    onRename: (String) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -161,6 +168,7 @@ fun RouteDetailContent(
             onSelectTrackView = onSelectTrackView,
             onCorrectNow = onCorrectNow,
             onDeleteCorrectedTrace = onDeleteCorrectedTrace,
+            onRename = onRename,
             mapSlot = mapSlot,
         )
     }
@@ -197,8 +205,22 @@ private fun DetailContent(
     onSelectTrackView: (TrackView) -> Unit,
     onCorrectNow: () -> Unit,
     onDeleteCorrectedTrace: () -> Unit,
+    onRename: (String) -> Unit,
     mapSlot: @Composable () -> Unit = {},
 ) {
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    if (showRenameDialog) {
+        RenameDialog(
+            currentName = state.name,
+            onConfirm = { newName ->
+                onRename(newName)
+                showRenameDialog = false
+            },
+            onDismiss = { showRenameDialog = false },
+        )
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -227,13 +249,25 @@ private fun DetailContent(
 
         item {
             Column {
-                Text(
-                    text = state.name,
-                    style = MotoTracker.typography.routeTitle,
-                    color = MotoTracker.colors.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = state.name,
+                        style = MotoTracker.typography.routeTitle,
+                        color = MotoTracker.colors.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { showRenameDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.action_rename),
+                            tint = MotoTracker.colors.dim,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -712,6 +746,62 @@ private fun CorrectionPanel(
             }
         }
     }
+}
+
+// ── Rename dialog ─────────────────────────────────────────────────────────────
+
+/**
+ * AlertDialog that lets the user rename the current route.
+ *
+ * Pre-fills the text field with [currentName]. Calls [onConfirm] with the new name
+ * when the user taps Save, and [onDismiss] on Cancel or outside-dismiss.
+ *
+ * @param currentName Pre-filled route name.
+ * @param onConfirm   Called with the new name string when the user confirms.
+ * @param onDismiss   Called when the dialog is dismissed without saving.
+ */
+@Composable
+private fun RenameDialog(
+    currentName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_rename_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(stringResource(R.string.dialog_rename_hint)) },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text(
+                    text = stringResource(R.string.btn_save),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
 }
 
 // ── Path building helpers ─────────────────────────────────────────────────────

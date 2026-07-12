@@ -79,6 +79,17 @@ interface RouteDao {
     suspend fun clearCorrection(id: String)
 
     /**
+     * Updates the display name for the route with [id].
+     *
+     * Called by [com.mototracker.data.repository.RouteRepositoryImpl.rename].
+     *
+     * @param id   Route primary key.
+     * @param name New display name (already trimmed by the caller).
+     */
+    @Query("UPDATE routes SET name = :name WHERE id = :id")
+    suspend fun setName(id: String, name: String)
+
+    /**
      * Deletes every row from the routes table.
      *
      * Used exclusively by [com.mototracker.data.repository.BackupRepositoryImpl] during a

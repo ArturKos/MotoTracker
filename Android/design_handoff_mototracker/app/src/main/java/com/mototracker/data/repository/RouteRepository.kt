@@ -50,6 +50,16 @@ interface RouteRepository {
     suspend fun clearCorrectedTrace(id: String)
 
     /**
+     * Updates the display name of the route with [id].
+     *
+     * The name must already be trimmed by the caller. No-op when no matching route exists.
+     *
+     * @param id   Route UUID.
+     * @param name New display name.
+     */
+    suspend fun rename(id: String, name: String)
+
+    /**
      * Deletes every route from local storage.
      *
      * Called during a [com.mototracker.domain.backup.RestoreMode.REPLACE] import to remove

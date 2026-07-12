@@ -197,6 +197,24 @@ class RouteDetailViewModel @Inject constructor(
         _selectedTrackView.value = view
     }
 
+    /**
+     * Renames the current route.
+     *
+     * Trims [newName]; no-ops on blank or whitespace-only input. The live
+     * [RouteRepository.observeById] stream re-emits after the update so the screen
+     * title refreshes automatically without further action.
+     *
+     * @param newName New display name; trimmed before persisting.
+     */
+    fun rename(newName: String) {
+        val route = currentRoute ?: return
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            routeRepository.rename(route.id, trimmed)
+        }
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(

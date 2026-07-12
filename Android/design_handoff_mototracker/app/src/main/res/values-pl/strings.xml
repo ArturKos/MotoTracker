@@ -301,4 +301,7 @@
     <string name="route_detail_change_bike">Zmień motocykl</string>
     <string name="route_detail_pick_bike_title">Wybierz motocykl</string>
     <string name="settings_bike_default_label">Domyślny — nowe przejazdy</string>
+
+    <!-- Blokada nawigacji podczas nagrywania (D7) -->
+    <string name="record_nav_locked">Zakończ nagrywanie, aby opuścić ekran</string>
 </resources>

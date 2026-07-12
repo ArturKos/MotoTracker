@@ -1,5 +1,6 @@
 package com.mototracker.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.mototracker.R
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
 import com.mototracker.ui.screens.riders.RidersScreen
@@ -53,12 +55,16 @@ import kotlinx.coroutines.launch
  * @param authed              Whether the current session is authenticated. Controls start destination.
  * @param onSignIn            Callback invoked when the user completes sign-in (authed = true).
  * @param onContinueAsGuest   Callback invoked when the user taps "Continue as Guest" (authed = false).
+ * @param recordingActive     Whether a recording session is currently active. When `true`, bottom-nav
+ *                            tabs other than Record are disabled and the system back gesture is
+ *                            consumed (showing a toast) so the user cannot leave mid-ride.
  */
 @Composable
 fun MotoApp(
     authed: Boolean = false,
     onSignIn: () -> Unit = {},
     onContinueAsGuest: () -> Unit = {},
+    recordingActive: Boolean = false,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -67,6 +73,12 @@ fun MotoApp(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val showToast: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+
+    // Consume the back gesture while on the Record screen during an active recording.
+    val navLockedMessage = stringResource(R.string.record_nav_locked)
+    BackHandler(enabled = recordingActive && currentDest == MotoDestination.RECORD) {
+        showToast(navLockedMessage)
+    }
 
     val startDestination = if (authed) {
         MotoDestination.RECORD.route
@@ -91,7 +103,9 @@ fun MotoApp(
             if (showBottomBar(currentDest)) {
                 MotoBottomBar(
                     current = currentDest,
+                    isItemEnabled = { dest -> bottomNavItemEnabled(dest, recordingActive) },
                     onSelect = { dest ->
+                        if (!bottomNavItemEnabled(dest, recordingActive)) return@MotoBottomBar
                         navController.navigate(dest.route) {
                             popUpTo(MotoDestination.RECORD.route) {
                                 saveState = true

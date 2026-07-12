@@ -34,6 +34,7 @@ class MainActivity : AppCompatActivity() {
             val appViewModel: com.mototracker.ui.state.AppStateViewModel =
                 androidx.hilt.navigation.compose.hiltViewModel(this@MainActivity)
             val uiState by appViewModel.uiState.collectAsStateWithLifecycle()
+            val recordingActive by appViewModel.recordingActive.collectAsStateWithLifecycle()
 
             MotoTrackerTheme(
                 theme = uiState.theme,
@@ -43,6 +44,7 @@ class MainActivity : AppCompatActivity() {
                     authed = uiState.authed,
                     onSignIn = appViewModel::signIn,
                     onContinueAsGuest = appViewModel::continueAsGuest,
+                    recordingActive = recordingActive,
                 )
             }
         }

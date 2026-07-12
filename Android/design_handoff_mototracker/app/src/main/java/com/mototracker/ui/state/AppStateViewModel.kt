@@ -1,13 +1,19 @@
 package com.mototracker.ui.state
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
+import com.mototracker.ui.navigation.isRecordingLocked
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 /**
@@ -20,6 +26,10 @@ import javax.inject.Inject
  * [localeController] is injected to keep this ViewModel testable without an
  * Android runtime; fakes replace it in unit tests.
  *
+ * [recordingBridge] is injected to observe the current recording phase and derive
+ * [recordingActive] without coupling this ViewModel to the nav-scoped
+ * [com.mototracker.ui.screens.record.RecordingViewModel].
+ *
  * NOTE (A6): Persistence is intentionally absent here. Task A6 will replace the
  * in-memory [MutableStateFlow] initialiser with a DataStore-backed source and
  * make intent methods suspend functions that also persist to disk.
@@ -27,12 +37,24 @@ import javax.inject.Inject
 @HiltViewModel
 class AppStateViewModel @Inject constructor(
     private val localeController: LocaleController,
+    private val recordingBridge: CarRecordingBridge,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
 
     /** Read-only view of the global UI state; never null, never throws. */
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
+
+    /**
+     * Emits `true` whenever a recording session is active (phase ≠ Idle).
+     *
+     * Derived from [CarRecordingBridge.phase] via [isRecordingLocked]. Consumers
+     * (e.g. [MainActivity]) use this to lock bottom-nav tab switching and block
+     * the back gesture while a ride is in progress.
+     */
+    val recordingActive: StateFlow<Boolean> = recordingBridge.phase
+        .map { isRecordingLocked(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /**
      * Marks the user as authenticated and navigates to the main app shell.

@@ -301,4 +301,7 @@
     <string name="route_detail_change_bike">Změnit motorku</string>
     <string name="route_detail_pick_bike_title">Vybrat motorku</string>
     <string name="settings_bike_default_label">Výchozí — nové jízdy</string>
+
+    <!-- Zámek navigace při nahrávání (D7) -->
+    <string name="record_nav_locked">Ukončete nahrávání, abyste opustili tuto obrazovku</string>
 </resources>

@@ -1,10 +1,17 @@
 package com.mototracker.ui.state
 
 import app.cash.turbine.test
+import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
+import com.mototracker.ui.screens.record.RecordingPhase
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,12 +29,20 @@ private class FakeLocaleController : LocaleController {
 class AppStateViewModelTest {
 
     private lateinit var fakeLocale: FakeLocaleController
+    private lateinit var bridge: CarRecordingBridge
     private lateinit var viewModel: AppStateViewModel
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         fakeLocale = FakeLocaleController()
-        viewModel = AppStateViewModel(fakeLocale)
+        bridge = CarRecordingBridge()
+        viewModel = AppStateViewModel(fakeLocale, bridge)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -140,5 +155,52 @@ class AppStateViewModelTest {
         val after = viewModel.uiState.value
         assertEquals(Units.IMPERIAL, after.units)
         assertEquals(before.copy(units = Units.IMPERIAL), after)
+    }
+
+    // ── recordingActive (D7) ─────────────────────────────────────────────────
+
+    @Test
+    fun `recordingActive is false in initial Idle state`() {
+        assertFalse(viewModel.recordingActive.value)
+    }
+
+    @Test
+    fun `recordingActive transitions Idle-false Recording-true Idle-false Paused-true Idle-false`() = runTest {
+        // StateFlow is distinctUntilChanged — Paused→true after Recording→true would not re-emit.
+        // We therefore cycle back through Idle between the two active phases so every transition
+        // produces a distinct boolean emission and can be observed via Turbine.
+        viewModel.recordingActive.test {
+            assertFalse(awaitItem()) // initial Idle → false
+
+            val fakeMetrics = com.mototracker.domain.recording.RecordingMetrics()
+
+            bridge.publish(fakeMetrics, RecordingPhase.Recording)
+            assertTrue(awaitItem()) // Recording → true
+
+            bridge.publish(fakeMetrics, RecordingPhase.Idle)
+            assertFalse(awaitItem()) // Idle → false
+
+            bridge.publish(fakeMetrics, RecordingPhase.Paused)
+            assertTrue(awaitItem()) // Paused → true
+
+            bridge.publish(fakeMetrics, RecordingPhase.Idle)
+            assertFalse(awaitItem()) // back to Idle → false
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `recordingActive emits true for Recording phase`() = runTest {
+        val fakeMetrics = com.mototracker.domain.recording.RecordingMetrics()
+        bridge.publish(fakeMetrics, RecordingPhase.Recording)
+        assertTrue(viewModel.recordingActive.value)
+    }
+
+    @Test
+    fun `recordingActive emits true for Paused phase`() = runTest {
+        val fakeMetrics = com.mototracker.domain.recording.RecordingMetrics()
+        bridge.publish(fakeMetrics, RecordingPhase.Paused)
+        assertTrue(viewModel.recordingActive.value)
     }
 }

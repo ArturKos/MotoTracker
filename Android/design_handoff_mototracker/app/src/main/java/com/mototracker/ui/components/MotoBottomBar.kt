@@ -19,16 +19,22 @@ import com.mototracker.ui.theme.MotoTracker
  * Active tab icon and label are tinted with [MotoTracker.colors.accent]; inactive
  * items use [MotoTracker.colors.dim]. The bar surface uses [MotoTracker.colors.panel].
  *
- * @param current  The currently active [MotoDestination] — used to highlight the
- *                 selected tab.
- * @param onSelect Called with the selected [MotoDestination] when the user taps a
- *                 tab item.
- * @param modifier Optional [Modifier].
+ * Disabled items (when [isItemEnabled] returns `false`) are greyed-out and non-tappable,
+ * which is used to lock navigation to the Record tab while a recording is active.
+ *
+ * @param current       The currently active [MotoDestination] — used to highlight the
+ *                      selected tab.
+ * @param onSelect      Called with the selected [MotoDestination] when the user taps a
+ *                      tab item.
+ * @param isItemEnabled Returns `true` when the given [MotoDestination] tab should be
+ *                      interactive. Defaults to `{ true }` so existing callers are unaffected.
+ * @param modifier      Optional [Modifier].
  */
 @Composable
 fun MotoBottomBar(
     current: MotoDestination,
     onSelect: (MotoDestination) -> Unit,
+    isItemEnabled: (MotoDestination) -> Boolean = { true },
     modifier: Modifier = Modifier,
 ) {
     val colors = MotoTracker.colors
@@ -43,6 +49,7 @@ fun MotoBottomBar(
 
             NavigationBarItem(
                 selected = selected,
+                enabled = isItemEnabled(dest),
                 onClick = { onSelect(dest) },
                 icon = {
                     Icon(

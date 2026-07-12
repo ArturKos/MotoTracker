@@ -301,4 +301,7 @@
     <string name="route_detail_change_bike">Changer la moto</string>
     <string name="route_detail_pick_bike_title">Choisir la moto</string>
     <string name="settings_bike_default_label">Par défaut — nouvelles balades</string>
+
+    <!-- Verrouillage de navigation pendant l'enregistrement (D7) -->
+    <string name="record_nav_locked">Terminez l\'enregistrement pour quitter cet écran</string>
 </resources>

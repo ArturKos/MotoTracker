@@ -331,4 +331,7 @@
     <string name="route_detail_change_bike">Change motorcycle</string>
     <string name="route_detail_pick_bike_title">Pick motorcycle</string>
     <string name="settings_bike_default_label">Default — new rides</string>
+
+    <!-- Nav-lock while recording (D7) -->
+    <string name="record_nav_locked">Finish recording to leave this screen</string>
 </resources>

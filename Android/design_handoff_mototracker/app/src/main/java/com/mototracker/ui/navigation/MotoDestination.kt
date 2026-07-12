@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mototracker.R
+import com.mototracker.ui.screens.record.RecordingPhase
 
 /**
  * Sealed class modelling the seven top-level navigation destinations in the
@@ -116,3 +117,27 @@ fun showTopBar(dest: MotoDestination): Boolean =
  */
 fun showBackArrow(dest: MotoDestination): Boolean =
     dest == MotoDestination.ROUTE_DETAIL
+
+/**
+ * Returns `true` when navigation should be locked to the Record screen.
+ *
+ * Navigation is locked whenever [phase] is not [RecordingPhase.Idle] (i.e. the
+ * ride is actively recording or paused) to prevent leaving the nav-scoped
+ * [com.mototracker.ui.screens.record.RecordingViewModel] mid-session.
+ *
+ * @param phase The current recording phase reported by [com.mototracker.car.CarRecordingBridge].
+ */
+fun isRecordingLocked(phase: RecordingPhase): Boolean = phase != RecordingPhase.Idle
+
+/**
+ * Returns `true` when [dest] should be interactive in the bottom navigation bar.
+ *
+ * While a recording is active only [MotoDestination.RECORD] remains enabled;
+ * all other tabs are greyed-out and non-tappable. When no recording is active
+ * every destination is enabled.
+ *
+ * @param dest            The candidate navigation destination.
+ * @param recordingActive Whether a recording session is currently active (non-Idle).
+ */
+fun bottomNavItemEnabled(dest: MotoDestination, recordingActive: Boolean): Boolean =
+    !recordingActive || dest == MotoDestination.RECORD

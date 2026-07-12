@@ -301,4 +301,7 @@
     <string name="route_detail_change_bike">Motorrad ändern</string>
     <string name="route_detail_pick_bike_title">Motorrad auswählen</string>
     <string name="settings_bike_default_label">Standard — neue Fahrten</string>
+
+    <!-- Navigationssperre während der Aufnahme (D7) -->
+    <string name="record_nav_locked">Beende die Aufnahme, um diesen Bildschirm zu verlassen</string>
 </resources>

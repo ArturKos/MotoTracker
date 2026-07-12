@@ -28,6 +28,9 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param weather           Current weather, or null when offline / not yet fetched.
  * @param trackPoints       Ordered GPS coordinates accumulated during the active recording session;
  *                          reset to empty on Start and on Finish.
+ * @param keepScreenOn      Whether the display should stay on during the ride (from settings).
+ *                          Applied to the window via FLAG_KEEP_SCREEN_ON while phase is
+ *                          Recording or Paused; cleared on Idle and on screen disposal.
  * @param resumableSession  A previously interrupted session snapshot detected on startup (B20).
  *                          Non-null triggers the resume-or-discard prompt. Null once the user
  *                          has acted on it or when no unfinished session exists.
@@ -41,6 +44,7 @@ data class RecordingUiState(
     val metrics: RecordingMetrics = RecordingMetrics(),
     val gpsSatCount: Int = 0,
     val gpsOnRoad: Boolean = false,
+    val keepScreenOn: Boolean = false,
     val weather: WeatherInfo? = null,
     val trackPoints: List<GeoCoord> = emptyList(),
     val resumableSession: ActiveSessionSnapshot? = null,

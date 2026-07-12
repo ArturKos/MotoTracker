@@ -121,7 +121,7 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             settingsSource.settings.collect { s ->
                 currentBikeId = s.currentBikeId
-                _uiState.update { it.copy(gpsOnRoad = s.gpsCorrect) }
+                _uiState.update { it.copy(gpsOnRoad = s.gpsCorrect, keepScreenOn = s.keepScreenOn) }
                 carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)
             }
         }

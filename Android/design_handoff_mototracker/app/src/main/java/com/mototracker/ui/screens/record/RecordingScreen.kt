@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.view.WindowManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -127,6 +128,21 @@ fun RecordingScreen(
         }
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    // Apply FLAG_KEEP_SCREEN_ON while the user's setting is on AND a ride is active.
+    // Cleared immediately on Idle and unconditionally on disposal so leaving the screen
+    // never leaves the flag dangling.  (🔬 actual screen-stays-on verified on-device)
+    DisposableEffect(state.keepScreenOn, state.phase) {
+        val activity = context.findActivity()
+        if (shouldKeepScreenOn(state.keepScreenOn, state.phase)) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 

@@ -11,6 +11,8 @@ import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.recording.ActiveSessionSnapshot
+import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
@@ -49,6 +51,9 @@ import javax.inject.Inject
  *   [ReverseGeocoder] when online), persists the route via [RouteRepository], and
  *   queues it for upload via [SyncRepository]; emits a [RecordingEffect.Saved] with
  *   the online/offline flag.
+ * - On startup: checks [RecordingSessionStore] for an unfinished session and, if found,
+ *   exposes it as [RecordingUiState.resumableSession] so the UI can prompt the user
+ *   to resume or discard (B20).
  *
  * All collaborators are injectable interfaces so the ViewModel is fully unit-testable
  * with fakes (no Android runtime needed).
@@ -63,11 +68,10 @@ import javax.inject.Inject
  * @param carBridge         App-scoped bridge that mirrors recording state to the Android Auto screen.
  * @param rideDebugLogger   Diagnostic logger; writes GPS/lean/lifecycle events to a per-ride log
  *                          file when diagnostics are enabled (no-op otherwise).
- *                          Note: weather logging is not wired here — there is no weather seam
- *                          in this ViewModel; weather events are logged at the data layer.
  * @param reverseGeocoder   Converts GPS coordinates to area names for the default route name.
  *                          Only called when the device is online.
  * @param stringResolver    Resolves localized string resources for the composed route name.
+ * @param sessionStore      Durable storage for the in-progress recording session snapshot (B20).
  */
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
@@ -82,6 +86,7 @@ class RecordingViewModel @Inject constructor(
     private val rideDebugLogger: RideDebugLogger,
     private val reverseGeocoder: ReverseGeocoder,
     private val stringResolver: StringResolver,
+    private val sessionStore: RecordingSessionStore,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -101,11 +106,15 @@ class RecordingViewModel @Inject constructor(
     /** Epoch-ms timestamp captured at recording start; used for part-of-day naming. */
     private var recordingStartMs: Long = 0L
 
+    /** Most-recently observed bike ID from settings; used when writing snapshots. */
+    private var currentBikeId: String? = null
+
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
         // also forward the active units preference to the Android Auto bridge.
         viewModelScope.launch {
             settingsSource.settings.collect { s ->
+                currentBikeId = s.currentBikeId
                 _uiState.update { it.copy(gpsOnRoad = s.gpsCorrect) }
                 carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)
             }
@@ -118,6 +127,13 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             carBridge.commands.collect { event -> onEvent(event) }
         }
+        // B20: Detect an unfinished session from a previous process lifetime.
+        viewModelScope.launch {
+            val existing = sessionStore.snapshot.first()
+            if (existing != null) {
+                _uiState.update { it.copy(resumableSession = existing) }
+            }
+        }
     }
 
     /**
@@ -129,6 +145,8 @@ class RecordingViewModel @Inject constructor(
             is RecordingEvent.Pause -> doPause()
             is RecordingEvent.Resume -> doResume()
             is RecordingEvent.Finish -> doFinish()
+            is RecordingEvent.ResumeSession -> doResumeSession()
+            is RecordingEvent.DiscardSession -> doDiscardSession()
         }
     }
 
@@ -138,7 +156,13 @@ class RecordingViewModel @Inject constructor(
         engine.reset()
         rideDebugLogger.beginRide()
         recordingStartMs = timeProvider.nowEpochMs()
-        _uiState.update { it.copy(phase = RecordingPhase.Recording, trackPoints = emptyList()) }
+        _uiState.update {
+            it.copy(
+                phase = RecordingPhase.Recording,
+                trackPoints = emptyList(),
+                resumableSession = null,
+            )
+        }
         startTicker()
         startLocationUpdates()
         startLeanUpdates()
@@ -149,12 +173,34 @@ class RecordingViewModel @Inject constructor(
         rideDebugLogger.log("LIFECYCLE", "pause")
         tickerJob?.cancel()
         tickerJob = null
+        // Persist paused flag so a kill during pause is recoverable.
+        viewModelScope.launch {
+            sessionStore.save(
+                ActiveSessionSnapshot(
+                    engineState = engine.exportState(),
+                    recordingStartMs = recordingStartMs,
+                    bikeId = currentBikeId,
+                    paused = true,
+                ),
+            )
+        }
     }
 
     private fun doResume() {
         _uiState.update { it.copy(phase = RecordingPhase.Recording) }
         rideDebugLogger.log("LIFECYCLE", "resume")
         startTicker()
+        // Update paused=false in the persisted snapshot.
+        viewModelScope.launch {
+            sessionStore.save(
+                ActiveSessionSnapshot(
+                    engineState = engine.exportState(),
+                    recordingStartMs = recordingStartMs,
+                    bikeId = currentBikeId,
+                    paused = false,
+                ),
+            )
+        }
     }
 
     private fun doFinish() {
@@ -223,11 +269,45 @@ class RecordingViewModel @Inject constructor(
             routeRepository.save(route)
             syncRepository.enqueue(route.id)
 
+            // B20: Clear snapshot AFTER the route is durably saved.
+            sessionStore.clear()
+
             _uiState.update { it.copy(phase = RecordingPhase.Idle, trackPoints = emptyList()) }
             _effects.emit(RecordingEffect.Saved(offline = offline))
             _effects.emit(RecordingEffect.NavigateToDetail(route.id))
             rideDebugLogger.endRide()
         }
+    }
+
+    /**
+     * Restores engine state from an interrupted session snapshot (B20).
+     *
+     * Sets phase to [RecordingPhase.Paused] so the user must explicitly tap Resume
+     * to continue recording (live GPS / service restart is an on-device concern 🔬).
+     * Track points are rebuilt from [RecordingEngineState.pathPoints].
+     */
+    private fun doResumeSession() {
+        val snap = _uiState.value.resumableSession ?: return
+        engine.restore(snap.engineState)
+        recordingStartMs = snap.recordingStartMs
+        val trackPoints = snap.engineState.pathPoints.map { (lat, lng) -> GeoCoord(lat, lng) }
+        _uiState.update {
+            it.copy(
+                phase = RecordingPhase.Paused,
+                metrics = engine.snapshot(),
+                trackPoints = trackPoints,
+                resumableSession = null,
+            )
+        }
+        // Start sensor flows so that once the user taps Resume, GPS and lean are live.
+        startLocationUpdates()
+        startLeanUpdates()
+    }
+
+    /** Clears a detected resumable session without restoring it (B20). */
+    private fun doDiscardSession() {
+        _uiState.update { it.copy(resumableSession = null) }
+        viewModelScope.launch { sessionStore.clear() }
     }
 
     // ── Background workers ───────────────────────────────────────────────────
@@ -254,6 +334,18 @@ class RecordingViewModel @Inject constructor(
                     val coord = GeoCoord(sample.lat, sample.lng)
                     _uiState.update { prev ->
                         prev.copy(metrics = metrics, trackPoints = prev.trackPoints + coord)
+                    }
+                    // B20: Persist snapshot on each GPS fix. Launched in a sibling coroutine
+                    // so the location collector is not blocked by the DataStore write.
+                    viewModelScope.launch {
+                        sessionStore.save(
+                            ActiveSessionSnapshot(
+                                engineState = engine.exportState(),
+                                recordingStartMs = recordingStartMs,
+                                bikeId = currentBikeId,
+                                paused = false,
+                            ),
+                        )
                     }
                 }
             } catch (_: SecurityException) {

@@ -304,4 +304,10 @@
 
     <!-- Блокировка навигации во время записи (D7) -->
     <string name="record_nav_locked">Завершите запись, чтобы покинуть этот экран</string>
+
+    <!-- Возобновление прерванной сессии (B20) -->
+    <string name="record_resume_session_title">Незавершённая поездка</string>
+    <string name="record_resume_session_body">Найдена прерванная запись. Продолжить?</string>
+    <string name="btn_session_resume">Продолжить поездку</string>
+    <string name="btn_session_discard">Отменить</string>
 </resources>

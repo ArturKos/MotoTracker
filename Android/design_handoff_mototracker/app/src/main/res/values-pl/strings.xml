@@ -304,4 +304,10 @@
 
     <!-- Blokada nawigacji podczas nagrywania (D7) -->
     <string name="record_nav_locked">Zakończ nagrywanie, aby opuścić ekran</string>
+
+    <!-- Wznawianie przerwanej sesji (B20) -->
+    <string name="record_resume_session_title">Niedokończony przejazd</string>
+    <string name="record_resume_session_body">Wykryto niedokończony przejazd. Wznowić?</string>
+    <string name="btn_session_resume">Wznów przejazd</string>
+    <string name="btn_session_discard">Odrzuć</string>
 </resources>

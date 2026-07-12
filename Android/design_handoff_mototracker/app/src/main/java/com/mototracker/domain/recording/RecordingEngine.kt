@@ -131,6 +131,56 @@ class RecordingEngine(private val fuelLper100km: Double = 5.0) {
         pathPoints.clear(); speedOverTime.clear(); elevOverDist.clear()
     }
 
+    /**
+     * Exports a full snapshot of all accumulator state as an immutable [RecordingEngineState].
+     *
+     * Safe to call at any point during a session; the returned object is independent of
+     * the engine's mutable lists (copies are taken).
+     */
+    fun exportState(): RecordingEngineState = RecordingEngineState(
+        prevLat = prevLat,
+        prevLng = prevLng,
+        prevAlt = prevAlt,
+        distanceKm = distanceKm,
+        durationSec = durationSec,
+        currentSpeedKmh = currentSpeedKmh,
+        maxSpeedKmh = maxSpeedKmh,
+        currentLeanDeg = currentLeanDeg,
+        maxLeanDeg = maxLeanDeg,
+        altitudeM = altitudeM,
+        elevGainM = elevGainM,
+        headingDeg = headingDeg,
+        pathPoints = pathPoints.toList(),
+        speedOverTime = speedOverTime.toList(),
+        elevOverDist = elevOverDist.toList(),
+    )
+
+    /**
+     * Overwrites all accumulator state from [state], resuming a previously exported session.
+     *
+     * Replaces the mutable lists in-place and restores all scalar fields exactly.
+     * After calling this, [snapshot] and [buildRoutePayload] reflect the restored values.
+     *
+     * @param state Previously exported [RecordingEngineState].
+     */
+    fun restore(state: RecordingEngineState) {
+        prevLat = state.prevLat
+        prevLng = state.prevLng
+        prevAlt = state.prevAlt
+        distanceKm = state.distanceKm
+        durationSec = state.durationSec
+        currentSpeedKmh = state.currentSpeedKmh
+        maxSpeedKmh = state.maxSpeedKmh
+        currentLeanDeg = state.currentLeanDeg
+        maxLeanDeg = state.maxLeanDeg
+        altitudeM = state.altitudeM
+        elevGainM = state.elevGainM
+        headingDeg = state.headingDeg
+        pathPoints.clear(); pathPoints.addAll(state.pathPoints)
+        speedOverTime.clear(); speedOverTime.addAll(state.speedOverTime)
+        elevOverDist.clear(); elevOverDist.addAll(state.elevOverDist)
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     /** Haversine great-circle distance between two WGS-84 coordinates, in kilometres. */

@@ -304,4 +304,10 @@
 
     <!-- Navigationssperre während der Aufnahme (D7) -->
     <string name="record_nav_locked">Beende die Aufnahme, um diesen Bildschirm zu verlassen</string>
+
+    <!-- Unterbrochene Sitzung fortsetzen (B20) -->
+    <string name="record_resume_session_title">Unterbrochene Fahrt</string>
+    <string name="record_resume_session_body">Eine unterbrochene Aufnahme wurde gefunden. Fortsetzen?</string>
+    <string name="btn_session_resume">Fahrt fortsetzen</string>
+    <string name="btn_session_discard">Verwerfen</string>
 </resources>

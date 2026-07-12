@@ -1,5 +1,6 @@
 package com.mototracker.ui.screens.record
 
+import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.domain.recording.RecordingMetrics
 import com.mototracker.ui.map.GeoCoord
 
@@ -20,13 +21,16 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  *
  * Drives all Compose rendering without any Android context in the data layer.
  *
- * @param phase          Current recording lifecycle phase.
- * @param metrics        Live cumulative metrics from [com.mototracker.domain.recording.RecordingEngine].
- * @param gpsSatCount    Number of GPS satellites in use; shown in the GPS chip.
- * @param gpsOnRoad      Whether GPS-to-road correction is active (from settings).
- * @param weather        Current weather, or null when offline / not yet fetched.
- * @param trackPoints    Ordered GPS coordinates accumulated during the active recording session;
- *                       reset to empty on Start and on Finish.
+ * @param phase             Current recording lifecycle phase.
+ * @param metrics           Live cumulative metrics from [com.mototracker.domain.recording.RecordingEngine].
+ * @param gpsSatCount       Number of GPS satellites in use; shown in the GPS chip.
+ * @param gpsOnRoad         Whether GPS-to-road correction is active (from settings).
+ * @param weather           Current weather, or null when offline / not yet fetched.
+ * @param trackPoints       Ordered GPS coordinates accumulated during the active recording session;
+ *                          reset to empty on Start and on Finish.
+ * @param resumableSession  A previously interrupted session snapshot detected on startup (B20).
+ *                          Non-null triggers the resume-or-discard prompt. Null once the user
+ *                          has acted on it or when no unfinished session exists.
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -35,6 +39,7 @@ data class RecordingUiState(
     val gpsOnRoad: Boolean = false,
     val weather: WeatherInfo? = null,
     val trackPoints: List<GeoCoord> = emptyList(),
+    val resumableSession: ActiveSessionSnapshot? = null,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */
@@ -47,6 +52,10 @@ sealed class RecordingEvent {
     data object Resume : RecordingEvent()
     /** User tapped "Finish". */
     data object Finish : RecordingEvent()
+    /** User chose to resume an interrupted session detected on startup (B20). */
+    data object ResumeSession : RecordingEvent()
+    /** User chose to discard an interrupted session detected on startup (B20). */
+    data object DiscardSession : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

@@ -304,4 +304,10 @@
 
     <!-- Zámek navigace při nahrávání (D7) -->
     <string name="record_nav_locked">Ukončete nahrávání, abyste opustili tuto obrazovku</string>
+
+    <!-- Pokračování přerušené sezení (B20) -->
+    <string name="record_resume_session_title">Nedokončená jízda</string>
+    <string name="record_resume_session_body">Byla nalezena přerušená nahrávka. Pokračovat?</string>
+    <string name="btn_session_resume">Pokračovat v jízdě</string>
+    <string name="btn_session_discard">Zahodit</string>
 </resources>

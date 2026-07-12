@@ -6,6 +6,8 @@ import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.recording.DataStoreRecordingSessionStore
+import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.BikeRepositoryImpl
 import com.mototracker.data.repository.RouteRepository
@@ -65,4 +67,9 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindStringResolver(impl: ContextStringResolver): StringResolver
+
+    /** Binds [DataStoreRecordingSessionStore] as the [RecordingSessionStore] singleton (B20). */
+    @Binds
+    @Singleton
+    abstract fun bindRecordingSessionStore(impl: DataStoreRecordingSessionStore): RecordingSessionStore
 }

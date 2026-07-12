@@ -334,4 +334,10 @@
 
     <!-- Nav-lock while recording (D7) -->
     <string name="record_nav_locked">Finish recording to leave this screen</string>
+
+    <!-- Resume interrupted session (B20) -->
+    <string name="record_resume_session_title">Unfinished ride</string>
+    <string name="record_resume_session_body">An interrupted recording was found. Resume it?</string>
+    <string name="btn_session_resume">Resume ride</string>
+    <string name="btn_session_discard">Discard</string>
 </resources>

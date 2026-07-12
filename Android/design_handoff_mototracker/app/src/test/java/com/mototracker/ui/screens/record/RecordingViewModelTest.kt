@@ -9,6 +9,8 @@ import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.recording.ActiveSessionSnapshot
+import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
@@ -107,6 +109,18 @@ private class FakeReverseGeocoder(
         if (shouldThrow) throw RuntimeException("geocoder error")
         return result
     }
+}
+
+private class FakeRecordingSessionStore(
+    initialSnapshot: ActiveSessionSnapshot? = null,
+) : RecordingSessionStore {
+    val saveCalls = mutableListOf<ActiveSessionSnapshot>()
+    var clearCalled = 0
+    private val flow = MutableStateFlow(initialSnapshot)
+
+    override val snapshot: kotlinx.coroutines.flow.Flow<ActiveSessionSnapshot?> = flow
+    override suspend fun save(s: ActiveSessionSnapshot) { saveCalls += s; flow.value = s }
+    override suspend fun clear() { clearCalled++; flow.value = null }
 }
 
 /** Fake [StringResolver] backed by the actual R.string constants (available via isIncludeAndroidResources). */
@@ -609,6 +623,7 @@ class RecordingViewModelTest {
         rideDebugLogger: RideDebugLogger = fakeLogger,
         reverseGeocoder: ReverseGeocoder = FakeReverseGeocoder(),
         stringResolver: StringResolver = FakeStringResolver(),
+        sessionStore: RecordingSessionStore = FakeRecordingSessionStore(),
     ) = RecordingViewModel(
         locationClient = locationClient,
         leanSensorSource = leanSensorSource,
@@ -621,5 +636,6 @@ class RecordingViewModelTest {
         rideDebugLogger = rideDebugLogger,
         reverseGeocoder = reverseGeocoder,
         stringResolver = stringResolver,
+        sessionStore = sessionStore,
     )
 }

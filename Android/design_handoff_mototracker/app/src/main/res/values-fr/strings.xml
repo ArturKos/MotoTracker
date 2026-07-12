@@ -304,4 +304,10 @@
 
     <!-- Verrouillage de navigation pendant l'enregistrement (D7) -->
     <string name="record_nav_locked">Terminez l\'enregistrement pour quitter cet écran</string>
+
+    <!-- Reprendre la session interrompue (B20) -->
+    <string name="record_resume_session_title">Balade interrompue</string>
+    <string name="record_resume_session_body">Un enregistrement interrompu a été trouvé. Reprendre?</string>
+    <string name="btn_session_resume">Reprendre la balade</string>
+    <string name="btn_session_discard">Abandonner</string>
 </resources>

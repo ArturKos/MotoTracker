@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -28,6 +29,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -165,6 +167,14 @@ fun RecordingContent(
     mapSlot: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    // B20: Resume-or-discard prompt when an interrupted session is detected on startup.
+    if (state.resumableSession != null) {
+        ResumeSessionDialog(
+            onResume = { onEvent(RecordingEvent.ResumeSession) },
+            onDiscard = { onEvent(RecordingEvent.DiscardSession) },
+        )
+    }
+
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // ── Map area ─────────────────────────────────────────────────────
@@ -688,6 +698,47 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
             }
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resume-session dialog (B20)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Modal dialog shown when an interrupted recording session is detected on startup.
+ *
+ * Offers two actions: resume the session (restoring all accumulated metrics and the
+ * GPS track) or discard it (clear the stored snapshot and start fresh).
+ *
+ * @param onResume  Called when the user taps the Resume button.
+ * @param onDiscard Called when the user taps the Discard button.
+ */
+@Composable
+private fun ResumeSessionDialog(
+    onResume: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { /* non-dismissable — user must choose */ },
+        title = { Text(stringResource(R.string.record_resume_session_title)) },
+        text = { Text(stringResource(R.string.record_resume_session_body)) },
+        confirmButton = {
+            Button(
+                onClick = onResume,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MotoTracker.colors.accent,
+                    contentColor = MotoTracker.colors.onAccent,
+                ),
+            ) {
+                Text(stringResource(R.string.btn_session_resume))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDiscard) {
+                Text(stringResource(R.string.btn_session_discard))
+            }
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

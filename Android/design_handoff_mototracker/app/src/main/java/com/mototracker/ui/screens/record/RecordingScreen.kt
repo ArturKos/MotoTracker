@@ -60,10 +60,10 @@ import java.util.Locale
 import kotlin.math.abs
 
 /**
- * Recording screen — the app's primary screen while a ride is active.
+ * Recording screen — ViewModel + permission wrapper that delegates to [RecordingContent].
  *
- * Composable is a pure state renderer; all business logic lives in [RecordingViewModel].
- * The map tile, GPS updates, and sensor readings are on-device only (🔬).
+ * Manages the foreground service lifecycle, orientation lock, and location permission;
+ * all rendering is in [RecordingContent]. Map tiles, GPS, and sensors are on-device only (🔬).
  *
  * @param modifier   Standard Compose modifier.
  * @param viewModel  Hilt-injected recording view model.
@@ -77,7 +77,6 @@ fun RecordingScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // Shared permission layer: gate Start on LOCATION; request NOTIFICATIONS alongside (best-effort).
     val locationPerm = rememberFeaturePermission(
         feature = AppFeaturePermission.LOCATION,
         companion = listOf(AppFeaturePermission.NOTIFICATIONS),
@@ -91,7 +90,6 @@ fun RecordingScreen(
         }
     }
 
-    // Collect one-shot effects (save toast, navigate to detail)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
@@ -100,14 +98,11 @@ fun RecordingScreen(
                               else context.getString(R.string.toast_ride_saved)
                     snackbarHostState.showSnackbar(msg)
                 }
-                is RecordingEffect.NavigateToDetail -> {
-                    // B4 will wire navigation to the route detail screen
-                }
+                is RecordingEffect.NavigateToDetail -> { /* wired in B4 */ }
             }
         }
     }
 
-    // Start / stop the foreground location service as the recording phase changes
     LaunchedEffect(state.phase) {
         when (state.phase) {
             RecordingPhase.Recording -> startRecordingService(context)
@@ -133,6 +128,43 @@ fun RecordingScreen(
         }
     }
 
+    RecordingContent(
+        state = state,
+        onEvent = ::dispatchEvent,
+        locationPermDenied = locationPerm.denied,
+        snackbarHostState = snackbarHostState,
+        mapSlot = {
+            OsmTrackMap(
+                points = state.trackPoints,
+                modifier = Modifier.fillMaxSize(),
+                followLatest = true,
+            )
+        },
+        modifier = modifier,
+    )
+}
+
+/**
+ * Pure renderer for the Recording screen: map slot, metric tiles, and control strip.
+ * Extracted for Paparazzi screenshot testing — no ViewModels, services, or permissions.
+ *
+ * @param state               Pre-computed recording UI state.
+ * @param onEvent             Dispatches [RecordingEvent]s upward.
+ * @param locationPermDenied  When `true` the permission-denied banner is shown instead of the Start button.
+ * @param snackbarHostState   Snackbar host; defaults to a fresh instance for standalone use.
+ * @param mapSlot             Composable rendered in the map area; in production this is [OsmTrackMap],
+ *                            in Paparazzi tests a static placeholder Box is used instead.
+ * @param modifier            Standard Compose modifier.
+ */
+@Composable
+fun RecordingContent(
+    state: RecordingUiState,
+    onEvent: (RecordingEvent) -> Unit = {},
+    locationPermDenied: Boolean = false,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    mapSlot: @Composable () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // ── Map area ─────────────────────────────────────────────────────
@@ -142,11 +174,7 @@ fun RecordingScreen(
                     .weight(1f)
                     .background(MotoTracker.colors.panel),
             ) {
-                OsmTrackMap(
-                    points = state.trackPoints,
-                    modifier = Modifier.fillMaxSize(),
-                    followLatest = true,
-                )
+                mapSlot()
 
                 GpsChip(
                     satCount = state.gpsSatCount,
@@ -185,15 +213,13 @@ fun RecordingScreen(
                 Spacer(Modifier.height(6.dp))
                 LeanCompassRow(state)
                 Spacer(Modifier.height(12.dp))
-                if (locationPerm.denied && state.phase == RecordingPhase.Idle) {
+                if (locationPermDenied && state.phase == RecordingPhase.Idle) {
                     PermissionDeniedBanner(
                         text = stringResource(R.string.perm_location_denied),
-                        onRetry = {
-                            locationPerm.requestThen { viewModel.onEvent(RecordingEvent.Start) }
-                        },
+                        onRetry = { onEvent(RecordingEvent.Start) },
                     )
                 } else {
-                    RecordingControlRow(phase = state.phase, onEvent = ::dispatchEvent)
+                    RecordingControlRow(phase = state.phase, onEvent = onEvent)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(

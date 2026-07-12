@@ -34,11 +34,7 @@ import com.mototracker.ui.theme.MotoTracker
 import androidx.compose.ui.text.font.FontWeight
 
 /**
- * Statistics screen — shows 4 summary tiles, a distance-per-month bar chart,
- * and a riding-style summary card with 3 labelled progress bars.
- *
- * This is a pure renderer: all aggregation happens in [StatsViewModel].
- * Because it renders on a real device, rendering correctness is marked 🔬.
+ * Statistics screen — thin ViewModel wrapper that delegates to [StatsContent].
  *
  * @param modifier  Standard Compose modifier.
  * @param viewModel Hilt-injected [StatsViewModel].
@@ -49,7 +45,21 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    StatsContent(state = state, modifier = modifier)
+}
 
+/**
+ * Pure renderer for the Statistics screen: 4 summary tiles, a distance-per-month bar chart,
+ * and a riding-style summary card. Extracted for Paparazzi screenshot testing.
+ *
+ * @param state    Pre-computed UI state; no ViewModels or side-effects inside.
+ * @param modifier Standard Compose modifier.
+ */
+@Composable
+fun StatsContent(
+    state: StatsUiState,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()

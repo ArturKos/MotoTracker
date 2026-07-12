@@ -58,14 +58,10 @@ import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.flow.collectLatest
 
 /**
- * Route Detail screen — shows track thumbnail, stat tiles, weather, speed/elevation charts,
- * meetups, and export/send actions.
+ * Route Detail screen — ViewModel wrapper that delegates rendering to [RouteDetailContent].
  *
  * The screen reads all display data from [RouteDetailViewModel] (via Hilt) which reads the
  * `routeId` from [androidx.lifecycle.SavedStateHandle] injected by Navigation Compose.
- *
- * Export-sheet visibility is kept as Compose-local state (not in the ViewModel). ViewModel
- * one-shot [RouteDetailEvent]s are collected via a [LaunchedEffect] and forwarded to [onToast].
  *
  * Map tiles and chart Canvas rendering are on-device-only concerns (🔬).
  *
@@ -98,19 +94,25 @@ fun RouteDetailScreen(
         }
     }
 
-    when {
-        state.loading -> LoadingPane(modifier)
-        state.routeNotFound -> NotFoundPane(modifier)
-        else -> DetailContent(
-            state = state,
-            modifier = modifier,
-            onExport = { showExportSheet = true },
-            onSend = { viewModel.sendToServer() },
-            onSelectTrackView = { viewModel.selectTrackView(it) },
-            onCorrectNow = { viewModel.correctNow() },
-            onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
-        )
-    }
+    RouteDetailContent(
+        state = state,
+        modifier = modifier,
+        onExport = { showExportSheet = true },
+        onSend = { viewModel.sendToServer() },
+        onSelectTrackView = { viewModel.selectTrackView(it) },
+        onCorrectNow = { viewModel.correctNow() },
+        onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
+        mapSlot = {
+            OsmTrackMap(
+                points = state.trackPoints,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                showStartEndMarkers = true,
+            )
+        },
+    )
 
     if (showExportSheet) {
         ExportSheet(
@@ -119,6 +121,47 @@ fun RouteDetailScreen(
             onShareRoute = { viewModel.shareRoute() },
             onSendServer = { viewModel.sendToServer() },
             onDismiss = { showExportSheet = false },
+        )
+    }
+}
+
+/**
+ * Pure renderer for the Route Detail screen: loading/not-found panes or the full detail view.
+ * Extracted for Paparazzi screenshot testing — no ViewModels, LaunchedEffects, or export sheets.
+ *
+ * @param state                  Pre-computed detail UI state (loading/notFound/data).
+ * @param onExport               Called when the user taps the Export/Share button.
+ * @param onSend                 Called when the user taps the Send button.
+ * @param onSelectTrackView      Called when the Raw|Corrected toggle changes.
+ * @param onCorrectNow           Called when the user taps "Popraw teraz".
+ * @param onDeleteCorrectedTrace Called when the user confirms deleting the corrected trace.
+ * @param mapSlot                Composable rendered in the map slot; in production this is [OsmTrackMap],
+ *                               in Paparazzi tests a static placeholder Box is used instead.
+ * @param modifier               Standard Compose modifier.
+ */
+@Composable
+fun RouteDetailContent(
+    state: RouteDetailUiState,
+    onExport: () -> Unit = {},
+    onSend: () -> Unit = {},
+    onSelectTrackView: (TrackView) -> Unit = {},
+    onCorrectNow: () -> Unit = {},
+    onDeleteCorrectedTrace: () -> Unit = {},
+    mapSlot: @Composable () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    when {
+        state.loading -> LoadingPane(modifier)
+        state.routeNotFound -> NotFoundPane(modifier)
+        else -> DetailContent(
+            state = state,
+            modifier = modifier,
+            onExport = onExport,
+            onSend = onSend,
+            onSelectTrackView = onSelectTrackView,
+            onCorrectNow = onCorrectNow,
+            onDeleteCorrectedTrace = onDeleteCorrectedTrace,
+            mapSlot = mapSlot,
         )
     }
 }
@@ -154,6 +197,7 @@ private fun DetailContent(
     onSelectTrackView: (TrackView) -> Unit,
     onCorrectNow: () -> Unit,
     onDeleteCorrectedTrace: () -> Unit,
+    mapSlot: @Composable () -> Unit = {},
 ) {
     LazyColumn(
         modifier = modifier
@@ -171,16 +215,7 @@ private fun DetailContent(
             )
         }
 
-        item {
-            OsmTrackMap(
-                points = state.trackPoints,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(10.dp)),
-                showStartEndMarkers = true,
-            )
-        }
+        item { mapSlot() }
 
         item {
             CorrectionPanel(

@@ -97,11 +97,125 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appState by appStateVm.uiState.collectAsStateWithLifecycle()
-
     val ctx = LocalContext.current
     val addBikeMsg = stringResource(R.string.toast_add_bike)
 
-    // Dialog state: null editBikeId = add mode; non-null = edit mode for that bike id.
+    SettingsContent(
+        state = state,
+        authed = appState.authed,
+        onSignOut = {
+            appStateVm.signOut()
+            onSignOut()
+        },
+        onSelectBike = viewModel::selectBike,
+        onAddBike = { name, year, plate, status ->
+            viewModel.addBike(name, year, plate, status)
+            Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
+        },
+        onUpdateBike = viewModel::updateBike,
+        onTheme = { key ->
+            viewModel.setTheme(key)
+            appStateVm.setTheme(MotoTheme.entries.firstOrNull { it.name.lowercase() == key } ?: MotoTheme.COCKPIT)
+        },
+        onAccent = { hex ->
+            viewModel.setAccent(hex)
+            val mapped = AccentColor.entries.firstOrNull { it.hex == hex } ?: AccentColor.TEAL
+            appStateVm.setAccent(mapped)
+        },
+        onLanguage = { tag ->
+            viewModel.setLanguage(tag)
+            appStateVm.setLanguage(Language.entries.firstOrNull { it.tag == tag } ?: Language.PL)
+        },
+        onUnits = { key ->
+            viewModel.setUnits(key)
+            appStateVm.setUnits(if (key == "imperial") Units.IMPERIAL else Units.METRIC)
+        },
+        onServerAddress = viewModel::setServerAddress,
+        onOffline = viewModel::setOffline,
+        onAutoSync = viewModel::setAutoSync,
+        onSyncNow = viewModel::syncNow,
+        onSaveBroadcastProfile = viewModel::saveBroadcastProfile,
+        onOfflineOnly = viewModel::setOfflineOnly,
+        onGpsCorrect = viewModel::setGpsCorrect,
+        onAndroidAutoEnabled = viewModel::setAndroidAutoEnabled,
+        onDebugLogging = viewModel::setDebugLogging,
+        onShareLog = {
+            val file = viewModel.getShareTargetFile()
+            if (file != null) {
+                val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                ctx.startActivity(Intent.createChooser(intent, file.name))
+            }
+        },
+        onClearLogs = viewModel::clearRideLogs,
+        onAutoPause = viewModel::setAutoPause,
+        onKeepScreenOn = viewModel::setKeepScreenOn,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Pure renderer for the Settings screen: nine sections in a scrollable list.
+ * Extracted for Paparazzi screenshot testing — no ViewModels or Activity references.
+ *
+ * @param state                Pre-computed settings UI state.
+ * @param authed               Whether the user is currently signed in (drives Account section).
+ * @param onSignOut            Called when the user taps Sign out or Login (navigates away).
+ * @param onSelectBike         Called with the bike UUID when the user selects it as active.
+ * @param onAddBike            Called when a new bike is confirmed via the Add dialog.
+ * @param onUpdateBike         Called when an existing bike is updated via the Edit dialog.
+ * @param onTheme              Called with the theme key ("cockpit"|"grid"|"light").
+ * @param onAccent             Called with the accent hex string.
+ * @param onLanguage           Called with the BCP-47 language tag.
+ * @param onUnits              Called with the units key ("metric"|"imperial").
+ * @param onServerAddress      Called when the server-address field changes.
+ * @param onOffline            Called when the Offline mode switch changes.
+ * @param onAutoSync           Called when the Auto-sync switch changes.
+ * @param onSyncNow            Called when the user taps the Sync-all button.
+ * @param onSaveBroadcastProfile Called when the user saves their BT broadcast profile.
+ * @param onOfflineOnly        Called when the Offline-only switch changes.
+ * @param onGpsCorrect         Called when the GPS-correction switch changes.
+ * @param onAndroidAutoEnabled Called when the Android Auto switch changes.
+ * @param onDebugLogging       Called when the Debug-logging switch changes.
+ * @param onShareLog           Called when the user taps Share log file.
+ * @param onClearLogs          Called when the user taps Clear ride logs.
+ * @param onAutoPause          Called when the Auto-pause switch changes.
+ * @param onKeepScreenOn       Called when the Keep-screen-on switch changes.
+ * @param modifier             Standard Compose modifier.
+ */
+@Composable
+fun SettingsContent(
+    state: SettingsUiState,
+    authed: Boolean = false,
+    onSignOut: () -> Unit = {},
+    onSelectBike: (String) -> Unit = {},
+    onAddBike: (String, Int, String, BikeStatus) -> Unit = { _, _, _, _ -> },
+    onUpdateBike: (String, String, Int, String, BikeStatus) -> Unit = { _, _, _, _, _ -> },
+    onTheme: (String) -> Unit = {},
+    onAccent: (String) -> Unit = {},
+    onLanguage: (String) -> Unit = {},
+    onUnits: (String) -> Unit = {},
+    onServerAddress: (String) -> Unit = {},
+    onOffline: (Boolean) -> Unit = {},
+    onAutoSync: (Boolean) -> Unit = {},
+    onSyncNow: () -> Unit = {},
+    onSaveBroadcastProfile: (String, String, String, String) -> Unit = { _, _, _, _ -> },
+    onOfflineOnly: (Boolean) -> Unit = {},
+    onGpsCorrect: (Boolean) -> Unit = {},
+    onAndroidAutoEnabled: (Boolean) -> Unit = {},
+    onDebugLogging: (Boolean) -> Unit = {},
+    onShareLog: () -> Unit = {},
+    onClearLogs: () -> Unit = {},
+    onAutoPause: (Boolean) -> Unit = {},
+    onKeepScreenOn: (Boolean) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val ctx = LocalContext.current
+
     var showBikeDialog by rememberSaveable { mutableStateOf(false) }
     var editBikeId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -111,10 +225,9 @@ fun SettingsScreen(
             initial = editBike,
             onConfirm = { name, year, plate, status ->
                 if (editBikeId != null) {
-                    viewModel.updateBike(editBikeId!!, name, year, plate, status)
+                    onUpdateBike(editBikeId!!, name, year, plate, status)
                 } else {
-                    viewModel.addBike(name, year, plate, status)
-                    Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
+                    onAddBike(name, year, plate, status)
                 }
             },
             onDismiss = {
@@ -135,15 +248,9 @@ fun SettingsScreen(
         item {
             SectionHeader(title = stringResource(R.string.section_account))
             AccountSection(
-                authed = appState.authed,
-                onLogout = {
-                    appStateVm.signOut()
-                    onSignOut()
-                },
-                onLogin = {
-                    appStateVm.signOut()
-                    onSignOut()
-                },
+                authed = authed,
+                onLogout = onSignOut,
+                onLogin = onSignOut,
             )
             SectionDivider()
         }
@@ -155,7 +262,7 @@ fun SettingsScreen(
         items(state.bikes) { bike ->
             BikeRow(
                 bike = bike,
-                onSelect = { viewModel.selectBike(bike.id) },
+                onSelect = { onSelectBike(bike.id) },
                 onEdit = {
                     editBikeId = bike.id
                     showBikeDialog = true
@@ -187,23 +294,10 @@ fun SettingsScreen(
                 accent = state.accent,
                 language = state.language,
                 units = state.units,
-                onTheme = { key ->
-                    viewModel.setTheme(key)
-                    appStateVm.setTheme(MotoTheme.entries.firstOrNull { it.name.lowercase() == key } ?: MotoTheme.COCKPIT)
-                },
-                onAccent = { hex ->
-                    viewModel.setAccent(hex)
-                    val mapped = AccentColor.entries.firstOrNull { it.hex == hex } ?: AccentColor.TEAL
-                    appStateVm.setAccent(mapped)
-                },
-                onLanguage = { tag ->
-                    viewModel.setLanguage(tag)
-                    appStateVm.setLanguage(Language.entries.firstOrNull { it.tag == tag } ?: Language.PL)
-                },
-                onUnits = { key ->
-                    viewModel.setUnits(key)
-                    appStateVm.setUnits(if (key == "imperial") Units.IMPERIAL else Units.METRIC)
-                },
+                onTheme = onTheme,
+                onAccent = onAccent,
+                onLanguage = onLanguage,
+                onUnits = onUnits,
             )
             SectionDivider()
         }
@@ -215,9 +309,9 @@ fun SettingsScreen(
                 serverAddress = state.serverAddress,
                 offline = state.offline,
                 autoSync = state.autoSync,
-                onServerAddress = viewModel::setServerAddress,
-                onOffline = viewModel::setOffline,
-                onAutoSync = viewModel::setAutoSync,
+                onServerAddress = onServerAddress,
+                onOffline = onOffline,
+                onAutoSync = onAutoSync,
             )
             SectionDivider()
         }
@@ -234,7 +328,7 @@ fun SettingsScreen(
                 )
             } else {
                 Button(
-                    onClick = viewModel::syncNow,
+                    onClick = onSyncNow,
                     colors = ButtonDefaults.buttonColors(containerColor = MotoTracker.colors.accent),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -249,7 +343,7 @@ fun SettingsScreen(
         items(state.pendingRoutes) { item ->
             SyncQueueRow(
                 item = item,
-                onSend = viewModel::syncNow,
+                onSend = onSyncNow,
             )
         }
         item { SectionDivider() }
@@ -259,32 +353,31 @@ fun SettingsScreen(
             SectionHeader(title = stringResource(R.string.section_broadcast))
             BroadcastSection(
                 state = state,
-                onSave = viewModel::saveBroadcastProfile,
+                onSave = onSaveBroadcastProfile,
             )
             SectionDivider()
         }
 
         // ── §7 System & privacy ───────────────────────────────────────────────
         item {
-            val ctx = LocalContext.current
             SectionHeader(title = stringResource(R.string.section_system))
             LabeledSwitch(
                 label = stringResource(R.string.label_offline_only),
                 desc = stringResource(R.string.desc_offline_only),
                 checked = state.offlineOnly,
-                onChecked = viewModel::setOfflineOnly,
+                onChecked = onOfflineOnly,
             )
             LabeledSwitch(
                 label = stringResource(R.string.label_gps_correct),
                 desc = stringResource(R.string.desc_gps_correct),
                 checked = state.gpsCorrect,
-                onChecked = viewModel::setGpsCorrect,
+                onChecked = onGpsCorrect,
             )
             LabeledSwitch(
                 label = stringResource(R.string.label_android_auto),
                 desc = stringResource(R.string.desc_android_auto),
                 checked = state.androidAutoEnabled,
-                onChecked = viewModel::setAndroidAutoEnabled,
+                onChecked = onAndroidAutoEnabled,
             )
 
             // Diagnostics sub-group
@@ -293,27 +386,12 @@ fun SettingsScreen(
                 label = stringResource(R.string.label_debug_logging),
                 desc = stringResource(R.string.desc_debug_logging),
                 checked = state.debugLoggingEnabled,
-                onChecked = viewModel::setDebugLogging,
+                onChecked = onDebugLogging,
             )
             DiagnosticsActionRow(
                 label = stringResource(R.string.action_share_log),
                 enabled = state.debugLoggingEnabled && state.rideLogUsedBytes > 0,
-                onClick = {
-                    val file = viewModel.getShareTargetFile()
-                    if (file != null) {
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            file,
-                        )
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        ctx.startActivity(Intent.createChooser(intent, file.name))
-                    }
-                },
+                onClick = onShareLog,
             )
             DiagnosticsActionRow(
                 label = stringResource(
@@ -322,7 +400,7 @@ fun SettingsScreen(
                 ),
                 sublabel = stringResource(R.string.action_clear_logs),
                 enabled = state.debugLoggingEnabled,
-                onClick = viewModel::clearRideLogs,
+                onClick = onClearLogs,
             )
             SectionDivider()
         }
@@ -330,25 +408,21 @@ fun SettingsScreen(
         // ── §8 Preferences ────────────────────────────────────────────────────
         item {
             SectionHeader(title = stringResource(R.string.section_preferences))
-            // Units (shared with §3)
             UnitsSelector(
                 units = state.units,
-                onUnits = { key ->
-                    viewModel.setUnits(key)
-                    appStateVm.setUnits(if (key == "imperial") Units.IMPERIAL else Units.METRIC)
-                },
+                onUnits = onUnits,
             )
             LabeledSwitch(
                 label = stringResource(R.string.label_auto_pause),
                 desc = null,
                 checked = state.autoPause,
-                onChecked = viewModel::setAutoPause,
+                onChecked = onAutoPause,
             )
             LabeledSwitch(
                 label = stringResource(R.string.label_screen_on),
                 desc = null,
                 checked = state.keepScreenOn,
-                onChecked = viewModel::setKeepScreenOn,
+                onChecked = onKeepScreenOn,
             )
             SectionDivider()
         }

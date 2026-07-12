@@ -43,16 +43,12 @@ import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
 
 /**
- * Login screen composable.
+ * Login screen — thin ViewModel wrapper that delegates to [LoginContent].
  *
- * Renders the server-address / e-mail / password form and two action buttons.
- * Navigation is driven by one-shot [LoginEvent]s collected from [viewModel.events]:
- * [LoginEvent.NavigateToMain] with `authed = true` triggers [onSignedIn], and
- * `authed = false` triggers [onGuest].
+ * Navigation is driven by one-shot [LoginEvent]s from [viewModel.events]:
+ * [LoginEvent.NavigateToMain] with `authed = true` calls [onSignedIn].
  *
- * All user-facing strings are loaded from string resources (pl/en/de/fr/cs/ru).
- *
- * @param onSignedIn Called after a successful sign-in flow; navigate to the main shell.
+ * @param onSignedIn Called after a successful sign-in flow.
  * @param onGuest    Called when the user chooses to continue without an account.
  * @param modifier   Applied to the root container.
  * @param viewModel  Hilt-injected [LoginViewModel].
@@ -74,6 +70,39 @@ fun LoginScreen(
         }
     }
 
+    LoginContent(
+        uiState = uiState,
+        onServerAddress = viewModel::updateServerAddress,
+        onEmail = viewModel::updateEmail,
+        onPassword = viewModel::updatePassword,
+        onSignIn = viewModel::signIn,
+        onGuest = viewModel::continueAsGuest,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Pure renderer for the Login screen: logo, form fields, sign-in and guest buttons.
+ * Extracted for Paparazzi screenshot testing — no ViewModels or side-effects.
+ *
+ * @param uiState          Snapshot of all form field values and loading/error state.
+ * @param onServerAddress  Called when the server-address field changes.
+ * @param onEmail          Called when the e-mail field changes.
+ * @param onPassword       Called when the password field changes.
+ * @param onSignIn         Called when the user taps "Sign in".
+ * @param onGuest          Called when the user taps "Continue as guest".
+ * @param modifier         Applied to the root container.
+ */
+@Composable
+fun LoginContent(
+    uiState: LoginUiState,
+    onServerAddress: (String) -> Unit = {},
+    onEmail: (String) -> Unit = {},
+    onPassword: (String) -> Unit = {},
+    onSignIn: () -> Unit = {},
+    onGuest: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -125,7 +154,7 @@ fun LoginScreen(
         LoginFieldLabel(stringResource(R.string.label_server_address))
         OutlinedTextField(
             value = uiState.serverAddress,
-            onValueChange = viewModel::updateServerAddress,
+            onValueChange = onServerAddress,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MotoTracker.typography.body.copy(fontFamily = JetBrainsMonoFamily),
             singleLine = true,
@@ -139,7 +168,7 @@ fun LoginScreen(
         LoginFieldLabel(stringResource(R.string.label_email))
         OutlinedTextField(
             value = uiState.email,
-            onValueChange = viewModel::updateEmail,
+            onValueChange = onEmail,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MotoTracker.typography.body,
             singleLine = true,
@@ -153,7 +182,7 @@ fun LoginScreen(
         LoginFieldLabel(stringResource(R.string.label_password))
         OutlinedTextField(
             value = uiState.password,
-            onValueChange = viewModel::updatePassword,
+            onValueChange = onPassword,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MotoTracker.typography.body,
             singleLine = true,
@@ -166,7 +195,7 @@ fun LoginScreen(
 
         // Primary: sign in & sync
         Button(
-            onClick = viewModel::signIn,
+            onClick = onSignIn,
             enabled = uiState.canSubmit,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
@@ -206,7 +235,7 @@ fun LoginScreen(
 
         // Secondary: continue without account
         OutlinedButton(
-            onClick = viewModel::continueAsGuest,
+            onClick = onGuest,
             modifier = Modifier.fillMaxWidth(),
             border = BorderStroke(1.dp, MotoTracker.colors.line),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MotoTracker.colors.text),

@@ -59,14 +59,8 @@ import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.flow.collectLatest
 
 /**
- * Riders screen (B5) — riding group, live feed, and Bluetooth waves.
+ * Riders screen — permission + ViewModel wrapper that delegates to [RidersContent].
  *
- * Three vertically stacked sections:
- * - **GROUP** — members list + add-by-phone button.
- * - **LIVE FEED** — online activity from group members; requires internet.
- * - **WAVES** — Bluetooth proximity greetings; works offline.
- *
- * All rendering is pure; mapping lives in [RidersViewModel].
  * Live GPS, real BT scanning, and server feed are on-device-only (🔬).
  *
  * @param modifier   Standard Compose modifier.
@@ -90,9 +84,6 @@ fun RidersScreen(
         }
     }
 
-    var showAddDialog by remember { mutableStateOf(false) }
-
-    // Bluetooth waves permission — gate on first interaction with the Waves section.
     val context = LocalContext.current
     val sdkInt = Build.VERSION.SDK_INT
     val requiredBtPerms = remember(sdkInt) {
@@ -106,6 +97,35 @@ fun RidersScreen(
         )
     }
     val wavesPerm = rememberFeaturePermission(AppFeaturePermission.BLUETOOTH_WAVES)
+
+    RidersContent(
+        state = state,
+        wavesEnabled = wavesEnabled && !wavesPerm.denied,
+        onAddByPhone = { viewModel.onAddByPhone(it) },
+        onRequestWaves = { wavesPerm.requestThen { wavesEnabled = true } },
+        modifier = modifier,
+    )
+}
+
+/**
+ * Pure renderer for the Riders screen: group members, live feed, and Bluetooth waves.
+ * Extracted for Paparazzi screenshot testing — no ViewModels, permissions, or launchers.
+ *
+ * @param state           Pre-computed riders UI state.
+ * @param wavesEnabled    Whether Bluetooth waves permission has been granted; drives the waves section.
+ * @param onAddByPhone    Called with the phone number when the user confirms the add-member dialog.
+ * @param onRequestWaves  Called when the user taps the BT permission request banner.
+ * @param modifier        Standard Compose modifier.
+ */
+@Composable
+fun RidersContent(
+    state: RidersUiState,
+    wavesEnabled: Boolean = false,
+    onAddByPhone: (String) -> Unit = {},
+    onRequestWaves: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier
@@ -190,20 +210,11 @@ fun RidersScreen(
         }
 
         when {
-            wavesPerm.denied -> {
-                item {
-                    PermissionDeniedBanner(
-                        text = stringResource(R.string.perm_bt_denied),
-                        onRetry = { wavesPerm.requestThen { wavesEnabled = true } },
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
-            }
             !wavesEnabled -> {
                 item {
                     PermissionDeniedBanner(
                         text = stringResource(R.string.perm_bt_rationale),
-                        onRetry = { wavesPerm.requestThen { wavesEnabled = true } },
+                        onRetry = onRequestWaves,
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                 }
@@ -224,7 +235,7 @@ fun RidersScreen(
     if (showAddDialog) {
         AddByPhoneDialog(
             onConfirm = { phone ->
-                viewModel.onAddByPhone(phone)
+                onAddByPhone(phone)
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false },

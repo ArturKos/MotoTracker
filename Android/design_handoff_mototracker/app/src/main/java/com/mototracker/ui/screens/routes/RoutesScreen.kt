@@ -36,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,10 +47,8 @@ import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.launch
 
 /**
- * Routes list screen — shows summary tiles and a scrollable list of route cards.
- *
- * The GPX import button launches an [Intent.ACTION_OPEN_DOCUMENT] file picker for
- * `.gpx` files and shows a snackbar; actual GPX parsing is out of scope for B3.
+ * Routes list screen — thin ViewModel wrapper that wires the file picker and delegates
+ * to [RoutesContent].
  *
  * @param onOpenRoute  Called with the route UUID when the user taps a card.
  * @param modifier     Standard Compose modifier.
@@ -66,13 +63,47 @@ fun RoutesScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     val importMsg = stringResource(R.string.toast_import)
     val gpxLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { /* GPX parsing deferred to a later task */ }
 
+    RoutesContent(
+        state = state,
+        snackbarHostState = snackbarHostState,
+        onImportGpx = {
+            scope.launch { snackbarHostState.showSnackbar(importMsg) }
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/gpx+xml", "application/octet-stream"))
+            }
+            gpxLauncher.launch(intent)
+        },
+        onOpenRoute = onOpenRoute,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Pure renderer for the Routes list screen: summary tiles and a scrollable route card list.
+ * Extracted for Paparazzi screenshot testing — no file picker launcher or ViewModel inside.
+ *
+ * @param state              Pre-computed list UI state.
+ * @param snackbarHostState  Snackbar host; defaults to a fresh instance for standalone use.
+ * @param onImportGpx        Called when the user taps the GPX import button.
+ * @param onOpenRoute        Called with the route UUID when the user taps a card.
+ * @param modifier           Standard Compose modifier.
+ */
+@Composable
+fun RoutesContent(
+    state: RoutesUiState,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onImportGpx: () -> Unit = {},
+    onOpenRoute: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
         containerColor = MotoTracker.colors.bg,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -87,15 +118,7 @@ fun RoutesScreen(
             SummaryRow(
                 routeCount = state.routeCount,
                 totalKmDisplay = state.totalKmDisplay,
-                onImportGpx = {
-                    scope.launch { snackbarHostState.showSnackbar(importMsg) }
-                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "*/*"
-                        putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/gpx+xml", "application/octet-stream"))
-                    }
-                    gpxLauncher.launch(intent)
-                },
+                onImportGpx = onImportGpx,
             )
             Spacer(Modifier.height(12.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {

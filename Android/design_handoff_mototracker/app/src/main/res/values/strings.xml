@@ -259,6 +259,20 @@
     <string name="action_clear_logs">Clear logs</string>
     <string name="diag_used_space">Used space: %1$s</string>
 
+    <!-- Routes list — search / filter / sort (B14) -->
+    <string name="routes_search_hint">Search routes…</string>
+    <string name="routes_filter_bike">Bike</string>
+    <string name="routes_filter_all_bikes">All bikes</string>
+    <string name="routes_filter_date_from">From</string>
+    <string name="routes_filter_date_to">To</string>
+    <string name="routes_sort_label">Sort</string>
+    <string name="routes_sort_date">Date</string>
+    <string name="routes_sort_distance">Distance</string>
+    <string name="routes_sort_duration">Duration</string>
+    <string name="routes_sort_max_speed">Max speed</string>
+    <string name="routes_clear_filters">Clear filters</string>
+    <string name="routes_no_matches">No routes match the current filters</string>
+
     <!-- GPS correction UX — Route detail (B13) -->
     <string name="label_track_raw">Raw</string>
     <string name="label_track_corrected">On road</string>

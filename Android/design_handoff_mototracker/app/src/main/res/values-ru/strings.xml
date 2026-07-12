@@ -229,6 +229,20 @@
     <string name="action_clear_logs">Очистить логи</string>
     <string name="diag_used_space">Занято места: %1$s</string>
 
+    <!-- Routes list — search / filter / sort (B14) -->
+    <string name="routes_search_hint">Поиск маршрутов…</string>
+    <string name="routes_filter_bike">Мотоцикл</string>
+    <string name="routes_filter_all_bikes">Все мотоциклы</string>
+    <string name="routes_filter_date_from">С</string>
+    <string name="routes_filter_date_to">По</string>
+    <string name="routes_sort_label">Сортировка</string>
+    <string name="routes_sort_date">Дата</string>
+    <string name="routes_sort_distance">Расстояние</string>
+    <string name="routes_sort_duration">Длительность</string>
+    <string name="routes_sort_max_speed">Макс. скорость</string>
+    <string name="routes_clear_filters">Сбросить фильтры</string>
+    <string name="routes_no_matches">Нет подходящих маршрутов</string>
+
     <!-- GPS correction UX — Route detail (B13) -->
     <string name="label_track_raw">Необраб.</string>
     <string name="label_track_corrected">На дороге</string>

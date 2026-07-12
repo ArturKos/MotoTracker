@@ -229,6 +229,20 @@
     <string name="action_clear_logs">Wyczyść logi</string>
     <string name="diag_used_space">Zajęte miejsce: %1$s</string>
 
+    <!-- Routes list — search / filter / sort (B14) -->
+    <string name="routes_search_hint">Szukaj tras…</string>
+    <string name="routes_filter_bike">Motocykl</string>
+    <string name="routes_filter_all_bikes">Wszystkie motocykle</string>
+    <string name="routes_filter_date_from">Od</string>
+    <string name="routes_filter_date_to">Do</string>
+    <string name="routes_sort_label">Sortuj</string>
+    <string name="routes_sort_date">Data</string>
+    <string name="routes_sort_distance">Dystans</string>
+    <string name="routes_sort_duration">Czas</string>
+    <string name="routes_sort_max_speed">Maks. prędkość</string>
+    <string name="routes_clear_filters">Wyczyść filtry</string>
+    <string name="routes_no_matches">Brak tras pasujących do filtrów</string>
+
     <!-- GPS correction UX — Route detail (B13) -->
     <string name="label_track_raw">Surowa</string>
     <string name="label_track_corrected">Na drodze</string>

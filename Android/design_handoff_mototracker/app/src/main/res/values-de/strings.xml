@@ -229,6 +229,20 @@
     <string name="action_clear_logs">Protokolle löschen</string>
     <string name="diag_used_space">Belegter Speicher: %1$s</string>
 
+    <!-- Routes list — search / filter / sort (B14) -->
+    <string name="routes_search_hint">Routen suchen…</string>
+    <string name="routes_filter_bike">Motorrad</string>
+    <string name="routes_filter_all_bikes">Alle Motorräder</string>
+    <string name="routes_filter_date_from">Von</string>
+    <string name="routes_filter_date_to">Bis</string>
+    <string name="routes_sort_label">Sortieren</string>
+    <string name="routes_sort_date">Datum</string>
+    <string name="routes_sort_distance">Distanz</string>
+    <string name="routes_sort_duration">Dauer</string>
+    <string name="routes_sort_max_speed">Höchstgeschw.</string>
+    <string name="routes_clear_filters">Filter löschen</string>
+    <string name="routes_no_matches">Keine passenden Routen</string>
+
     <!-- GPS correction UX — Route detail (B13) -->
     <string name="label_track_raw">Roh</string>
     <string name="label_track_corrected">Auf der Straße</string>

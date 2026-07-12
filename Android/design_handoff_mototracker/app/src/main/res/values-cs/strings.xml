@@ -229,6 +229,20 @@
     <string name="action_clear_logs">Vymazat protokoly</string>
     <string name="diag_used_space">Obsazené místo: %1$s</string>
 
+    <!-- Routes list — search / filter / sort (B14) -->
+    <string name="routes_search_hint">Hledat trasy…</string>
+    <string name="routes_filter_bike">Motocykl</string>
+    <string name="routes_filter_all_bikes">Všechny motocykly</string>
+    <string name="routes_filter_date_from">Od</string>
+    <string name="routes_filter_date_to">Do</string>
+    <string name="routes_sort_label">Seřadit</string>
+    <string name="routes_sort_date">Datum</string>
+    <string name="routes_sort_distance">Vzdálenost</string>
+    <string name="routes_sort_duration">Délka</string>
+    <string name="routes_sort_max_speed">Max. rychlost</string>
+    <string name="routes_clear_filters">Vymazat filtry</string>
+    <string name="routes_no_matches">Žádné trasy neodpovídají filtrům</string>
+
     <!-- GPS correction UX — Route detail (B13) -->
     <string name="label_track_raw">Surová</string>
     <string name="label_track_corrected">Na silnici</string>

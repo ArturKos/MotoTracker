@@ -229,6 +229,20 @@
     <string name="action_clear_logs">Effacer les journaux</string>
     <string name="diag_used_space">Espace utilisé : %1$s</string>
 
+    <!-- Routes list — search / filter / sort (B14) -->
+    <string name="routes_search_hint">Rechercher des trajets…</string>
+    <string name="routes_filter_bike">Moto</string>
+    <string name="routes_filter_all_bikes">Toutes les motos</string>
+    <string name="routes_filter_date_from">Du</string>
+    <string name="routes_filter_date_to">Au</string>
+    <string name="routes_sort_label">Trier</string>
+    <string name="routes_sort_date">Date</string>
+    <string name="routes_sort_distance">Distance</string>
+    <string name="routes_sort_duration">Durée</string>
+    <string name="routes_sort_max_speed">Vitesse max</string>
+    <string name="routes_clear_filters">Effacer les filtres</string>
+    <string name="routes_no_matches">Aucun trajet ne correspond</string>
+
     <!-- GPS correction UX — Route detail (B13) -->
     <string name="label_track_raw">Brut</string>
     <string name="label_track_corrected">Sur la route</string>

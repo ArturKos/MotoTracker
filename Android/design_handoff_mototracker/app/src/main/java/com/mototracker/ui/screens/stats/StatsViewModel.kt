@@ -2,11 +2,14 @@ package com.mototracker.ui.screens.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mototracker.R
 import com.mototracker.core.format.UnitFormatter
 import com.mototracker.data.model.Route
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.domain.stats.Badge
+import com.mototracker.domain.stats.PersonalRecordsCalculator
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,6 +69,8 @@ class StatsViewModel @Inject constructor(
             Calendar.getInstance().apply { timeInMillis = newestMs }.get(Calendar.YEAR).toString()
         }
 
+        val personalRecords = PersonalRecordsCalculator.compute(routes)
+
         return StatsUiState(
             totalDistanceDisplay = UnitFormatter.formatDistance(totalKm, units),
             distanceUnitLabel = UnitFormatter.distanceUnitLabel(units),
@@ -83,7 +88,57 @@ class StatsViewModel @Inject constructor(
                 totalClimbDisplay = UnitFormatter.formatAltitude(totalClimbM, units),
                 totalClimbFraction = (totalClimbM / 8000.0).toFloat().coerceIn(0f, 1f),
             ),
+            records = buildRecords(personalRecords, units),
+            badges = personalRecords.earnedBadges.map { badge ->
+                BadgeUi(badge = badge, nameRes = badge.nameRes())
+            },
         )
+    }
+
+    private fun buildRecords(
+        records: com.mototracker.domain.stats.PersonalRecords,
+        units: Units,
+    ): List<RecordItemUi> = if (records.longestRideRouteId == null) {
+        emptyList()
+    } else {
+        listOf(
+            RecordItemUi(
+                labelRes = R.string.rec_longest_ride,
+                valueDisplay = UnitFormatter.formatDistance(records.longestRideKm, units),
+            ),
+            RecordItemUi(
+                labelRes = R.string.rec_fastest_avg,
+                valueDisplay = UnitFormatter.formatSpeed(records.fastestAvgSpeedKmh, units),
+            ),
+            RecordItemUi(
+                labelRes = R.string.rec_top_speed,
+                valueDisplay = UnitFormatter.formatSpeed(records.topSpeedKmh, units),
+            ),
+            RecordItemUi(
+                labelRes = R.string.rec_highest_ascent,
+                valueDisplay = UnitFormatter.formatAltitude(records.highestAscentM, units),
+            ),
+            RecordItemUi(
+                labelRes = R.string.rec_best_month,
+                valueDisplay = UnitFormatter.formatDistance(records.bestMonthKm, units),
+            ),
+            RecordItemUi(
+                labelRes = R.string.rec_day_streak,
+                valueDisplay = "${records.longestDayStreak}",
+                unitRes = R.string.unit_days,
+            ),
+        )
+    }
+
+    /** Maps a [Badge] to its display-name string resource ID. */
+    private fun Badge.nameRes(): Int = when (this) {
+        Badge.FIRST_RIDE -> R.string.badge_first_ride
+        Badge.CENTURY -> R.string.badge_century
+        Badge.THOUSAND_CLUB -> R.string.badge_thousand_club
+        Badge.SPEED_DEMON -> R.string.badge_speed_demon
+        Badge.MOUNTAIN_GOAT -> R.string.badge_mountain_goat
+        Badge.MARATHON_MONTH -> R.string.badge_marathon_month
+        Badge.STREAK_3 -> R.string.badge_streak_3
     }
 
     /**

@@ -253,4 +253,22 @@
     <string name="correction_status_done">Korrigiert</string>
     <string name="label_confidence">Genauigkeit</string>
     <string name="toast_correction_queued">GPS-Korrektion angefordert</string>
+
+    <!-- Stats — persönliche Rekorde und Erfolge (B15) -->
+    <string name="stats_records_title">Persönliche Rekorde</string>
+    <string name="stats_achievements_title">Leistungen</string>
+    <string name="rec_longest_ride">Längste Tour</string>
+    <string name="rec_fastest_avg">Schnellste Ø-Geschw.</string>
+    <string name="rec_top_speed">Spitzengeschwindigkeit</string>
+    <string name="rec_highest_ascent">Höchster Anstieg</string>
+    <string name="rec_best_month">Bester Monat</string>
+    <string name="rec_day_streak">Tagesserie</string>
+    <string name="unit_days">Tage</string>
+    <string name="badge_first_ride">Erste Tour</string>
+    <string name="badge_century">Hunderter</string>
+    <string name="badge_thousand_club">Tausenderclub</string>
+    <string name="badge_speed_demon">Speedteufel</string>
+    <string name="badge_mountain_goat">Bergziege</string>
+    <string name="badge_marathon_month">Marathonmonat</string>
+    <string name="badge_streak_3">3-Tages-Serie</string>
 </resources>

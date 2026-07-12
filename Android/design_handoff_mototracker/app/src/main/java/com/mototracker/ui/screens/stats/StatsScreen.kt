@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,7 +36,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
-import androidx.compose.ui.text.font.FontWeight
 
 /**
  * Statistics screen — thin ViewModel wrapper that delegates to [StatsContent].
@@ -71,6 +75,8 @@ fun StatsContent(
         StatTilesGrid(state)
         MonthBarCard(state)
         RidingStyleCard(state)
+        if (state.records.isNotEmpty()) RecordsCard(state)
+        if (state.badges.isNotEmpty()) AchievementsCard(state)
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -319,5 +325,103 @@ private fun StyleBar(
             color = barColor,
             trackColor = MotoTracker.colors.panel2,
         )
+    }
+}
+
+// ── Personal records card ─────────────────────────────────────────────────────
+
+@Composable
+private fun RecordsCard(state: StatsUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MotoTracker.colors.panel)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.stats_records_title).uppercase(),
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.dim,
+        )
+        for (record in state.records) {
+            RecordRow(item = record)
+        }
+    }
+}
+
+@Composable
+private fun RecordRow(item: RecordItemUi) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(item.labelRes).uppercase(),
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.dim,
+        )
+        val valueText = if (item.unitRes != null) {
+            "${item.valueDisplay} ${stringResource(item.unitRes)}"
+        } else {
+            item.valueDisplay
+        }
+        Text(
+            text = valueText,
+            style = MotoTracker.typography.label.copy(
+                fontFamily = JetBrainsMonoFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+            color = MotoTracker.colors.text,
+        )
+    }
+}
+
+// ── Achievements / badges card ────────────────────────────────────────────────
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AchievementsCard(state: StatsUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MotoTracker.colors.panel)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.stats_achievements_title).uppercase(),
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.dim,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            for (badgeUi in state.badges) {
+                SuggestionChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = stringResource(badgeUi.nameRes),
+                            style = MotoTracker.typography.label.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.sp,
+                            ),
+                        )
+                    },
+                    colors = SuggestionChipDefaults.suggestionChipColors(
+                        containerColor = MotoTracker.colors.accent.copy(alpha = 0.15f),
+                        labelColor = MotoTracker.colors.accent,
+                    ),
+                    border = null,
+                )
+            }
+        }
     }
 }

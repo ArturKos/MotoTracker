@@ -253,4 +253,22 @@
     <string name="correction_status_done">Opraveno</string>
     <string name="label_confidence">Spolehlivost</string>
     <string name="toast_correction_queued">GPS korekce zařazena</string>
+
+    <!-- Stats — osobní rekordy a úspěchy (B15) -->
+    <string name="stats_records_title">Osobní rekordy</string>
+    <string name="stats_achievements_title">Úspěchy</string>
+    <string name="rec_longest_ride">Nejdelší jízda</string>
+    <string name="rec_fastest_avg">Nejrychlejší průměr</string>
+    <string name="rec_top_speed">Maximální rychlost</string>
+    <string name="rec_highest_ascent">Největší stoupání</string>
+    <string name="rec_best_month">Nejlepší měsíc</string>
+    <string name="rec_day_streak">Série dní</string>
+    <string name="unit_days">dní</string>
+    <string name="badge_first_ride">První jízda</string>
+    <string name="badge_century">Stovka</string>
+    <string name="badge_thousand_club">Klub tisíce</string>
+    <string name="badge_speed_demon">Démon rychlosti</string>
+    <string name="badge_mountain_goat">Horský kozel</string>
+    <string name="badge_marathon_month">Maratonský měsíc</string>
+    <string name="badge_streak_3">Série 3 dní</string>
 </resources>

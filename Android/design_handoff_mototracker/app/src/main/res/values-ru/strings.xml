@@ -253,4 +253,22 @@
     <string name="correction_status_done">Скорректировано</string>
     <string name="label_confidence">Достоверность</string>
     <string name="toast_correction_queued">GPS-коррекция поставлена в очередь</string>
+
+    <!-- Stats — личные рекорды и достижения (B15) -->
+    <string name="stats_records_title">Личные рекорды</string>
+    <string name="stats_achievements_title">Достижения</string>
+    <string name="rec_longest_ride">Самый длинный маршрут</string>
+    <string name="rec_fastest_avg">Быстр. ср. скорость</string>
+    <string name="rec_top_speed">Рекорд скорости</string>
+    <string name="rec_highest_ascent">Макс. набор высоты</string>
+    <string name="rec_best_month">Лучший месяц</string>
+    <string name="rec_day_streak">Серия дней</string>
+    <string name="unit_days">дней</string>
+    <string name="badge_first_ride">Первая поездка</string>
+    <string name="badge_century">Сотня</string>
+    <string name="badge_thousand_club">Клуб тысячи</string>
+    <string name="badge_speed_demon">Скоростной демон</string>
+    <string name="badge_mountain_goat">Горный козёл</string>
+    <string name="badge_marathon_month">Марафонский месяц</string>
+    <string name="badge_streak_3">Серия 3 дней</string>
 </resources>

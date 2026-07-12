@@ -5,6 +5,7 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.domain.stats.Badge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -329,6 +330,133 @@ class StatsViewModelTest {
         viewModel.uiState.test {
             // average = 38.0 → "38°"
             assertEquals("38°", awaitItem().style.avgLeanDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── records — empty-route behaviour ─────────────────────────────────────
+
+    @Test
+    fun `records and badges are empty when no routes`() {
+        val s = viewModel.uiState.value
+        assertTrue(s.records.isEmpty())
+        assertTrue(s.badges.isEmpty())
+    }
+
+    // ── records — populated state ────────────────────────────────────────────
+
+    @Test
+    fun `records list has 6 rows for non-empty route set`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1")))
+        viewModel.uiState.test {
+            assertEquals(6, awaitItem().records.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `records longestRide formatted as metric distance`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", km = 123.5)))
+        viewModel.uiState.test {
+            val recordRow = awaitItem().records.first()
+            assertEquals("123.5 km", recordRow.valueDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `records longestRide formatted as imperial distance`() = runTest {
+        settings.emit(AppSettings(units = "imperial"))
+        routeRepo.emit(listOf(makeRoute("r1", km = 100.0)))
+        viewModel.uiState.test {
+            val recordRow = awaitItem().records.first()
+            assertTrue(recordRow.valueDisplay.endsWith("mi"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `records topSpeed formatted in metric`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", max = 155.0)))
+        viewModel.uiState.test {
+            // records index 2 = rec_top_speed
+            val topSpeedRow = awaitItem().records[2]
+            assertEquals("155 km/h", topSpeedRow.valueDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `records topSpeed formatted in imperial`() = runTest {
+        settings.emit(AppSettings(units = "imperial"))
+        routeRepo.emit(listOf(makeRoute("r1", max = 160.0)))
+        viewModel.uiState.test {
+            val topSpeedRow = awaitItem().records[2]
+            assertTrue(topSpeedRow.valueDisplay.endsWith("mph"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `records dayStreak valueDisplay is bare integer and unitRes is set`() = runTest {
+        // Single route → streak = 1; the unit label lives in unitRes, not embedded in valueDisplay
+        routeRepo.emit(listOf(makeRoute("r1")))
+        viewModel.uiState.test {
+            val streakRow = awaitItem().records[5]
+            assertEquals("1", streakRow.valueDisplay)
+            assertTrue("streak row must carry a unitRes for the days label", streakRow.unitRes != null)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── badges ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun `FIRST_RIDE badge is present after first route`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1")))
+        viewModel.uiState.test {
+            val badges = awaitItem().badges.map { it.badge }
+            assertTrue(Badge.FIRST_RIDE in badges)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `CENTURY badge is present when any route has 100 km`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", km = 100.0)))
+        viewModel.uiState.test {
+            val badges = awaitItem().badges.map { it.badge }
+            assertTrue(Badge.CENTURY in badges)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `SPEED_DEMON badge is present when max speed reaches 150 kmh`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", max = 150.0)))
+        viewModel.uiState.test {
+            val badges = awaitItem().badges.map { it.badge }
+            assertTrue(Badge.SPEED_DEMON in badges)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `badges are empty when no routes`() = runTest {
+        routeRepo.emit(emptyList())
+        viewModel.uiState.test {
+            assertTrue(awaitItem().badges.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `each badge has a non-zero nameRes`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1")))
+        viewModel.uiState.test {
+            for (badgeUi in awaitItem().badges) {
+                assertTrue("nameRes for ${badgeUi.badge} must be > 0", badgeUi.nameRes > 0)
+            }
             cancelAndIgnoreRemainingEvents()
         }
     }

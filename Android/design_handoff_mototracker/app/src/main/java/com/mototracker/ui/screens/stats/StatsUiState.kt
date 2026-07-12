@@ -1,5 +1,7 @@
 package com.mototracker.ui.screens.stats
 
+import com.mototracker.domain.stats.Badge
+
 /**
  * Immutable UI state for the Statistics screen.
  *
@@ -15,6 +17,8 @@ package com.mototracker.ui.screens.stats
  * @param yearLabel             4-digit year of the newest route shown in the bar-chart header,
  *                              or an empty string when there are no routes.
  * @param style                 Riding-style summary fractions and display strings.
+ * @param records               Pre-formatted personal-record rows for the Records card.
+ * @param badges                Earned achievement badges for the Achievements card.
  */
 data class StatsUiState(
     val totalDistanceDisplay: String = "0.0 km",
@@ -26,6 +30,8 @@ data class StatsUiState(
     val monthBars: List<MonthBarUi> = emptyList(),
     val yearLabel: String = "",
     val style: RidingStyleUi = RidingStyleUi(),
+    val records: List<RecordItemUi> = emptyList(),
+    val badges: List<BadgeUi> = emptyList(),
 )
 
 /**
@@ -39,6 +45,32 @@ data class MonthBarUi(
     val monthLabel: String,
     val kmDisplay: String,
     val heightFraction: Float,
+)
+
+/**
+ * A single row in the personal-records card.
+ *
+ * @param labelRes     String resource ID for the row label, e.g. `R.string.rec_longest_ride`.
+ * @param valueDisplay Pre-formatted numeric value (without trailing unit), e.g. `"324.5 km"` or `"3"`.
+ * @param unitRes      Optional string resource ID for a unit label appended after [valueDisplay]
+ *                     (e.g. `R.string.unit_days` for the day-streak row). `null` means the unit
+ *                     is already embedded in [valueDisplay].
+ */
+data class RecordItemUi(
+    val labelRes: Int,
+    val valueDisplay: String,
+    val unitRes: Int? = null,
+)
+
+/**
+ * A single earned badge chip in the Achievements card.
+ *
+ * @param badge   The badge enum constant.
+ * @param nameRes String resource ID for the badge display name, e.g. `R.string.badge_century`.
+ */
+data class BadgeUi(
+    val badge: Badge,
+    val nameRes: Int,
 )
 
 /**

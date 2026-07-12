@@ -1,6 +1,7 @@
 package com.mototracker.ui.screens.detail
 
 import com.mototracker.core.format.WeatherUi
+import com.mototracker.ui.map.GeoCoord
 
 /**
  * Single value + unit for one stat tile on the route-detail screen.
@@ -52,6 +53,8 @@ data class MeetingUi(
  * @param elevFill          Closed polyline `points` for the translucent elevation fill.
  * @param elevGainLabel     Formatted total elevation gain, e.g. `"↑ 840 m"`.
  * @param thumbnailPathD    SVG path `d` string for the route track thumbnail (320×200 viewBox).
+ * @param trackPoints       Ordered GPS coordinates parsed from the raw path JSON; used by
+ *                          [com.mototracker.ui.map.OsmTrackMap] to draw the route polyline.
  * @param meetings          List of Bluetooth wave meetups recorded on this route.
  * @param meetingsNone      `true` when [meetings] is empty.
  * @param queued            `true` when the route has not yet been synced (drives "Send" button).
@@ -76,6 +79,7 @@ data class RouteDetailUiState(
     val elevFill: String = "",
     val elevGainLabel: String = "",
     val thumbnailPathD: String = "",
+    val trackPoints: List<GeoCoord> = emptyList(),
     val meetings: List<MeetingUi> = emptyList(),
     val meetingsNone: Boolean = true,
     val queued: Boolean = false,

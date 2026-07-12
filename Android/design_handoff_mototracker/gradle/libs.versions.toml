@@ -21,6 +21,7 @@ robolectric = "4.13"
 androidxTestCore = "1.6.1"
 androidxTestExtJunit = "1.2.1"
 mockk = "1.13.12"
+osmdroid = "6.1.20"
 
 [libraries]
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
@@ -52,6 +53,7 @@ androidx-test-core = { group = "androidx.test", name = "core", version.ref = "an
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
 androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

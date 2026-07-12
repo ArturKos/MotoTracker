@@ -1,6 +1,7 @@
 package com.mototracker.ui.screens.record
 
 import com.mototracker.domain.recording.RecordingMetrics
+import com.mototracker.ui.map.GeoCoord
 
 /** Recording session lifecycle phase. */
 enum class RecordingPhase { Idle, Recording, Paused }
@@ -24,6 +25,8 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param gpsSatCount    Number of GPS satellites in use; shown in the GPS chip.
  * @param gpsOnRoad      Whether GPS-to-road correction is active (from settings).
  * @param weather        Current weather, or null when offline / not yet fetched.
+ * @param trackPoints    Ordered GPS coordinates accumulated during the active recording session;
+ *                       reset to empty on Start and on Finish.
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -31,6 +34,7 @@ data class RecordingUiState(
     val gpsSatCount: Int = 0,
     val gpsOnRoad: Boolean = false,
     val weather: WeatherInfo? = null,
+    val trackPoints: List<GeoCoord> = emptyList(),
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */

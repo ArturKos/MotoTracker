@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +50,7 @@ import com.mototracker.service.RecordingService
 import com.mototracker.ui.permissions.AppFeaturePermission
 import com.mototracker.ui.permissions.PermissionDeniedBanner
 import com.mototracker.ui.permissions.rememberFeaturePermission
+import com.mototracker.ui.map.OsmTrackMap
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
 import kotlin.math.abs
@@ -121,7 +121,11 @@ fun RecordingScreen(
                     .weight(1f)
                     .background(MotoTracker.colors.panel),
             ) {
-                RecordingMapPlaceholder(state, Modifier.fillMaxSize())
+                OsmTrackMap(
+                    points = state.trackPoints,
+                    modifier = Modifier.fillMaxSize(),
+                    followLatest = true,
+                )
 
                 GpsChip(
                     satCount = state.gpsSatCount,
@@ -186,86 +190,6 @@ fun RecordingScreen(
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Map placeholder
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Schematic map stand-in with a growing track line and a pulsing position dot.
- * Replaced by an actual map tile in on-device testing (🔬).
- */
-@Composable
-private fun RecordingMapPlaceholder(state: RecordingUiState, modifier: Modifier = Modifier) {
-    val accentColor = MotoTracker.colors.accent
-    val dimColor = MotoTracker.colors.dim
-    val panel2 = MotoTracker.colors.panel2
-
-    Canvas(modifier.fillMaxSize()) {
-        // Grid lines
-        val step = size.width / 6
-        for (i in 1..5) {
-            drawLine(
-                color = dimColor.copy(alpha = 0.2f),
-                start = Offset(i * step, 0f),
-                end = Offset(i * step, size.height),
-                strokeWidth = 1.dp.toPx(),
-            )
-        }
-        val hStep = size.height / 4
-        for (i in 1..3) {
-            drawLine(
-                color = dimColor.copy(alpha = 0.2f),
-                start = Offset(0f, i * hStep),
-                end = Offset(size.width, i * hStep),
-                strokeWidth = 1.dp.toPx(),
-            )
-        }
-
-        // Simulated track path (simplified sine-wave for placeholder)
-        if (state.phase != RecordingPhase.Idle) {
-            val path = Path()
-            val w = size.width
-            val cy = size.height * 0.55f
-            path.moveTo(w * 0.1f, cy)
-            path.cubicTo(
-                w * 0.3f, cy - size.height * 0.2f,
-                w * 0.5f, cy + size.height * 0.15f,
-                w * 0.7f, cy - size.height * 0.1f,
-            )
-            drawPath(
-                path = path,
-                color = accentColor.copy(alpha = 0.7f),
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
-            )
-            // Position pulse dot
-            drawCircle(
-                color = accentColor,
-                radius = 8.dp.toPx(),
-                center = Offset(w * 0.7f, cy - size.height * 0.1f),
-            )
-            drawCircle(
-                color = accentColor.copy(alpha = 0.3f),
-                radius = 16.dp.toPx(),
-                center = Offset(w * 0.7f, cy - size.height * 0.1f),
-            )
-        }
-
-        // Center cross (compass ref)
-        drawLine(
-            color = panel2,
-            start = Offset(size.width / 2 - 10.dp.toPx(), size.height / 2),
-            end = Offset(size.width / 2 + 10.dp.toPx(), size.height / 2),
-            strokeWidth = 1.dp.toPx(),
-        )
-        drawLine(
-            color = panel2,
-            start = Offset(size.width / 2, size.height / 2 - 10.dp.toPx()),
-            end = Offset(size.width / 2, size.height / 2 + 10.dp.toPx()),
-            strokeWidth = 1.dp.toPx(),
         )
     }
 }

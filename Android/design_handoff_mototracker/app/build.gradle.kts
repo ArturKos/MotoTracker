@@ -74,6 +74,7 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.car.app)
+    implementation(libs.osmdroid.android)
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

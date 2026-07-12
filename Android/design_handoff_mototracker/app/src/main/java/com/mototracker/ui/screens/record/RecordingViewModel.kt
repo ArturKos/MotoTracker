@@ -13,6 +13,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.recording.RecordingEngine
+import com.mototracker.ui.map.GeoCoord
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -119,7 +120,7 @@ class RecordingViewModel @Inject constructor(
     private fun doStart() {
         engine.reset()
         rideDebugLogger.beginRide()
-        _uiState.update { it.copy(phase = RecordingPhase.Recording) }
+        _uiState.update { it.copy(phase = RecordingPhase.Recording, trackPoints = emptyList()) }
         startTicker()
         startLocationUpdates()
         startLeanUpdates()
@@ -176,7 +177,7 @@ class RecordingViewModel @Inject constructor(
             routeRepository.save(route)
             syncRepository.enqueue(route.id)
 
-            _uiState.update { it.copy(phase = RecordingPhase.Idle) }
+            _uiState.update { it.copy(phase = RecordingPhase.Idle, trackPoints = emptyList()) }
             _effects.emit(RecordingEffect.Saved(offline = offline))
             _effects.emit(RecordingEffect.NavigateToDetail(route.id))
             rideDebugLogger.endRide()
@@ -204,7 +205,10 @@ class RecordingViewModel @Inject constructor(
                         "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
                     )
                     val metrics = engine.onLocation(sample)
-                    _uiState.update { it.copy(metrics = metrics) }
+                    val coord = GeoCoord(sample.lat, sample.lng)
+                    _uiState.update { prev ->
+                        prev.copy(metrics = metrics, trackPoints = prev.trackPoints + coord)
+                    }
                 }
             } catch (_: SecurityException) {
                 rideDebugLogger.log("ERROR", "SecurityException — location permission revoked mid-session")

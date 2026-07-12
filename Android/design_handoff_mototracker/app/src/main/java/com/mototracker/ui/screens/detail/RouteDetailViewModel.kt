@@ -18,6 +18,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -205,6 +206,7 @@ class RouteDetailViewModel @Inject constructor(
             elevFill = elevPts.fill,
             elevGainLabel = elevGainLabel,
             thumbnailPathD = RouteThumbnail.buildPathD(route.pathJson),
+            trackPoints = TrackGeometry.parsePathJson(route.pathJson),
             meetings = meetingList,
             meetingsNone = meetingList.isEmpty(),
             queued = !route.synced,

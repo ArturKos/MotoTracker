@@ -2,7 +2,6 @@ package com.mototracker.ui.screens.detail
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.core.format.WeatherUi
+import com.mototracker.ui.map.OsmTrackMap
 import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.flow.collectLatest
@@ -153,10 +153,13 @@ private fun DetailContent(
         item { Spacer(Modifier.height(8.dp)) }
 
         item {
-            TrackPanel(
-                pathD = state.thumbnailPathD,
-                accent = MotoTracker.colors.accent,
-                accent2 = MotoTracker.colors.accent2,
+            OsmTrackMap(
+                points = state.trackPoints,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                showStartEndMarkers = true,
             )
         }
 
@@ -263,52 +266,6 @@ private fun DetailContent(
         }
 
         item { Spacer(Modifier.height(24.dp)) }
-    }
-}
-
-// ── Track panel ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun TrackPanel(pathD: String, accent: Color, accent2: Color, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MotoTracker.colors.panel2)
-            .border(1.dp, MotoTracker.colors.line, RoundedCornerShape(10.dp)),
-    ) {
-        if (pathD.isNotEmpty()) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val scaleX = size.width / 320f
-                val scaleY = size.height / 200f
-                val path = Path()
-                var firstPt: Offset? = null
-                var lastPt: Offset? = null
-                try {
-                    val tokens = pathD.trim().split(" ")
-                    var i = 0
-                    while (i < tokens.size) {
-                        when (tokens[i]) {
-                            "M" -> {
-                                val x = tokens[i + 1].toFloat() * scaleX
-                                val y = tokens[i + 2].toFloat() * scaleY
-                                path.moveTo(x, y); firstPt = Offset(x, y); lastPt = Offset(x, y); i += 3
-                            }
-                            "L" -> {
-                                val x = tokens[i + 1].toFloat() * scaleX
-                                val y = tokens[i + 2].toFloat() * scaleY
-                                path.lineTo(x, y); lastPt = Offset(x, y); i += 3
-                            }
-                            else -> i++
-                        }
-                    }
-                } catch (_: Exception) { return@Canvas }
-                drawPath(path, color = accent, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                firstPt?.let { drawCircle(color = accent, radius = 5.dp.toPx(), center = it) }
-                lastPt?.let { drawCircle(color = accent2, radius = 5.dp.toPx(), center = it) }
-            }
-        }
     }
 }
 

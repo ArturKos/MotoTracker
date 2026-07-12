@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.time.TimeProvider
+import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
@@ -50,6 +51,10 @@ import javax.inject.Inject
  * @param networkMonitor    Online/offline connectivity.
  * @param timeProvider      Wall-clock source (injectable for tests).
  * @param carBridge         App-scoped bridge that mirrors recording state to the Android Auto screen.
+ * @param rideDebugLogger   Diagnostic logger; writes GPS/lean/lifecycle events to a per-ride log
+ *                          file when diagnostics are enabled (no-op otherwise).
+ *                          Note: weather logging is not wired here — there is no weather seam
+ *                          in this ViewModel; weather events are logged at the data layer.
  */
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
@@ -61,6 +66,7 @@ class RecordingViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val timeProvider: TimeProvider,
     private val carBridge: CarRecordingBridge,
+    private val rideDebugLogger: RideDebugLogger,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -112,6 +118,7 @@ class RecordingViewModel @Inject constructor(
 
     private fun doStart() {
         engine.reset()
+        rideDebugLogger.beginRide()
         _uiState.update { it.copy(phase = RecordingPhase.Recording) }
         startTicker()
         startLocationUpdates()
@@ -120,16 +127,19 @@ class RecordingViewModel @Inject constructor(
 
     private fun doPause() {
         _uiState.update { it.copy(phase = RecordingPhase.Paused) }
+        rideDebugLogger.log("LIFECYCLE", "pause")
         tickerJob?.cancel()
         tickerJob = null
     }
 
     private fun doResume() {
         _uiState.update { it.copy(phase = RecordingPhase.Recording) }
+        rideDebugLogger.log("LIFECYCLE", "resume")
         startTicker()
     }
 
     private fun doFinish() {
+        rideDebugLogger.log("LIFECYCLE", "finish")
         tickerJob?.cancel()
         locationJob?.cancel()
         leanJob?.cancel()
@@ -169,6 +179,7 @@ class RecordingViewModel @Inject constructor(
             _uiState.update { it.copy(phase = RecordingPhase.Idle) }
             _effects.emit(RecordingEffect.Saved(offline = offline))
             _effects.emit(RecordingEffect.NavigateToDetail(route.id))
+            rideDebugLogger.endRide()
         }
     }
 
@@ -188,10 +199,15 @@ class RecordingViewModel @Inject constructor(
         locationJob = viewModelScope.launch {
             try {
                 locationClient.locationUpdates().collect { sample ->
+                    rideDebugLogger.log(
+                        "GPS",
+                        "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
+                    )
                     val metrics = engine.onLocation(sample)
                     _uiState.update { it.copy(metrics = metrics) }
                 }
             } catch (_: SecurityException) {
+                rideDebugLogger.log("ERROR", "SecurityException — location permission revoked mid-session")
                 // Permission was revoked mid-session; recording continues on ticker/lean only.
             }
         }
@@ -200,6 +216,7 @@ class RecordingViewModel @Inject constructor(
     private fun startLeanUpdates() {
         leanJob = viewModelScope.launch {
             leanSensorSource.leanAngles.collect { deg ->
+                rideDebugLogger.log("LEAN", "angle=$deg")
                 engine.onLean(deg)
                 _uiState.update { it.copy(metrics = engine.snapshot()) }
             }

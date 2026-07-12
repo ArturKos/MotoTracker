@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -175,9 +176,29 @@ fun LoginScreen(
                 disabledContentColor = MotoTracker.colors.dim,
             ),
         ) {
+            if (uiState.loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = MotoTracker.colors.onAccent,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.btn_sign_in_sync).uppercase(),
+                    style = MotoTracker.typography.label,
+                )
+            }
+        }
+
+        val errorRes = uiState.errorMessage
+        if (errorRes != null) {
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.btn_sign_in_sync).uppercase(),
-                style = MotoTracker.typography.label,
+                text = stringResource(errorRes),
+                style = MotoTracker.typography.bodySmall,
+                color = MotoTracker.colors.accent2,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 

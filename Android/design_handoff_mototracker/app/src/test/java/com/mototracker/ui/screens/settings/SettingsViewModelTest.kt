@@ -1,6 +1,8 @@
 package com.mototracker.ui.screens.settings
 
 import app.cash.turbine.test
+import com.mototracker.data.diagnostics.RideLogShareIntentFactory
+import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
@@ -21,9 +23,11 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 import java.util.Calendar
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +112,27 @@ private class FakeSyncRepository : SyncRepository {
     override fun start(scope: CoroutineScope) {}
 }
 
+private class FakeRideLogStore(
+    private var bytesValue: Long = 0L,
+    private var latestFile: File? = null,
+) : RideLogStore {
+    var clearCalls = 0
+
+    override fun latestLog(): File? = latestFile
+    override fun totalBytes(): Long = bytesValue
+
+    override fun clear(): Int {
+        clearCalls++
+        val count = if (latestFile != null) 1 else 0
+        latestFile = null
+        bytesValue = 0L
+        return count
+    }
+
+    fun setBytes(bytes: Long) { bytesValue = bytes }
+    fun setLatestFile(file: File?) { latestFile = file }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,6 +183,7 @@ class SettingsViewModelTest {
     private lateinit var bikeRepo: FakeBikeRepository
     private lateinit var routeRepo: FakeRouteRepository
     private lateinit var syncRepo: FakeSyncRepository
+    private lateinit var logStore: FakeRideLogStore
     private lateinit var vm: SettingsViewModel
 
     @Before
@@ -167,7 +193,8 @@ class SettingsViewModelTest {
         bikeRepo = FakeBikeRepository()
         routeRepo = FakeRouteRepository()
         syncRepo = FakeSyncRepository()
-        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo)
+        logStore = FakeRideLogStore()
+        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory())
     }
 
     @After
@@ -544,6 +571,75 @@ class SettingsViewModelTest {
     fun `BikeFormValidation allows blank plate`() {
         val result = BikeFormValidation.validate("MT-07", "2020", "")
         assertTrue(result is BikeFormResult.Valid)
+    }
+
+    // ── Diagnostics (B10) ─────────────────────────────────────────────────────
+
+    @Test
+    fun `setDebugLogging persists value to settings store`() = runTest {
+        vm.setDebugLogging(true)
+        vm.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.debugLoggingEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setDebugLogging false persists false to settings store`() = runTest {
+        store.emit(AppSettings(debugLoggingEnabled = true))
+        vm.setDebugLogging(false)
+        vm.uiState.test {
+            val state = awaitItem()
+            assertFalse(state.debugLoggingEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `rideLogUsedBytes reflects store totalBytes on init`() = runTest {
+        logStore.setBytes(2048L)
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory())
+        // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
+        // Drain until we find the non-zero value emitted after the init block completes.
+        localVm.uiState.test {
+            var state = awaitItem()
+            while (state.rideLogUsedBytes == 0L) { state = awaitItem() }
+            assertEquals(2048L, state.rideLogUsedBytes)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `clearRideLogs calls store clear and updates rideLogUsedBytes to 0`() = runTest {
+        logStore.setBytes(4096L)
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory())
+        // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
+        // Drain until we see the init-loaded state (4096L) before testing clear.
+        localVm.uiState.test {
+            var initialState = awaitItem()
+            while (initialState.rideLogUsedBytes == 0L) { initialState = awaitItem() }
+            assertEquals(4096L, initialState.rideLogUsedBytes)
+
+            localVm.clearRideLogs()
+            val updatedState = awaitItem()
+            assertEquals(0L, updatedState.rideLogUsedBytes)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(1, logStore.clearCalls)
+    }
+
+    @Test
+    fun `getShareTargetFile returns null when no log exists`() {
+        logStore.setLatestFile(null)
+        assertNull(vm.getShareTargetFile())
+    }
+
+    @Test
+    fun `getShareTargetFile returns latest log file from store`() {
+        val fakeFile = File("/tmp/ride-test.log")
+        logStore.setLatestFile(fakeFile)
+        assertEquals(fakeFile, vm.getShareTargetFile())
     }
 
     // ── Settings state reflected in uiState ───────────────────────────────────

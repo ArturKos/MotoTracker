@@ -3,6 +3,8 @@ package com.mototracker.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.core.format.UnitFormatter
+import com.mototracker.data.diagnostics.RideLogShareIntentFactory
+import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
@@ -13,11 +15,15 @@ import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.SettingsStore
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -32,10 +38,12 @@ import javax.inject.Inject
  * single [SettingsUiState] via the pure [build] function. All intent methods
  * delegate to [SettingsStore], [BikeRepository], or [SyncRepository] — never to UI.
  *
- * @param settingsStore   Reads and writes all persisted [AppSettings].
- * @param bikeRepository  Provides and mutates the motorcycle list.
- * @param routeRepository Provides the route list (for sync queue + broadcast auto-stats).
- * @param syncRepository  Drains the outbound sync queue.
+ * @param settingsStore      Reads and writes all persisted [AppSettings].
+ * @param bikeRepository     Provides and mutates the motorcycle list.
+ * @param routeRepository    Provides the route list (for sync queue + broadcast auto-stats).
+ * @param syncRepository     Drains the outbound sync queue.
+ * @param rideLogStore       Read-only access to ride-log files (size + delete).
+ * @param shareIntentFactory Selects the file to share in the Diagnostics section.
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -43,15 +51,26 @@ class SettingsViewModel @Inject constructor(
     private val bikeRepository: BikeRepository,
     private val routeRepository: RouteRepository,
     private val syncRepository: SyncRepository,
+    private val rideLogStore: RideLogStore,
+    private val shareIntentFactory: RideLogShareIntentFactory,
 ) : ViewModel() {
+
+    private val _rideLogUsedBytes = MutableStateFlow(0L)
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            _rideLogUsedBytes.value = rideLogStore.totalBytes()
+        }
+    }
 
     /** Live UI state for the Settings screen. */
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsStore.settings,
         bikeRepository.observeAll(),
         routeRepository.observeAll(),
-    ) { settings, bikes, routes ->
-        build(settings, bikes, routes)
+        _rideLogUsedBytes,
+    ) { settings, bikes, routes, logBytes ->
+        build(settings, bikes, routes, logBytes)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -64,6 +83,7 @@ class SettingsViewModel @Inject constructor(
         settings: AppSettings,
         bikes: List<Bike>,
         routes: List<Route>,
+        rideLogUsedBytes: Long = 0L,
     ): SettingsUiState {
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
@@ -127,6 +147,7 @@ class SettingsViewModel @Inject constructor(
             autoPause = settings.autoPause,
             keepScreenOn = settings.keepScreenOn,
             debugLoggingEnabled = settings.debugLoggingEnabled,
+            rideLogUsedBytes = rideLogUsedBytes,
         )
     }
 
@@ -284,4 +305,28 @@ class SettingsViewModel @Inject constructor(
     fun setKeepScreenOn(value: Boolean) {
         viewModelScope.launch { settingsStore.setKeepScreenOn(value) }
     }
+
+    /** Persists the diagnostic ride-logging enabled flag. */
+    fun setDebugLogging(value: Boolean) {
+        viewModelScope.launch { settingsStore.setDebugLoggingEnabled(value) }
+    }
+
+    /**
+     * Deletes all files in the ride-logs directory and refreshes [SettingsUiState.rideLogUsedBytes].
+     */
+    fun clearRideLogs() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                rideLogStore.clear()
+                _rideLogUsedBytes.value = rideLogStore.totalBytes()
+            }
+        }
+    }
+
+    /**
+     * Returns the latest ride-log file suitable for sharing via [shareIntentFactory], or null
+     * when no log exists.  The Composable uses the returned [File] to obtain a `content://` URI
+     * via `FileProvider.getUriForFile` and launches `Intent.ACTION_SEND`.
+     */
+    fun getShareTargetFile(): File? = shareIntentFactory.shareTargetFile(rideLogStore)
 }

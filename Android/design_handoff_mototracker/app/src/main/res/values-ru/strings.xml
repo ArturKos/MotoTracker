@@ -33,6 +33,8 @@
     <string name="btn_sign_in_sync">Войти и синхрон.</string>
     <string name="btn_guest_continue">Продолжить без аккаунта</string>
     <string name="note_guest_mode">Без аккаунта данные хранятся локально на телефоне.</string>
+    <string name="login_error_invalid_credentials">Неверный e-mail или пароль.</string>
+    <string name="login_error_network">Ошибка сети. Проверьте соединение и адрес сервера.</string>
 
     <string name="label_gps_status">GPS · 12 сп</string>
     <string name="tile_speed">Скорость</string>
@@ -218,4 +220,12 @@
     <string name="tod_afternoon">день</string>
     <string name="tod_evening">вечер</string>
     <string name="tod_night">ночь</string>
+
+    <!-- Settings — diagnostics sub-group (B10) -->
+    <string name="section_diagnostics">Диагностика</string>
+    <string name="label_debug_logging">Записывать диагностические логи во время езды</string>
+    <string name="desc_debug_logging">Файлы журналов сохраняются во внешнем хранилище</string>
+    <string name="action_share_log">Поделиться логом</string>
+    <string name="action_clear_logs">Очистить логи</string>
+    <string name="diag_used_space">Занято места: %1$s</string>
 </resources>

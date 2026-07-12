@@ -68,8 +68,8 @@ data class SyncQueueItemUi(
  * @param autoPause            Preference: auto-pause recording when stationary.
  * @param keepScreenOn         Preference: keep display on during a ride.
  * @param debugLoggingEnabled  Diagnostics: write per-ride log files to external storage.
- *                             Exposed here so B10 can bind a toggle; no Settings row
- *                             is added in A8.
+ * @param rideLogUsedBytes     Diagnostics: total bytes consumed by ride-log files in
+ *                             external storage; 0 when logging is disabled or no logs exist.
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -95,4 +95,5 @@ data class SettingsUiState(
     val autoPause: Boolean = true,
     val keepScreenOn: Boolean = false,
     val debugLoggingEnabled: Boolean = false,
+    val rideLogUsedBytes: Long = 0L,
 )

@@ -38,6 +38,8 @@
     <string name="btn_sign_in_sync">Sign in &amp; sync</string>
     <string name="btn_guest_continue">Continue without account</string>
     <string name="note_guest_mode">Without an account data is stored locally on the phone.</string>
+    <string name="login_error_invalid_credentials">Incorrect email or password.</string>
+    <string name="login_error_network">Network error. Check your connection and server address.</string>
 
     <!-- Recording screen -->
     <string name="label_gps_status">GPS · 12 sat</string>
@@ -248,4 +250,12 @@
     <string name="tod_afternoon">afternoon</string>
     <string name="tod_evening">evening</string>
     <string name="tod_night">night</string>
+
+    <!-- Settings — diagnostics sub-group (B10) -->
+    <string name="section_diagnostics">Diagnostics</string>
+    <string name="label_debug_logging">Record diagnostic logs during rides</string>
+    <string name="desc_debug_logging">Log files saved to external storage</string>
+    <string name="action_share_log">Share log</string>
+    <string name="action_clear_logs">Clear logs</string>
+    <string name="diag_used_space">Used space: %1$s</string>
 </resources>

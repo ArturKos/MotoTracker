@@ -2,6 +2,7 @@ package com.mototracker.ui.screens.record
 
 import app.cash.turbine.test
 import com.mototracker.core.time.TimeProvider
+import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
@@ -80,6 +81,16 @@ private class FakeTimeProvider(private val nowMs: Long = 1_000_000L) : TimeProvi
     override fun nowEpochMs(): Long = nowMs
 }
 
+private class FakeRideDebugLogger : RideDebugLogger {
+    val beginRideCalls = mutableListOf<Unit>()
+    val endRideCalls = mutableListOf<Unit>()
+    val logCalls = mutableListOf<Pair<String, String>>()
+
+    override fun beginRide() { beginRideCalls += Unit }
+    override fun endRide() { endRideCalls += Unit }
+    override fun log(tag: String, message: String) { logCalls += tag to message }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,6 +101,7 @@ class RecordingViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var routeRepo: FakeRouteRepository
     private lateinit var syncRepo: FakeSyncRepository
+    private lateinit var fakeLogger: FakeRideDebugLogger
     private lateinit var viewModel: RecordingViewModel
 
     @Before
@@ -97,6 +109,7 @@ class RecordingViewModelTest {
         Dispatchers.setMain(testDispatcher)
         routeRepo = FakeRouteRepository()
         syncRepo = FakeSyncRepository()
+        fakeLogger = FakeRideDebugLogger()
         viewModel = buildViewModel()
     }
 
@@ -369,6 +382,108 @@ class RecordingViewModelTest {
         assertFalse("gpsOnRoad should be false when gpsCorrect=false", vmOff.uiState.value.gpsOnRoad)
     }
 
+    // ── RideDebugLogger wiring (B10) ─────────────────────────────────────────
+
+    @Test
+    fun `Start calls beginRide on logger`() = runTest(testDispatcher) {
+        viewModel.onEvent(RecordingEvent.Start)
+        // advanceUntilIdle() would hang with the infinite ticker loop; advance just enough.
+        advanceTimeBy(200L)
+        assertTrue("beginRide should be called on Start", fakeLogger.beginRideCalls.isNotEmpty())
+        viewModel.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `Pause logs LIFECYCLE pause`() = runTest(testDispatcher) {
+        viewModel.onEvent(RecordingEvent.Start)
+        viewModel.onEvent(RecordingEvent.Pause)
+        assertTrue(
+            "LIFECYCLE pause log expected",
+            fakeLogger.logCalls.any { it.first == "LIFECYCLE" && it.second.contains("pause") },
+        )
+    }
+
+    @Test
+    fun `Resume logs LIFECYCLE resume`() = runTest(testDispatcher) {
+        viewModel.onEvent(RecordingEvent.Start)
+        viewModel.onEvent(RecordingEvent.Pause)
+        viewModel.onEvent(RecordingEvent.Resume)
+        assertTrue(
+            "LIFECYCLE resume log expected",
+            fakeLogger.logCalls.any { it.first == "LIFECYCLE" && it.second.contains("resume") },
+        )
+        viewModel.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `Finish logs LIFECYCLE finish and calls endRide`() = runTest(testDispatcher) {
+        viewModel.onEvent(RecordingEvent.Start)
+        viewModel.onEvent(RecordingEvent.Finish)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(
+            "LIFECYCLE finish log expected",
+            fakeLogger.logCalls.any { it.first == "LIFECYCLE" && it.second.contains("finish") },
+        )
+        assertTrue("endRide should be called on Finish", fakeLogger.endRideCalls.isNotEmpty())
+    }
+
+    @Test
+    fun `GPS samples are logged per location update`() = runTest(testDispatcher) {
+        val locationFlow = MutableSharedFlow<LocationSample>(replay = 0)
+        val vm = buildViewModel(
+            locationClient = FakeLocationClient(locationFlow),
+            rideDebugLogger = fakeLogger,
+        )
+        vm.onEvent(RecordingEvent.Start)
+        locationFlow.emit(
+            LocationSample(lat = 50.0, lng = 20.0, speedMps = 16.7, altitudeM = 200.0, bearingDeg = 0f, timeMs = 1000L),
+        )
+        // advanceUntilIdle() would hang with the infinite ticker loop; advance just enough.
+        advanceTimeBy(200L)
+
+        assertTrue(
+            "GPS log expected",
+            fakeLogger.logCalls.any { it.first == "GPS" },
+        )
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `lean readings are logged per sensor update`() = runTest(testDispatcher) {
+        val leanFlow = MutableSharedFlow<Double>(replay = 0)
+        val vm = buildViewModel(
+            leanSensorSource = FakeLeanSensorSource(leanFlow),
+            rideDebugLogger = fakeLogger,
+        )
+        vm.onEvent(RecordingEvent.Start)
+        leanFlow.emit(15.5)
+        // advanceUntilIdle() would hang with the infinite ticker loop; advance just enough.
+        advanceTimeBy(200L)
+
+        assertTrue(
+            "LEAN log expected",
+            fakeLogger.logCalls.any { it.first == "LEAN" },
+        )
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `SecurityException in location flow logs ERROR`() = runTest(testDispatcher) {
+        val securityFlow = flow<LocationSample> { throw SecurityException("denied") }
+        val vm = buildViewModel(
+            locationClient = FakeLocationClient(securityFlow),
+            rideDebugLogger = fakeLogger,
+        )
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(200L)
+
+        assertTrue(
+            "ERROR log expected after SecurityException",
+            fakeLogger.logCalls.any { it.first == "ERROR" },
+        )
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun buildViewModel(
@@ -379,14 +494,17 @@ class RecordingViewModelTest {
         routeRepository: RouteRepository = routeRepo,
         fixedTimeMs: Long = 1_000_000L,
         locationClient: LocationClient = FakeLocationClient(),
+        leanSensorSource: LeanSensorSource = FakeLeanSensorSource(),
+        rideDebugLogger: RideDebugLogger = fakeLogger,
     ) = RecordingViewModel(
         locationClient = locationClient,
-        leanSensorSource = FakeLeanSensorSource(),
+        leanSensorSource = leanSensorSource,
         routeRepository = routeRepository,
         syncRepository = syncRepo,
         settingsSource = FakeSettingsSource(settings),
         networkMonitor = FakeNetworkMonitor(isOnline = online),
         timeProvider = FakeTimeProvider(fixedTimeMs),
         carBridge = com.mototracker.car.CarRecordingBridge(),
+        rideDebugLogger = rideDebugLogger,
     )
 }

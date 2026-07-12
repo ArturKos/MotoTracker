@@ -1,5 +1,7 @@
 package com.mototracker.ui.screens.settings
 
+import android.content.Intent
+import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
@@ -263,6 +266,7 @@ fun SettingsScreen(
 
         // ── §7 System & privacy ───────────────────────────────────────────────
         item {
+            val ctx = LocalContext.current
             SectionHeader(title = stringResource(R.string.section_system))
             LabeledSwitch(
                 label = stringResource(R.string.label_offline_only),
@@ -281,6 +285,44 @@ fun SettingsScreen(
                 desc = stringResource(R.string.desc_android_auto),
                 checked = state.androidAutoEnabled,
                 onChecked = viewModel::setAndroidAutoEnabled,
+            )
+
+            // Diagnostics sub-group
+            SectionHeader(title = stringResource(R.string.section_diagnostics))
+            LabeledSwitch(
+                label = stringResource(R.string.label_debug_logging),
+                desc = stringResource(R.string.desc_debug_logging),
+                checked = state.debugLoggingEnabled,
+                onChecked = viewModel::setDebugLogging,
+            )
+            DiagnosticsActionRow(
+                label = stringResource(R.string.action_share_log),
+                enabled = state.debugLoggingEnabled && state.rideLogUsedBytes > 0,
+                onClick = {
+                    val file = viewModel.getShareTargetFile()
+                    if (file != null) {
+                        val uri = FileProvider.getUriForFile(
+                            ctx,
+                            "${ctx.packageName}.fileprovider",
+                            file,
+                        )
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        ctx.startActivity(Intent.createChooser(intent, file.name))
+                    }
+                },
+            )
+            DiagnosticsActionRow(
+                label = stringResource(
+                    R.string.diag_used_space,
+                    Formatter.formatFileSize(ctx, state.rideLogUsedBytes),
+                ),
+                sublabel = stringResource(R.string.action_clear_logs),
+                enabled = state.debugLoggingEnabled,
+                onClick = viewModel::clearRideLogs,
             )
             SectionDivider()
         }
@@ -913,6 +955,42 @@ private fun BcReadOnly(
     ) {
         Text(text = label, color = MotoTracker.colors.dim, style = MotoTracker.typography.label)
         Text(text = value, color = MotoTracker.colors.text, style = MotoTracker.typography.label)
+    }
+}
+
+/**
+ * Clickable action row used in the Diagnostics sub-group.
+ *
+ * Shows [label] as the primary text and an optional [sublabel] below it.  When
+ * [enabled] is false the row is rendered dimmed and non-interactive.
+ *
+ * @param label    Primary label (e.g. "Share log" or the used-space counter).
+ * @param sublabel Optional secondary label shown below [label].
+ * @param enabled  Whether the row responds to clicks.
+ * @param onClick  Called when the user taps the row.
+ */
+@Composable
+private fun DiagnosticsActionRow(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    sublabel: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    val textColor = if (enabled) MotoTracker.colors.accent else MotoTracker.colors.dim
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, color = textColor, style = MotoTracker.typography.body)
+            if (sublabel != null) {
+                Text(text = sublabel, color = MotoTracker.colors.dim, style = MotoTracker.typography.label)
+            }
+        }
     }
 }
 

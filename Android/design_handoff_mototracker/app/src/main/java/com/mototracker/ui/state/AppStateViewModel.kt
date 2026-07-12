@@ -6,7 +6,12 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
 import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
+import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.SessionStore
+import com.mototracker.data.repository.SyncRepository
+import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.ui.navigation.SyncState
+import com.mototracker.ui.navigation.deriveSyncState
 import com.mototracker.ui.navigation.isRecordingLocked
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
@@ -36,10 +41,16 @@ import javax.inject.Inject
  * [authStateStore] and [sessionStore] persist the onboarding/auth choice and the server
  * session cookie so the Login screen is skipped on subsequent launches (B22).
  *
+ * [networkMonitor], [settingsSource], and [syncRepository] are combined to derive
+ * [syncState] — the live [SyncState] shown in the top-app-bar sync chip (D9).
+ *
  * @param localeController  Applies per-app locale changes.
  * @param recordingBridge   Source of the current recording phase for [recordingActive].
  * @param authStateStore    Persists and reads the onboarding/auth choice.
  * @param sessionStore      Persists and reads the server session cookie.
+ * @param networkMonitor    Observes live network connectivity for [syncState].
+ * @param settingsSource    Reads offline/offlineOnly settings flags for [syncState].
+ * @param syncRepository    Provides the pending sync queue count for [syncState].
  */
 @HiltViewModel
 class AppStateViewModel @Inject constructor(
@@ -47,6 +58,9 @@ class AppStateViewModel @Inject constructor(
     private val recordingBridge: CarRecordingBridge,
     private val authStateStore: AuthStateStore,
     private val sessionStore: SessionStore,
+    private val networkMonitor: NetworkMonitor,
+    private val settingsSource: AppSettingsSource,
+    private val syncRepository: SyncRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
@@ -64,6 +78,21 @@ class AppStateViewModel @Inject constructor(
     val recordingActive: StateFlow<Boolean> = recordingBridge.phase
         .map { isRecordingLocked(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /**
+     * Live [SyncState] to display in the top-app-bar sync chip (D9).
+     *
+     * Combines three independent sources — network connectivity, user settings, and the
+     * pending sync-queue count — via [deriveSyncState]. Starts eagerly so the chip is
+     * populated before the first frame.
+     */
+    val syncState: StateFlow<SyncState> = combine(
+        networkMonitor.isOnline,
+        settingsSource.settings,
+        syncRepository.pendingCount,
+    ) { online, s, pending ->
+        deriveSyncState(online, s.offline, s.offlineOnly, pending)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SyncState.Offline)
 
     /**
      * One-time startup navigation decision, updated whenever the persisted auth state or session

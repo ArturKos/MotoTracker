@@ -52,6 +52,36 @@ sealed class SyncState {
 }
 
 /**
+ * Derives the [SyncState] to display in the top-app-bar sync chip from three
+ * independently-observed sources.
+ *
+ * Decision order (first matching rule wins):
+ * 1. [SyncState.Offline] — when the device has no network, the user enabled offline
+ *    mode, or the user disabled all outbound network activity (`offlineOnly`).
+ * 2. [SyncState.Queued] — when there are routes waiting in the sync queue.
+ * 3. [SyncState.Synced] — the default/happy-path state.
+ *
+ * This is a pure top-level function with no Android dependencies so it can be exercised
+ * in plain JUnit tests without Robolectric.
+ *
+ * @param isOnline     `true` when the device has an active internet connection.
+ * @param offline      `true` when the user has explicitly enabled offline mode.
+ * @param offlineOnly  `true` when the user has disabled all outbound network activity.
+ * @param pendingCount Number of routes waiting in the outbound sync queue.
+ * @return The [SyncState] that should be shown in the UI.
+ */
+fun deriveSyncState(
+    isOnline: Boolean,
+    offline: Boolean,
+    offlineOnly: Boolean,
+    pendingCount: Int,
+): SyncState = when {
+    !isOnline || offline || offlineOnly -> SyncState.Offline
+    pendingCount > 0 -> SyncState.Queued(pendingCount)
+    else -> SyncState.Synced
+}
+
+/**
  * Stateless chip composable that renders the current [SyncState] in the top app
  * bar per README §Chip synchronizacji:
  * - [SyncState.Offline]  → text + background tinted with [MotoTracker.colors.accent2]

@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
  * @param recordingActive     Whether a recording session is currently active. When `true`, bottom-nav
  *                            tabs other than Record are disabled and the system back gesture is
  *                            consumed (showing a toast) so the user cannot leave mid-ride.
+ * @param syncState           The current outbound sync state shown in the top-app-bar chip (D9).
  */
 @Composable
 fun MotoApp(
@@ -71,6 +72,7 @@ fun MotoApp(
     onSignIn: () -> Unit = {},
     onContinueAsGuest: () -> Unit = {},
     recordingActive: Boolean = false,
+    syncState: SyncState = SyncState.Offline,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -101,7 +103,7 @@ fun MotoApp(
                     title = stringResource(currentDest.titleRes),
                     showBack = showBackArrow(currentDest),
                     onBack = { navController.popBackStack() },
-                    syncState = SyncState.Offline,
+                    syncState = syncState,
                 )
             }
         },

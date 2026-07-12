@@ -5,11 +5,17 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
 import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
+import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.SessionState
 import com.mototracker.data.network.SessionStore
+import com.mototracker.data.repository.SyncRepository
+import com.mototracker.data.settings.AppSettings
+import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.ui.navigation.SyncState
 import com.mototracker.ui.screens.record.RecordingPhase
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,12 +68,36 @@ private class FakeSessionStore : SessionStore {
     }
 }
 
+private class FakeNetworkMonitor(initial: Boolean = true) : NetworkMonitor {
+    private val _flow = MutableStateFlow(initial)
+    fun emit(value: Boolean) { _flow.value = value }
+    override val isOnline: Flow<Boolean> = _flow
+}
+
+private class FakeAppSettingsSource(initial: AppSettings = AppSettings()) : AppSettingsSource {
+    private val _flow = MutableStateFlow(initial)
+    fun emit(s: AppSettings) { _flow.value = s }
+    override val settings: Flow<AppSettings> = _flow
+}
+
+private class FakeSyncRepository(initialPending: Int = 0) : SyncRepository {
+    private val _pending = MutableStateFlow(initialPending)
+    fun emitPending(count: Int) { _pending.value = count }
+    override val pendingCount: Flow<Int> = _pending
+    override suspend fun enqueue(routeId: String) {}
+    override suspend fun syncNow(): Int = 0
+    override fun start(scope: CoroutineScope) {}
+}
+
 class AppStateViewModelTest {
 
     private lateinit var fakeLocale: FakeLocaleController
     private lateinit var fakeAuthStore: FakeAuthStateStore
     private lateinit var fakeSessionStore: FakeSessionStore
     private lateinit var bridge: CarRecordingBridge
+    private lateinit var fakeNetworkMonitor: FakeNetworkMonitor
+    private lateinit var fakeSettingsSource: FakeAppSettingsSource
+    private lateinit var fakeSyncRepository: FakeSyncRepository
     private lateinit var viewModel: AppStateViewModel
 
     @Before
@@ -77,7 +107,18 @@ class AppStateViewModelTest {
         fakeAuthStore = FakeAuthStateStore()
         fakeSessionStore = FakeSessionStore()
         bridge = CarRecordingBridge()
-        viewModel = AppStateViewModel(fakeLocale, bridge, fakeAuthStore, fakeSessionStore)
+        fakeNetworkMonitor = FakeNetworkMonitor(initial = true)
+        fakeSettingsSource = FakeAppSettingsSource()
+        fakeSyncRepository = FakeSyncRepository(initialPending = 0)
+        viewModel = AppStateViewModel(
+            localeController = fakeLocale,
+            recordingBridge = bridge,
+            authStateStore = fakeAuthStore,
+            sessionStore = fakeSessionStore,
+            networkMonitor = fakeNetworkMonitor,
+            settingsSource = fakeSettingsSource,
+            syncRepository = fakeSyncRepository,
+        )
     }
 
     @After
@@ -335,6 +376,75 @@ class AppStateViewModelTest {
             assertEquals(AppScreen.MAIN, (guestDecision as StartupDecision.Ready).startScreen)
             assertFalse(guestDecision.authed)
 
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── D9: syncState ────────────────────────────────────────────────────────
+
+    @Test
+    fun `syncState initial value is Synced when device is online with no pending`() {
+        assertEquals(SyncState.Synced, viewModel.syncState.value)
+    }
+
+    @Test
+    fun `syncState transitions to Offline when device loses network`() = runTest {
+        viewModel.syncState.test {
+            awaitItem() // consume initial Synced
+            fakeNetworkMonitor.emit(false)
+            assertEquals(SyncState.Offline, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `syncState transitions to Offline when user enables offline mode`() = runTest {
+        viewModel.syncState.test {
+            awaitItem()
+            fakeSettingsSource.emit(AppSettings(offline = true))
+            assertEquals(SyncState.Offline, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `syncState transitions to Offline when offlineOnly is enabled`() = runTest {
+        viewModel.syncState.test {
+            awaitItem()
+            fakeSettingsSource.emit(AppSettings(offlineOnly = true))
+            assertEquals(SyncState.Offline, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `syncState transitions to Queued when pending count becomes positive`() = runTest {
+        viewModel.syncState.test {
+            awaitItem()
+            fakeSyncRepository.emitPending(4)
+            assertEquals(SyncState.Queued(4), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `syncState transitions back to Synced when queue drains`() = runTest {
+        fakeSyncRepository.emitPending(3)
+        viewModel.syncState.test {
+            awaitItem() // Queued(3)
+            fakeSyncRepository.emitPending(0)
+            assertEquals(SyncState.Synced, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `syncState recovers to Synced when device comes back online`() = runTest {
+        fakeNetworkMonitor.emit(false)
+        viewModel.syncState.test {
+            awaitItem() // Offline
+            fakeNetworkMonitor.emit(true)
+            assertEquals(SyncState.Synced, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
             val uiState by appViewModel.uiState.collectAsStateWithLifecycle()
             val recordingActive by appViewModel.recordingActive.collectAsStateWithLifecycle()
             val startupDecision by appViewModel.startupDecision.collectAsStateWithLifecycle()
+            val syncState by appViewModel.syncState.collectAsStateWithLifecycle()
 
             MotoTrackerTheme(
                 theme = uiState.theme,
@@ -65,6 +66,7 @@ class MainActivity : AppCompatActivity() {
                             onSignIn = appViewModel::signIn,
                             onContinueAsGuest = appViewModel::continueAsGuest,
                             recordingActive = recordingActive,
+                            syncState = syncState,
                         )
                     }
                 }

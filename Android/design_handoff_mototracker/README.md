@@ -1,3 +1,5 @@
+[![CI](https://github.com/ArturKos/MotoTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturKos/MotoTracker/actions/workflows/ci.yml)
+
 # Handoff: MotoTracker — aplikacja Android do logowania tras motocyklowych
 
 ## Overview

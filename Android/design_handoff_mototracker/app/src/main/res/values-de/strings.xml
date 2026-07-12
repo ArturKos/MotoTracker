@@ -296,4 +296,9 @@
     <string name="action_rename">Umbenennen</string>
     <string name="dialog_rename_title">Route umbenennen</string>
     <string name="dialog_rename_hint">Routenname</string>
+
+    <!-- Motorradzuweisung — Motorrad ändern &amp; Standard-Motorrad-Bezeichnung (B19) -->
+    <string name="route_detail_change_bike">Motorrad ändern</string>
+    <string name="route_detail_pick_bike_title">Motorrad auswählen</string>
+    <string name="settings_bike_default_label">Standard — neue Fahrten</string>
 </resources>

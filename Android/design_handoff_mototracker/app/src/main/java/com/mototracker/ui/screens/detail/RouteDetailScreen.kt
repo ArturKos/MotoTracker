@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -107,6 +109,7 @@ fun RouteDetailScreen(
         onCorrectNow = { viewModel.correctNow() },
         onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
         onRename = { viewModel.rename(it) },
+        onChangeBike = { viewModel.setBike(it) },
         mapSlot = {
             OsmTrackMap(
                 points = state.trackPoints,
@@ -141,6 +144,8 @@ fun RouteDetailScreen(
  * @param onCorrectNow           Called when the user taps "Popraw teraz".
  * @param onDeleteCorrectedTrace Called when the user confirms deleting the corrected trace.
  * @param onRename               Called with the new name when the user confirms the rename dialog.
+ * @param onChangeBike           Called with the selected bike UUID (or `null` to clear) when the
+ *                               user confirms the bike-picker dialog.
  * @param mapSlot                Composable rendered in the map slot; in production this is [OsmTrackMap],
  *                               in Paparazzi tests a static placeholder Box is used instead.
  * @param modifier               Standard Compose modifier.
@@ -154,6 +159,7 @@ fun RouteDetailContent(
     onCorrectNow: () -> Unit = {},
     onDeleteCorrectedTrace: () -> Unit = {},
     onRename: (String) -> Unit = {},
+    onChangeBike: (String?) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -169,6 +175,7 @@ fun RouteDetailContent(
             onCorrectNow = onCorrectNow,
             onDeleteCorrectedTrace = onDeleteCorrectedTrace,
             onRename = onRename,
+            onChangeBike = onChangeBike,
             mapSlot = mapSlot,
         )
     }
@@ -206,9 +213,11 @@ private fun DetailContent(
     onCorrectNow: () -> Unit,
     onDeleteCorrectedTrace: () -> Unit,
     onRename: (String) -> Unit,
+    onChangeBike: (String?) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showBikePickerDialog by remember { mutableStateOf(false) }
 
     if (showRenameDialog) {
         RenameDialog(
@@ -218,6 +227,18 @@ private fun DetailContent(
                 showRenameDialog = false
             },
             onDismiss = { showRenameDialog = false },
+        )
+    }
+
+    if (showBikePickerDialog) {
+        BikePickerDialog(
+            bikes = state.assignableBikes,
+            currentBikeId = state.currentBikeId,
+            onConfirm = { bikeId ->
+                onChangeBike(bikeId)
+                showBikePickerDialog = false
+            },
+            onDismiss = { showBikePickerDialog = false },
         )
     }
 
@@ -287,6 +308,18 @@ private fun DetailContent(
                             Spacer(Modifier.width(6.dp))
                             SoldChip()
                         }
+                    }
+                    Spacer(Modifier.width(2.dp))
+                    IconButton(
+                        onClick = { showBikePickerDialog = true },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TwoWheeler,
+                            contentDescription = stringResource(R.string.route_detail_change_bike),
+                            tint = MotoTracker.colors.dim,
+                            modifier = Modifier.size(16.dp),
+                        )
                     }
                 }
             }
@@ -793,6 +826,85 @@ private fun RenameDialog(
                 )
             }
         },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+// ── Bike picker dialog ────────────────────────────────────────────────────────
+
+/**
+ * AlertDialog that lets the user change the motorcycle assigned to the current route.
+ *
+ * Lists [bikes] as tappable rows, highlighting [currentBikeId]. Calls [onConfirm] with
+ * the selected bike's UUID when a row is tapped. Calls [onDismiss] on Cancel or outside-dismiss.
+ *
+ * @param bikes         Assignable bikes from [RouteDetailUiState.assignableBikes].
+ * @param currentBikeId Currently-assigned bike UUID for highlight; matches [RouteDetailUiState.currentBikeId].
+ * @param onConfirm     Called with the chosen bike UUID (never `null` here — picker only shows real bikes).
+ * @param onDismiss     Called when the dialog is dismissed without a selection.
+ */
+@Composable
+private fun BikePickerDialog(
+    bikes: List<BikePickerItemUi>,
+    currentBikeId: String?,
+    onConfirm: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.route_detail_pick_bike_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            if (bikes.isEmpty()) {
+                Text(
+                    text = "—",
+                    style = MotoTracker.typography.body,
+                    color = MotoTracker.colors.dim,
+                )
+            } else {
+                LazyColumn {
+                    items(bikes) { bike ->
+                        val isSelected = bike.id == currentBikeId
+                        TextButton(
+                            onClick = { onConfirm(bike.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (isSelected) MotoTracker.colors.accent else MotoTracker.colors.text,
+                            ),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = bike.name,
+                                    style = MotoTracker.typography.body,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (bike.sold) {
+                                    Spacer(Modifier.width(6.dp))
+                                    SoldChip()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(

@@ -40,6 +40,7 @@ import org.junit.Test
 private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     private val _flow = MutableStateFlow(stored)
     val renameCallArgs = mutableListOf<Pair<String, String>>()
+    val setBikeCallArgs = mutableListOf<Pair<String, String?>>()
 
     /** Push a new route value (used by tests to simulate DB updates). */
     fun emit(route: Route?) { _flow.value = route }
@@ -67,6 +68,12 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
         renameCallArgs += id to name
         val r = _flow.value?.takeIf { it.id == id } ?: return
         _flow.value = r.copy(name = name)
+    }
+
+    override suspend fun setBike(routeId: String, bikeId: String?) {
+        setBikeCallArgs += routeId to bikeId
+        val r = _flow.value?.takeIf { it.id == routeId } ?: return
+        _flow.value = r.copy(bikeId = bikeId)
     }
 
     override suspend fun deleteAll() { _flow.value = null }
@@ -854,6 +861,128 @@ class RouteDetailViewModelTest {
             vm.rename("After")
             val after = awaitItem()
             assertEquals("After", after.name)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── B19 setBike ───────────────────────────────────────────────────────────
+
+    @Test
+    fun `setBike calls repository with loaded route id and chosen bikeId`() = runTest {
+        val route = makeRoute(id = "route-bike-me", bikeId = null)
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.setBike("bike-42")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, fakeRepo.setBikeCallArgs.size)
+        assertEquals("route-bike-me", fakeRepo.setBikeCallArgs.first().first)
+        assertEquals("bike-42", fakeRepo.setBikeCallArgs.first().second)
+    }
+
+    @Test
+    fun `setBike is no-op before route loads`() = runTest {
+        val vm = buildVm(routeId = "nonexistent", route = null)
+        vm.uiState.test {
+            val state = awaitItem()
+            if (state.loading) awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // No route loaded — setBike must be a no-op (no crash, no call recorded)
+        val fakeRepo = FakeRouteRepository(stored = null)
+        val vmNoRoute = RouteDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("routeId" to "nonexistent")),
+            routeRepository = fakeRepo,
+            bikeRepository = FakeBikeRepository(),
+            waveRepository = FakeWaveRepository(),
+            settingsSource = FakeSettingsSource(),
+            syncRepository = fakeSyncRepo,
+            gpsCorrectionRepository = FakeGpsCorrectionRepository(),
+        )
+        vmNoRoute.uiState.test {
+            val s = awaitItem(); if (s.loading) awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vmNoRoute.setBike("bike-42")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("no-op: setBike must not call repo when route not loaded", fakeRepo.setBikeCallArgs.isEmpty())
+    }
+
+    @Test
+    fun `assignableBikes excludes SOLD bikes but retains currently-assigned SOLD bike`() = runTest {
+        val activeBike = makeBike("bike-active", "Yamaha MT-07", BikeStatus.ACTIVE)
+        val soldBike = makeBike("bike-sold", "Old Honda", BikeStatus.SOLD)
+        val assignedSoldBike = makeBike("bike-assigned-sold", "Old Kawasaki", BikeStatus.SOLD)
+
+        // Route assigned to the sold bike — it must appear in the picker despite SOLD status
+        val route = makeRoute(id = "route-1", bikeId = "bike-assigned-sold")
+        val vm = buildVm(
+            routeId = route.id,
+            route = route,
+            bikes = listOf(activeBike, soldBike, assignedSoldBike),
+        )
+
+        vm.uiState.test {
+            val state = skipToLoaded()
+            val ids = state.assignableBikes.map { it.id }
+
+            assertTrue("active bike must be in picker", ids.contains("bike-active"))
+            assertFalse("unrelated SOLD bike must NOT be in picker", ids.contains("bike-sold"))
+            assertTrue("currently-assigned SOLD bike must be in picker", ids.contains("bike-assigned-sold"))
+            assertTrue("assigned sold bike must be marked sold in picker", state.assignableBikes.first { it.id == "bike-assigned-sold" }.sold)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `currentBikeId in uiState reflects route bikeId`() = runTest {
+        val route = makeRoute(id = "route-1", bikeId = "bike-99")
+        val vm = buildVm(routeId = route.id, route = route)
+
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertEquals("bike-99", state.currentBikeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `currentBikeId is null when route has no bike assigned`() = runTest {
+        val route = makeRoute(id = "route-1", bikeId = null)
+        val vm = buildVm(routeId = route.id, route = route)
+
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertNull(state.currentBikeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setBike updates uiState reactively after repo write`() = runTest {
+        val bike = makeBike("bike-new", "BMW R1250GS")
+        val route = makeRoute(id = "route-reactive", bikeId = null)
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo, bikes = listOf(bike))
+
+        vm.uiState.test {
+            val before = skipToLoaded()
+            assertNull(before.currentBikeId)
+
+            vm.setBike("bike-new")
+            val after = awaitItem()
+            assertEquals("bike-new", after.currentBikeId)
+            assertEquals("BMW R1250GS", after.bikeName)
 
             cancelAndIgnoreRemainingEvents()
         }

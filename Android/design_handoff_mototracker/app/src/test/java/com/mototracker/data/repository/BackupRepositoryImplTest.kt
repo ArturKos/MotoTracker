@@ -36,6 +36,7 @@ private class FakeRouteRepo(initial: List<Route> = emptyList()) : RouteRepositor
     override fun observeById(id: String): Flow<Route?> = MutableStateFlow(_flow.value.find { it.id == id })
     override suspend fun clearCorrectedTrace(id: String) {}
     override suspend fun rename(id: String, name: String) {}
+    override suspend fun setBike(routeId: String, bikeId: String?) {}
     override suspend fun deleteAll() {
         deleteAllCalled = true
         _flow.value = emptyList()

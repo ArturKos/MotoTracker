@@ -52,6 +52,13 @@ private class FakeRouteDaoImpl : RouteDao {
         store[id]?.let { store[id] = it.copy(name = name) }
     }
 
+    val setBikeCalls = mutableListOf<Pair<String, String?>>()
+
+    override suspend fun setBike(id: String, bikeId: String?) {
+        setBikeCalls += id to bikeId
+        store[id]?.let { store[id] = it.copy(bikeId = bikeId) }
+    }
+
     override suspend fun deleteAll() {
         store.clear()
         allFlow.value = emptyList()
@@ -270,6 +277,30 @@ class RouteRepositoryImplTest {
         assertTrue(got.synced)
         assertEquals("""{"temp":18}""", got.wxJson)
         assertEquals("Misty", got.notes)
+    }
+
+    // ── setBike ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `setBike delegates to RouteDao setBike with routeId and bikeId`() = runTest {
+        repo.save(buildRoute(id = "route-assign", bikeId = null))
+
+        repo.setBike("route-assign", "bike-7")
+
+        assertEquals(1, dao.setBikeCalls.size)
+        assertEquals("route-assign", dao.setBikeCalls.first().first)
+        assertEquals("bike-7", dao.setBikeCalls.first().second)
+    }
+
+    @Test
+    fun `setBike with null bikeId clears the bike association`() = runTest {
+        repo.save(buildRoute(id = "route-clear", bikeId = "old-bike"))
+
+        repo.setBike("route-clear", null)
+
+        assertEquals(1, dao.setBikeCalls.size)
+        assertEquals("route-clear", dao.setBikeCalls.first().first)
+        assertNull(dao.setBikeCalls.first().second)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

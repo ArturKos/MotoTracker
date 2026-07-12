@@ -296,4 +296,9 @@
     <string name="action_rename">Переименовать</string>
     <string name="dialog_rename_title">Переименовать маршрут</string>
     <string name="dialog_rename_hint">Название маршрута</string>
+
+    <!-- Назначение мотоцикла — смена мотоцикла на маршруте &amp; метка по умолчанию (B19) -->
+    <string name="route_detail_change_bike">Изменить мотоцикл</string>
+    <string name="route_detail_pick_bike_title">Выбрать мотоцикл</string>
+    <string name="settings_bike_default_label">По умолчанию — новые поездки</string>
 </resources>

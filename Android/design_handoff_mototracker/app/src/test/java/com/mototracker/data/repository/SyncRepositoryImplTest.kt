@@ -153,6 +153,11 @@ private class FakeRouteDao : RouteDao {
         _allFlow.value = _routes.values.toList()
     }
 
+    override suspend fun setBike(id: String, bikeId: String?) {
+        _routes[id]?.let { _routes[id] = it.copy(bikeId = bikeId) }
+        _allFlow.value = _routes.values.toList()
+    }
+
     override suspend fun deleteAll() {
         _routes.clear()
         _allFlow.value = emptyList()

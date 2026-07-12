@@ -296,4 +296,9 @@
     <string name="action_rename">Renommer</string>
     <string name="dialog_rename_title">Renommer le trajet</string>
     <string name="dialog_rename_hint">Nom du trajet</string>
+
+    <!-- Attribution de la moto — changer la moto &amp; étiquette moto par défaut (B19) -->
+    <string name="route_detail_change_bike">Changer la moto</string>
+    <string name="route_detail_pick_bike_title">Choisir la moto</string>
+    <string name="settings_bike_default_label">Par défaut — nouvelles balades</string>
 </resources>

@@ -66,6 +66,7 @@ private class FakeRouteRepository : RouteRepository {
     override suspend fun clearCorrectedTrace(id: String) { /* stub */ }
     override suspend fun deleteAll() { saved.clear(); allFlow.value = emptyList() }
     override suspend fun rename(id: String, name: String) { /* stub */ }
+    override suspend fun setBike(routeId: String, bikeId: String?) { /* stub */ }
 }
 
 private class FakeSyncRepository : SyncRepository {

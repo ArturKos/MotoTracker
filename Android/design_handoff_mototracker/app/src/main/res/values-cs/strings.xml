@@ -296,4 +296,9 @@
     <string name="action_rename">Přejmenovat</string>
     <string name="dialog_rename_title">Přejmenovat trasu</string>
     <string name="dialog_rename_hint">Název trasy</string>
+
+    <!-- Přiřazení motorky — změna motorky na trase &amp; výchozí motorka (B19) -->
+    <string name="route_detail_change_bike">Změnit motorku</string>
+    <string name="route_detail_pick_bike_title">Vybrat motorku</string>
+    <string name="settings_bike_default_label">Výchozí — nové jízdy</string>
 </resources>

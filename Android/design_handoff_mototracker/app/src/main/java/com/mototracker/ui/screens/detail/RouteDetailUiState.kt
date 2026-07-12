@@ -13,6 +13,18 @@ import com.mototracker.ui.map.GeoCoord
 data class StatTileUi(val value: String, val unit: String)
 
 /**
+ * One motorcycle entry in the "change bike" picker.
+ *
+ * Sold bikes appear only when they are the currently-assigned bike on the route
+ * (so the existing selection is always representable in the picker).
+ *
+ * @param id   UUID of the motorcycle ([com.mototracker.data.model.Bike.id]).
+ * @param name Display name, e.g. `"Yamaha MT-07"`.
+ * @param sold `true` when the bike has [com.mototracker.data.local.entity.BikeStatus.SOLD] status.
+ */
+data class BikePickerItemUi(val id: String, val name: String, val sold: Boolean)
+
+/**
  * One Bluetooth "wave" meetup entry on the route-detail screen.
  *
  * @param initials  First two letters of [who] in uppercase, used for the avatar circle.
@@ -68,6 +80,13 @@ data class MeetingUi(
  * @param confidenceLabel          Formatted OSRM matching-confidence string (e.g. `"87%"`), or empty
  *                                 when confidence data is not available.
  * @param selectedTrackView        Which track layer is currently displayed on the map.
+ * @param currentBikeId            The [com.mototracker.data.model.Bike.id] currently assigned to
+ *                                 this route, or `null` when no bike is assigned. Mirrors
+ *                                 [com.mototracker.data.model.Route.bikeId] so the picker can
+ *                                 highlight the active selection.
+ * @param assignableBikes          Bikes available in the "change bike" picker. Includes all
+ *                                 ACTIVE bikes plus the currently-assigned bike even if it is
+ *                                 SOLD, so the current selection is always representable.
  */
 data class RouteDetailUiState(
     val loading: Boolean = true,
@@ -98,4 +117,6 @@ data class RouteDetailUiState(
     val correctionStatusLabelRes: Int? = null,
     val confidenceLabel: String = "",
     val selectedTrackView: TrackView = TrackView.RAW,
+    val currentBikeId: String? = null,
+    val assignableBikes: List<BikePickerItemUi> = emptyList(),
 )

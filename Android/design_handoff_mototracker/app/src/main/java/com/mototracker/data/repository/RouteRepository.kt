@@ -60,6 +60,18 @@ interface RouteRepository {
     suspend fun rename(id: String, name: String)
 
     /**
+     * Assigns [bikeId] to the route with [routeId].
+     *
+     * Performs a targeted UPDATE — raw trace and all other fields are untouched.
+     * No-op when no matching route exists. [bikeId] may be `null` to clear the
+     * bike association.
+     *
+     * @param routeId Route UUID.
+     * @param bikeId  UUID of the motorcycle to assign, or `null` to clear.
+     */
+    suspend fun setBike(routeId: String, bikeId: String?)
+
+    /**
      * Deletes every route from local storage.
      *
      * Called during a [com.mototracker.domain.backup.RestoreMode.REPLACE] import to remove

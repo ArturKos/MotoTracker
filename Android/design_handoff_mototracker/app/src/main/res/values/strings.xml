@@ -326,4 +326,9 @@
     <string name="badge_mountain_goat">Mountain Goat</string>
     <string name="badge_marathon_month">Marathon Month</string>
     <string name="badge_streak_3">3-Day Streak</string>
+
+    <!-- Bike assignment — change bike on route &amp; default-bike label (B19) -->
+    <string name="route_detail_change_bike">Change motorcycle</string>
+    <string name="route_detail_pick_bike_title">Pick motorcycle</string>
+    <string name="settings_bike_default_label">Default — new rides</string>
 </resources>

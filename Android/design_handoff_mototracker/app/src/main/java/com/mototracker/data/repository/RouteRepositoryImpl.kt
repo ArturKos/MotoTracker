@@ -56,6 +56,15 @@ class RouteRepositoryImpl @Inject constructor(
         routeDao.setName(id, name)
     }
 
+    /**
+     * Assigns [bikeId] to the route with [routeId] via a targeted SQL UPDATE.
+     *
+     * Delegates to [RouteDao.setBike]; raw trace and other fields are untouched.
+     */
+    override suspend fun setBike(routeId: String, bikeId: String?) {
+        routeDao.setBike(routeId, bikeId)
+    }
+
     /** Removes every route row from the database; used for REPLACE-mode backup restore. */
     override suspend fun deleteAll() {
         routeDao.deleteAll()

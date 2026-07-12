@@ -215,6 +215,22 @@ class RouteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Assigns [bikeId] to the current route.
+     *
+     * The live [RouteRepository.observeById] stream re-emits after the update so
+     * [uiState] refreshes automatically (same pattern as [rename]).
+     * No-op when the route has not yet loaded.
+     *
+     * @param bikeId UUID of the motorcycle to assign, or `null` to clear.
+     */
+    fun setBike(bikeId: String?) {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            routeRepository.setBike(route.id, bikeId)
+        }
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(
@@ -229,6 +245,12 @@ class RouteDetailViewModel @Inject constructor(
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
         val bikeMap = bikes.associateBy { it.id }
         val bike = route.bikeId?.let { bikeMap[it] }
+
+        // Include all ACTIVE bikes plus the currently-assigned bike even if SOLD,
+        // so the current selection is always representable in the picker.
+        val assignableBikes = bikes
+            .filter { it.status != BikeStatus.SOLD || it.id == route.bikeId }
+            .map { BikePickerItemUi(id = it.id, name = it.name, sold = it.status == BikeStatus.SOLD) }
 
         val speedPts = ChartPolyline.speedPoints(route.speedJson)
         val elevPts = ChartPolyline.elevPoints(route.elevProfileJson)
@@ -280,6 +302,8 @@ class RouteDetailViewModel @Inject constructor(
             dateDisplay = formatDate(route.dateEpochMs),
             bikeName = bike?.name ?: "—",
             bikeSold = bike?.status == BikeStatus.SOLD,
+            currentBikeId = route.bikeId,
+            assignableBikes = assignableBikes,
             distanceTile = StatTileUi(
                 value = formatDistanceValue(route.km, units),
                 unit = UnitFormatter.distanceUnitLabel(units),

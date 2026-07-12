@@ -296,4 +296,9 @@
     <string name="toast_backup_failed">Tworzenie kopii zapasowej nie powiodło się</string>
     <string name="toast_restore_ok">Przywracanie zakończone</string>
     <string name="toast_restore_failed">Przywracanie nie powiodło się — nieprawidłowy plik</string>
+
+    <!-- Przypisanie motocykla — zmiana motocykla na trasie i etykieta domyślna (B19) -->
+    <string name="route_detail_change_bike">Zmień motocykl</string>
+    <string name="route_detail_pick_bike_title">Wybierz motocykl</string>
+    <string name="settings_bike_default_label">Domyślny — nowe przejazdy</string>
 </resources>

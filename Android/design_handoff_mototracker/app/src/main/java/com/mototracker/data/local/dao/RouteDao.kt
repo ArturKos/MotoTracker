@@ -90,6 +90,22 @@ interface RouteDao {
     suspend fun setName(id: String, name: String)
 
     /**
+     * Assigns [bikeId] to the route with [id] via a targeted SQL UPDATE.
+     *
+     * [bikeId] is nullable — passing `null` clears the bike association without
+     * touching any other column (raw trace, correctionStatus, etc.).
+     * No Room migration is required because the [com.mototracker.data.local.entity.RouteEntity.bikeId]
+     * column already exists.
+     *
+     * Called by [com.mototracker.data.repository.RouteRepositoryImpl.setBike].
+     *
+     * @param id     Route primary key.
+     * @param bikeId UUID of the motorcycle to assign, or `null` to clear.
+     */
+    @Query("UPDATE routes SET bikeId = :bikeId WHERE id = :id")
+    suspend fun setBike(id: String, bikeId: String?)
+
+    /**
      * Deletes every row from the routes table.
      *
      * Used exclusively by [com.mototracker.data.repository.BackupRepositoryImpl] during a

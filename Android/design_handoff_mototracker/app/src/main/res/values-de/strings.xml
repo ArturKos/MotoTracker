@@ -121,6 +121,7 @@
 
     <string name="toast_import">GPX-Import — .gpx-Datei wählen</string>
     <string name="toast_gpx_saved">GPX-Datei gespeichert</string>
+    <string name="toast_gpx_export_failed">GPX-Export fehlgeschlagen</string>
     <string name="toast_link_copied">Routen-Link kopiert</string>
     <string name="toast_server_sent">An GPStrack-Server gesendet</string>
     <string name="toast_sent_pre">„</string>

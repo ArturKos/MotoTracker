@@ -11,8 +11,10 @@ sealed interface RouteDetailEvent {
     /**
      * GPX content has been produced and is ready for the UI to write/share.
      *
-     * The actual file-write or share-sheet invocation is done in the Composable via Android APIs
-     * and is on-device only (🔬). The ViewModel only produces the content string.
+     * The actual file-write is performed by [RouteDetailScreen] via SAF
+     * ([androidx.activity.result.contract.ActivityResultContracts.CreateDocument] /
+     * `ContentResolver.openOutputStream`), which requires no storage permission on any API level
+     * (works on API 28). The ViewModel only produces the content string.
      *
      * @param content  The full GPX 1.1 XML string.
      * @param fileName Suggested filename, e.g. `"alpine-tour-abc12345.gpx"`.

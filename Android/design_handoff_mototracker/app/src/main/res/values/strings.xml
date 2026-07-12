@@ -143,6 +143,7 @@
     <!-- Toast messages -->
     <string name="toast_import">GPX import — pick a .gpx file</string>
     <string name="toast_gpx_saved">GPX file saved</string>
+    <string name="toast_gpx_export_failed">GPX export failed</string>
     <string name="toast_link_copied">Route link copied</string>
     <string name="toast_server_sent">Sent to GPStrack server</string>
     <string name="toast_sent_pre">Sent "</string>

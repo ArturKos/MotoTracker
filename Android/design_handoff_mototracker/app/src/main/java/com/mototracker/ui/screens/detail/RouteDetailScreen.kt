@@ -1,5 +1,7 @@
 package com.mototracker.ui.screens.detail
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -69,6 +72,8 @@ import kotlinx.coroutines.flow.collectLatest
  * The screen reads all display data from [RouteDetailViewModel] (via Hilt) which reads the
  * `routeId` from [androidx.lifecycle.SavedStateHandle] injected by Navigation Compose.
  *
+ * GPX export is wired via SAF ([ActivityResultContracts.CreateDocument]); the file write happens
+ * in this Composable so no storage permission is required on any API level (works on API 28).
  * Map tiles and chart Canvas rendering are on-device-only concerns (🔬).
  *
  * @param modifier   Standard Compose modifier.
@@ -83,16 +88,40 @@ fun RouteDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showExportSheet by remember { mutableStateOf(false) }
+    var pendingGpx by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     val gpxSavedMsg = stringResource(R.string.toast_gpx_saved)
+    val gpxExportFailedMsg = stringResource(R.string.toast_gpx_export_failed)
     val linkCopiedMsg = stringResource(R.string.toast_link_copied)
     val serverSentMsg = stringResource(R.string.toast_server_sent)
     val correctionQueuedMsg = stringResource(R.string.toast_correction_queued)
 
+    // SAF launcher: presents the system file-picker so the user chooses where to save the GPX.
+    // No storage permission is needed on any API level (CreateDocument uses SAF).
+    val gpxExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/gpx+xml"),
+    ) { uri ->
+        if (uri == null) {
+            pendingGpx = null
+            return@rememberLauncherForActivityResult
+        }
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(pendingGpx!!.toByteArray()) }
+            onToast(gpxSavedMsg)
+        } catch (e: Exception) {
+            onToast(gpxExportFailedMsg)
+        }
+        pendingGpx = null
+    }
+
     LaunchedEffect(viewModel.events) {
         viewModel.events.collectLatest { event ->
             when (event) {
-                is RouteDetailEvent.GpxSaved -> onToast(gpxSavedMsg)
+                is RouteDetailEvent.GpxSaved -> {
+                    pendingGpx = event.content
+                    gpxExportLauncher.launch(event.fileName)
+                }
                 is RouteDetailEvent.LinkCopied -> onToast(linkCopiedMsg)
                 is RouteDetailEvent.ServerSent -> onToast(serverSentMsg)
                 is RouteDetailEvent.CorrectionQueued -> onToast(correctionQueuedMsg)

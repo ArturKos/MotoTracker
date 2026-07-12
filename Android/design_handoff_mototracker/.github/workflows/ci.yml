@@ -37,5 +37,4 @@ jobs:
 
       - name: Build, test, and lint
         run: |
-          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
-          # TODO(A11): append verifyPaparazziDebug once Paparazzi is unblocked
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug verifyRoborazziDebug

@@ -41,6 +41,13 @@
         </activity>
 
         <!--
+            Registered so that Robolectric can resolve ComponentActivity when
+            createComposeRule() launches it during JVM screenshot/UI tests.
+        -->
+        <activity android:name="androidx.activity.ComponentActivity"
+            android:theme="@style/Theme.MotoTracker" />
+
+        <!--
             Required for AppCompatDelegate.setApplicationLocales() to persist
             the chosen locale across process restarts on API < 33.
         -->

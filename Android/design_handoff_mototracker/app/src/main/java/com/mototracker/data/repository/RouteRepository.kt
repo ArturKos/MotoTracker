@@ -29,4 +29,23 @@ interface RouteRepository {
      * @param id The route UUID to look up.
      */
     suspend fun getById(id: String): Route?
+
+    /**
+     * Returns a live [kotlinx.coroutines.flow.Flow] of the route with [id], emitting `null`
+     * when no such route exists. Re-emits whenever the underlying row changes (e.g. after
+     * GPS correction updates [Route.correctedPathJson] or [Route.correctionStatus]).
+     *
+     * @param id The route UUID to observe.
+     */
+    fun observeById(id: String): Flow<Route?>
+
+    /**
+     * Removes the road-snapped trace for route [id] and resets its correction status to NONE.
+     *
+     * The raw GPS trace ([Route.pathJson]) is the permanent source of truth and is **never**
+     * modified by this call.
+     *
+     * @param id The route UUID to clear.
+     */
+    suspend fun clearCorrectedTrace(id: String)
 }

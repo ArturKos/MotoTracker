@@ -228,4 +228,15 @@
     <string name="action_share_log">Sdílet protokol</string>
     <string name="action_clear_logs">Vymazat protokoly</string>
     <string name="diag_used_space">Obsazené místo: %1$s</string>
+
+    <!-- GPS correction UX — Route detail (B13) -->
+    <string name="label_track_raw">Surová</string>
+    <string name="label_track_corrected">Na silnici</string>
+    <string name="btn_correct_now">Opravit nyní</string>
+    <string name="btn_delete_corrected_trace">Smazat opravenou trasu</string>
+    <string name="correction_status_queued">Ve frontě</string>
+    <string name="correction_status_low_confidence">Nízká spolehlivost</string>
+    <string name="correction_status_done">Opraveno</string>
+    <string name="label_confidence">Spolehlivost</string>
+    <string name="toast_correction_queued">GPS korekce zařazena</string>
 </resources>

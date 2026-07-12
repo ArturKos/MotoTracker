@@ -16,7 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -59,6 +59,8 @@ private class FakeRouteRepository : RouteRepository {
 
     override fun observeAll(): Flow<List<Route>> = allFlow
     override suspend fun getById(id: String): Route? = saved.find { it.id == id }
+    override fun observeById(id: String): Flow<Route?> = MutableStateFlow(saved.find { it.id == id })
+    override suspend fun clearCorrectedTrace(id: String) { /* stub */ }
 }
 
 private class FakeSyncRepository : SyncRepository {
@@ -429,42 +431,42 @@ class RecordingViewModelTest {
 
     @Test
     fun `GPS samples are logged per location update`() = runTest(testDispatcher) {
-        val locationFlow = MutableSharedFlow<LocationSample>(replay = 0)
+        // Completing flow so the location collector finishes and runTest drains cleanly.
         val vm = buildViewModel(
-            locationClient = FakeLocationClient(locationFlow),
+            locationClient = FakeLocationClient(
+                flowOf(
+                    LocationSample(lat = 50.0, lng = 20.0, speedMps = 16.7, altitudeM = 200.0, bearingDeg = 0f, timeMs = 1000L),
+                ),
+            ),
             rideDebugLogger = fakeLogger,
         )
         vm.onEvent(RecordingEvent.Start)
-        locationFlow.emit(
-            LocationSample(lat = 50.0, lng = 20.0, speedMps = 16.7, altitudeM = 200.0, bearingDeg = 0f, timeMs = 1000L),
-        )
-        // advanceUntilIdle() would hang with the infinite ticker loop; advance just enough.
         advanceTimeBy(200L)
 
         assertTrue(
             "GPS log expected",
             fakeLogger.logCalls.any { it.first == "GPS" },
         )
-        vm.onEvent(RecordingEvent.Pause)
+        vm.onEvent(RecordingEvent.Pause) // cancel ticker before runTest drains scheduler
     }
 
     @Test
     fun `lean readings are logged per sensor update`() = runTest(testDispatcher) {
-        val leanFlow = MutableSharedFlow<Double>(replay = 0)
+        // A completing flow (not a never-completing SharedFlow): the lean collector
+        // finishes after the emission, so runTest can drain the scheduler cleanly —
+        // mirrors the passing ticker tests. Ending on Pause cancels the ticker.
         val vm = buildViewModel(
-            leanSensorSource = FakeLeanSensorSource(leanFlow),
+            leanSensorSource = FakeLeanSensorSource(flowOf(15.5)),
             rideDebugLogger = fakeLogger,
         )
         vm.onEvent(RecordingEvent.Start)
-        leanFlow.emit(15.5)
-        // advanceUntilIdle() would hang with the infinite ticker loop; advance just enough.
         advanceTimeBy(200L)
 
         assertTrue(
             "LEAN log expected",
             fakeLogger.logCalls.any { it.first == "LEAN" },
         )
-        vm.onEvent(RecordingEvent.Pause)
+        vm.onEvent(RecordingEvent.Pause) // cancel ticker before runTest drains scheduler
     }
 
     @Test

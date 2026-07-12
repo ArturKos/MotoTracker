@@ -3,16 +3,19 @@ package com.mototracker.ui.screens.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mototracker.R
 import com.mototracker.core.format.ChartPolyline
 import com.mototracker.core.format.GpxExporter
 import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.core.format.RouteWeather
 import com.mototracker.core.format.UnitFormatter
 import com.mototracker.data.local.entity.BikeStatus
+import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.Wave
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.GpsCorrectionRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
@@ -23,10 +26,10 @@ import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -40,19 +43,24 @@ import kotlin.math.roundToInt
  * ViewModel for the Route Detail screen.
  *
  * Reads [routeId] from [SavedStateHandle] (nav arg key `"routeId"`) and combines
- * a one-shot [RouteRepository.getById] with live [BikeRepository.observeAll],
- * [WaveRepository.observeForRoute], and [AppSettingsSource.settings] into a single
- * [StateFlow]<[RouteDetailUiState]>.
+ * a live [RouteRepository.observeById] stream with [BikeRepository.observeAll],
+ * [WaveRepository.observeForRoute], [AppSettingsSource.settings], and the user's
+ * track-view selection into a single [StateFlow]<[RouteDetailUiState]>.
+ *
+ * Because the route source is now reactive, any change to the row (e.g. after OSRM
+ * correction writes [Route.correctedPathJson]) automatically re-renders the screen
+ * without a manual reload.
  *
  * One-shot [RouteDetailEvent]s are delivered via [events] using a [Channel] to ensure
  * they are consumed exactly once regardless of recomposition.
  *
- * @param savedStateHandle   Provides the `routeId` nav argument.
- * @param routeRepository    Source of the route to display.
- * @param bikeRepository     Source of bikes for name / sold-status resolution.
- * @param waveRepository     Source of Bluetooth wave meetups for this route.
- * @param settingsSource     Provides measurement units preference.
- * @param syncRepository     Manages the outbound sync queue for server upload.
+ * @param savedStateHandle         Provides the `routeId` nav argument.
+ * @param routeRepository          Source of the route to display (live stream).
+ * @param bikeRepository           Source of bikes for name / sold-status resolution.
+ * @param waveRepository           Source of Bluetooth wave meetups for this route.
+ * @param settingsSource           Provides measurement units preference.
+ * @param syncRepository           Manages the outbound sync queue for server upload.
+ * @param gpsCorrectionRepository  Manages the OSRM GPS road-correction queue.
  */
 @HiltViewModel
 class RouteDetailViewModel @Inject constructor(
@@ -62,26 +70,35 @@ class RouteDetailViewModel @Inject constructor(
     private val waveRepository: WaveRepository,
     private val settingsSource: AppSettingsSource,
     private val syncRepository: SyncRepository,
+    private val gpsCorrectionRepository: GpsCorrectionRepository,
 ) : ViewModel() {
 
     private val routeId: String = savedStateHandle["routeId"] ?: ""
 
     private var currentRoute: Route? = null
 
+    /**
+     * User's explicit track-view selection. `null` means "use the smart default":
+     * [TrackView.CORRECTED] when a corrected trace exists, [TrackView.RAW] otherwise.
+     * Resets to `null` after [deleteCorrectedTrace] so the default is re-evaluated.
+     */
+    private val _selectedTrackView = MutableStateFlow<TrackView?>(null)
+
     private val _events = Channel<RouteDetailEvent>(Channel.BUFFERED)
 
-    /** One-shot UI events (export, share, server-send). Collect in the Composable. */
+    /** One-shot UI events (export, share, server-send, correction). Collect in the Composable. */
     val events: Flow<RouteDetailEvent> = _events.receiveAsFlow()
 
     /** Live UI state exposed to [RouteDetailScreen]. */
     val uiState: StateFlow<RouteDetailUiState> = combine(
-        flow { emit(routeRepository.getById(routeId)) },
+        routeRepository.observeById(routeId),
         bikeRepository.observeAll(),
         waveRepository.observeForRoute(routeId),
         settingsSource.settings,
-    ) { route, bikes, waves, settings ->
+        _selectedTrackView,
+    ) { route, bikes, waves, settings, selectedView ->
         currentRoute = route
-        buildUiState(route, bikes, waves, settings)
+        buildUiState(route, bikes, waves, settings, selectedView)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -135,6 +152,51 @@ class RouteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Enqueues this route for OSRM GPS road-correction and immediately attempts to process
+     * the queue ([GpsCorrectionRepository.correctNow]).
+     *
+     * Emits [RouteDetailEvent.CorrectionQueued] when the request has been submitted.
+     * Because [routeRepository.observeById] is live, any correction result written to Room
+     * will automatically flow into [uiState] without further action.
+     *
+     * No-op if the route has not loaded yet.
+     */
+    fun correctNow() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            gpsCorrectionRepository.enqueue(route.id)
+            gpsCorrectionRepository.correctNow()
+            _events.send(RouteDetailEvent.CorrectionQueued)
+        }
+    }
+
+    /**
+     * Clears the road-snapped trace via [RouteRepository.clearCorrectedTrace] and resets
+     * the track-view selection to [TrackView.RAW].
+     *
+     * The raw GPS trace is permanent and is never touched by this action.
+     * No-op if the route has not loaded yet.
+     */
+    fun deleteCorrectedTrace() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            routeRepository.clearCorrectedTrace(route.id)
+            _selectedTrackView.value = null
+        }
+    }
+
+    /**
+     * Updates the user's explicit track-view selection.
+     *
+     * @param view [TrackView.RAW] or [TrackView.CORRECTED]; selecting [TrackView.CORRECTED]
+     *             when no corrected trace exists has no visible effect (the UiState keeps
+     *             showing the raw track).
+     */
+    fun selectTrackView(view: TrackView) {
+        _selectedTrackView.value = view
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(
@@ -142,6 +204,7 @@ class RouteDetailViewModel @Inject constructor(
         bikes: List<Bike>,
         waves: List<Wave>,
         settings: AppSettings,
+        selectedView: TrackView?,
     ): RouteDetailUiState {
         if (route == null) return RouteDetailUiState(loading = false, routeNotFound = true)
 
@@ -167,6 +230,30 @@ class RouteDetailViewModel @Inject constructor(
                 timeLabel = wave.timeLabel,
             )
         }
+
+        val hasCorrectedTrace = route.correctedPathJson != null
+
+        // Resolve effective view: explicit user selection, else default based on availability.
+        val effectiveView = selectedView
+            ?: if (hasCorrectedTrace) TrackView.CORRECTED else TrackView.RAW
+
+        val trackPoints = when {
+            effectiveView == TrackView.CORRECTED && hasCorrectedTrace ->
+                TrackGeometry.parsePathJson(route.correctedPathJson)
+            else ->
+                TrackGeometry.parsePathJson(route.pathJson)
+        }
+
+        val correctionStatusLabelRes: Int? = when (route.correctionStatus) {
+            CorrectionStatus.QUEUED         -> R.string.correction_status_queued
+            CorrectionStatus.LOW_CONFIDENCE -> R.string.correction_status_low_confidence
+            CorrectionStatus.DONE           -> R.string.correction_status_done
+            CorrectionStatus.NONE           -> null
+        }
+
+        val confidenceLabel = route.confidence
+            ?.let { String.format(Locale.US, "%.0f%%", it * 100.0) }
+            ?: ""
 
         return RouteDetailUiState(
             loading = false,
@@ -206,10 +293,15 @@ class RouteDetailViewModel @Inject constructor(
             elevFill = elevPts.fill,
             elevGainLabel = elevGainLabel,
             thumbnailPathD = RouteThumbnail.buildPathD(route.pathJson),
-            trackPoints = TrackGeometry.parsePathJson(route.pathJson),
+            trackPoints = trackPoints,
             meetings = meetingList,
             meetingsNone = meetingList.isEmpty(),
             queued = !route.synced,
+            hasCorrectedTrace = hasCorrectedTrace,
+            correctionStatus = route.correctionStatus,
+            correctionStatusLabelRes = correctionStatusLabelRes,
+            confidenceLabel = confidenceLabel,
+            selectedTrackView = effectiveView,
         )
     }
 

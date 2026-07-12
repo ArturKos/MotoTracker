@@ -31,4 +31,19 @@ class RouteRepositoryImpl @Inject constructor(
 
     override suspend fun getById(id: String): Route? =
         routeDao.getById(id)?.toDomain()
+
+    /**
+     * Returns a live [kotlinx.coroutines.flow.Flow] of the route with [id], emitting `null`
+     * when no matching row exists and re-emitting after every update to that row.
+     */
+    override fun observeById(id: String): Flow<Route?> =
+        routeDao.observeById(id).map { it?.toDomain() }
+
+    /**
+     * Delegates to [RouteDao.clearCorrection] which nulls out [correctedPathJson] and
+     * resets [correctionStatus] to NONE without touching the raw [pathJson].
+     */
+    override suspend fun clearCorrectedTrace(id: String) {
+        routeDao.clearCorrection(id)
+    }
 }

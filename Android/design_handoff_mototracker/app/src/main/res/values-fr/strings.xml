@@ -228,4 +228,15 @@
     <string name="action_share_log">Partager le journal</string>
     <string name="action_clear_logs">Effacer les journaux</string>
     <string name="diag_used_space">Espace utilisé : %1$s</string>
+
+    <!-- GPS correction UX — Route detail (B13) -->
+    <string name="label_track_raw">Brut</string>
+    <string name="label_track_corrected">Sur la route</string>
+    <string name="btn_correct_now">Corriger maintenant</string>
+    <string name="btn_delete_corrected_trace">Supprimer la trace corrigée</string>
+    <string name="correction_status_queued">En file d\'attente</string>
+    <string name="correction_status_low_confidence">Faible confiance</string>
+    <string name="correction_status_done">Corrigé</string>
+    <string name="label_confidence">Confiance</string>
+    <string name="toast_correction_queued">Correction GPS en attente</string>
 </resources>

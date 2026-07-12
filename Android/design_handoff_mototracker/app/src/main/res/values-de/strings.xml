@@ -228,4 +228,15 @@
     <string name="action_share_log">Protokoll teilen</string>
     <string name="action_clear_logs">Protokolle löschen</string>
     <string name="diag_used_space">Belegter Speicher: %1$s</string>
+
+    <!-- GPS correction UX — Route detail (B13) -->
+    <string name="label_track_raw">Roh</string>
+    <string name="label_track_corrected">Auf der Straße</string>
+    <string name="btn_correct_now">Jetzt korrigieren</string>
+    <string name="btn_delete_corrected_trace">Korrigierten Track löschen</string>
+    <string name="correction_status_queued">In der Warteschlange</string>
+    <string name="correction_status_low_confidence">Geringe Genauigkeit</string>
+    <string name="correction_status_done">Korrigiert</string>
+    <string name="label_confidence">Genauigkeit</string>
+    <string name="toast_correction_queued">GPS-Korrektion angefordert</string>
 </resources>

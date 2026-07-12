@@ -17,7 +17,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -25,6 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +85,7 @@ fun RouteDetailScreen(
     val gpxSavedMsg = stringResource(R.string.toast_gpx_saved)
     val linkCopiedMsg = stringResource(R.string.toast_link_copied)
     val serverSentMsg = stringResource(R.string.toast_server_sent)
+    val correctionQueuedMsg = stringResource(R.string.toast_correction_queued)
 
     LaunchedEffect(viewModel.events) {
         viewModel.events.collectLatest { event ->
@@ -89,6 +93,7 @@ fun RouteDetailScreen(
                 is RouteDetailEvent.GpxSaved -> onToast(gpxSavedMsg)
                 is RouteDetailEvent.LinkCopied -> onToast(linkCopiedMsg)
                 is RouteDetailEvent.ServerSent -> onToast(serverSentMsg)
+                is RouteDetailEvent.CorrectionQueued -> onToast(correctionQueuedMsg)
             }
         }
     }
@@ -101,6 +106,9 @@ fun RouteDetailScreen(
             modifier = modifier,
             onExport = { showExportSheet = true },
             onSend = { viewModel.sendToServer() },
+            onSelectTrackView = { viewModel.selectTrackView(it) },
+            onCorrectNow = { viewModel.correctNow() },
+            onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
         )
     }
 
@@ -143,6 +151,9 @@ private fun DetailContent(
     modifier: Modifier = Modifier,
     onExport: () -> Unit,
     onSend: () -> Unit,
+    onSelectTrackView: (TrackView) -> Unit,
+    onCorrectNow: () -> Unit,
+    onDeleteCorrectedTrace: () -> Unit,
 ) {
     LazyColumn(
         modifier = modifier
@@ -153,6 +164,14 @@ private fun DetailContent(
         item { Spacer(Modifier.height(8.dp)) }
 
         item {
+            TrackViewToggle(
+                selected = state.selectedTrackView,
+                correctedEnabled = state.hasCorrectedTrace,
+                onSelect = onSelectTrackView,
+            )
+        }
+
+        item {
             OsmTrackMap(
                 points = state.trackPoints,
                 modifier = Modifier
@@ -160,6 +179,14 @@ private fun DetailContent(
                     .height(200.dp)
                     .clip(RoundedCornerShape(10.dp)),
                 showStartEndMarkers = true,
+            )
+        }
+
+        item {
+            CorrectionPanel(
+                state = state,
+                onCorrectNow = onCorrectNow,
+                onDeleteCorrectedTrace = onDeleteCorrectedTrace,
             )
         }
 
@@ -480,6 +507,175 @@ private fun SoldChip() {
             style = MotoTracker.typography.label,
             color = MotoTracker.colors.dim,
         )
+    }
+}
+
+// ── Track view toggle ─────────────────────────────────────────────────────────
+
+/**
+ * Segmented Raw | Corrected toggle rendered above the route map.
+ *
+ * The [TrackView.CORRECTED] segment is visually disabled until [correctedEnabled] is `true`.
+ *
+ * @param selected         Currently active view.
+ * @param correctedEnabled Whether a corrected trace is available for selection.
+ * @param onSelect         Called with the newly selected [TrackView].
+ */
+@Composable
+private fun TrackViewToggle(
+    selected: TrackView,
+    correctedEnabled: Boolean,
+    onSelect: (TrackView) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MotoTracker.colors.panel),
+    ) {
+        TrackViewSegment(
+            label = stringResource(R.string.label_track_raw),
+            isSelected = selected == TrackView.RAW,
+            enabled = true,
+            onClick = { onSelect(TrackView.RAW) },
+            modifier = Modifier.weight(1f),
+        )
+        TrackViewSegment(
+            label = stringResource(R.string.label_track_corrected),
+            isSelected = selected == TrackView.CORRECTED,
+            enabled = correctedEnabled,
+            onClick = { if (correctedEnabled) onSelect(TrackView.CORRECTED) },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun TrackViewSegment(
+    label: String,
+    isSelected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bgColor = if (isSelected) MotoTracker.colors.accent else MotoTracker.colors.panel
+    val textColor = when {
+        isSelected -> MotoTracker.colors.onAccent
+        !enabled   -> MotoTracker.colors.dim.copy(alpha = 0.4f)
+        else       -> MotoTracker.colors.dim
+    }
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bgColor)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label.uppercase(),
+            style = MotoTracker.typography.label,
+            color = textColor,
+        )
+    }
+}
+
+// ── Correction panel ──────────────────────────────────────────────────────────
+
+/**
+ * Card surfacing GPS correction status, a "Popraw teraz" trigger button, and the
+ * "Usuń poprawioną trasę" delete action.
+ *
+ * The panel is always shown; buttons are conditionally visible based on [RouteDetailUiState].
+ *
+ * @param state                  Current UI state.
+ * @param onCorrectNow           Called when the user requests an immediate correction.
+ * @param onDeleteCorrectedTrace Called when the user confirms they want to remove the corrected trace.
+ */
+@Composable
+private fun CorrectionPanel(
+    state: RouteDetailUiState,
+    onCorrectNow: () -> Unit,
+    onDeleteCorrectedTrace: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val showCorrectNow = state.correctionStatus == com.mototracker.data.local.entity.CorrectionStatus.NONE ||
+        state.correctionStatus == com.mototracker.data.local.entity.CorrectionStatus.LOW_CONFIDENCE
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MotoTracker.colors.panel)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.label_gps_correct).uppercase(),
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.dim,
+        )
+
+        if (state.correctionStatusLabelRes != null || state.confidenceLabel.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (state.correctionStatusLabelRes != null) {
+                    Text(
+                        text = stringResource(state.correctionStatusLabelRes),
+                        style = MotoTracker.typography.bodySmall,
+                        color = MotoTracker.colors.accent,
+                    )
+                }
+                if (state.confidenceLabel.isNotEmpty()) {
+                    Text(
+                        text = "${stringResource(R.string.label_confidence)}: ${state.confidenceLabel}",
+                        style = MotoTracker.typography.bodySmall,
+                        color = MotoTracker.colors.dim,
+                    )
+                }
+            }
+        }
+
+        if (showCorrectNow) {
+            Button(
+                onClick = onCorrectNow,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MotoTracker.colors.accent,
+                    contentColor = MotoTracker.colors.onAccent,
+                ),
+            ) {
+                Icon(
+                    Icons.Filled.MyLocation,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.btn_correct_now),
+                    style = MotoTracker.typography.label,
+                )
+            }
+        }
+
+        if (state.hasCorrectedTrace) {
+            TextButton(
+                onClick = onDeleteCorrectedTrace,
+                colors = ButtonDefaults.textButtonColors(contentColor = MotoTracker.colors.dim),
+            ) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.btn_delete_corrected_trace),
+                    style = MotoTracker.typography.label,
+                )
+            }
+        }
     }
 }
 

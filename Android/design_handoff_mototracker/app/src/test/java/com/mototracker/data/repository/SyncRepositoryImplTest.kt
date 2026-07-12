@@ -136,9 +136,15 @@ private class FakeRouteDao : RouteDao {
     override fun getAll(): Flow<List<RouteEntity>> = _allFlow
 
     override suspend fun getById(id: String): RouteEntity? = _routes[id]
+    override fun observeById(id: String): Flow<RouteEntity?> = MutableStateFlow(_routes[id])
 
     override suspend fun setSynced(id: String, synced: Boolean) {
         _routes[id]?.let { _routes[id] = it.copy(synced = synced) }
+        _allFlow.value = _routes.values.toList()
+    }
+
+    override suspend fun clearCorrection(id: String) {
+        _routes[id]?.let { _routes[id] = it.copy(correctedPathJson = null, correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
         _allFlow.value = _routes.values.toList()
     }
 

@@ -1,6 +1,7 @@
 package com.mototracker.ui.screens.detail
 
 import com.mototracker.core.format.WeatherUi
+import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.ui.map.GeoCoord
 
 /**
@@ -53,11 +54,20 @@ data class MeetingUi(
  * @param elevFill          Closed polyline `points` for the translucent elevation fill.
  * @param elevGainLabel     Formatted total elevation gain, e.g. `"↑ 840 m"`.
  * @param thumbnailPathD    SVG path `d` string for the route track thumbnail (320×200 viewBox).
- * @param trackPoints       Ordered GPS coordinates parsed from the raw path JSON; used by
- *                          [com.mototracker.ui.map.OsmTrackMap] to draw the route polyline.
- * @param meetings          List of Bluetooth wave meetups recorded on this route.
- * @param meetingsNone      `true` when [meetings] is empty.
- * @param queued            `true` when the route has not yet been synced (drives "Send" button).
+ * @param trackPoints              Ordered GPS coordinates for the currently selected track view;
+ *                                 switches between raw and corrected depending on [selectedTrackView].
+ *                                 Used by [com.mototracker.ui.map.OsmTrackMap] to draw the polyline.
+ * @param meetings                 List of Bluetooth wave meetups recorded on this route.
+ * @param meetingsNone             `true` when [meetings] is empty.
+ * @param queued                   `true` when the route has not yet been synced (drives "Send" button).
+ * @param hasCorrectedTrace        `true` when a road-snapped trace is available for this route.
+ * @param correctionStatus         Current GPS-correction pipeline state.
+ * @param correctionStatusLabelRes String resource ID for the human-readable correction status label
+ *                                 (e.g. "W kolejce", "Niska pewność", "Skorygowano"), or `null` when
+ *                                 [correctionStatus] is [CorrectionStatus.NONE].
+ * @param confidenceLabel          Formatted OSRM matching-confidence string (e.g. `"87%"`), or empty
+ *                                 when confidence data is not available.
+ * @param selectedTrackView        Which track layer is currently displayed on the map.
  */
 data class RouteDetailUiState(
     val loading: Boolean = true,
@@ -83,4 +93,9 @@ data class RouteDetailUiState(
     val meetings: List<MeetingUi> = emptyList(),
     val meetingsNone: Boolean = true,
     val queued: Boolean = false,
+    val hasCorrectedTrace: Boolean = false,
+    val correctionStatus: CorrectionStatus = CorrectionStatus.NONE,
+    val correctionStatusLabelRes: Int? = null,
+    val confidenceLabel: String = "",
+    val selectedTrackView: TrackView = TrackView.RAW,
 )

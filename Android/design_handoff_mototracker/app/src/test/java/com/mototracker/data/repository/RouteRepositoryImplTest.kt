@@ -38,8 +38,14 @@ private class FakeRouteDaoImpl : RouteDao {
 
     override suspend fun getById(id: String): RouteEntity? = store[id]
 
+    override fun observeById(id: String): Flow<RouteEntity?> = MutableStateFlow(store[id])
+
     override suspend fun setSynced(id: String, synced: Boolean) {
         store[id]?.let { store[id] = it.copy(synced = synced) }
+    }
+
+    override suspend fun clearCorrection(id: String) {
+        store[id]?.let { store[id] = it.copy(correctedPathJson = null, correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
     }
 }
 

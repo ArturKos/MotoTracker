@@ -30,4 +30,11 @@ sealed interface RouteDetailEvent {
 
     /** The route has been submitted to the sync queue for upload to the GPStrack server. */
     data object ServerSent : RouteDetailEvent
+
+    /**
+     * GPS road-correction has been enqueued and an immediate attempt triggered.
+     *
+     * The Composable should show a brief informational toast to the user.
+     */
+    data object CorrectionQueued : RouteDetailEvent
 }

@@ -228,4 +228,15 @@
     <string name="action_share_log">Udostępnij log</string>
     <string name="action_clear_logs">Wyczyść logi</string>
     <string name="diag_used_space">Zajęte miejsce: %1$s</string>
+
+    <!-- GPS correction UX — Route detail (B13) -->
+    <string name="label_track_raw">Surowa</string>
+    <string name="label_track_corrected">Na drodze</string>
+    <string name="btn_correct_now">Popraw teraz</string>
+    <string name="btn_delete_corrected_trace">Usuń poprawioną trasę</string>
+    <string name="correction_status_queued">W kolejce</string>
+    <string name="correction_status_low_confidence">Niska pewność</string>
+    <string name="correction_status_done">Skorygowano</string>
+    <string name="label_confidence">Pewność</string>
+    <string name="toast_correction_queued">Korekcja GPS zlecona</string>
 </resources>

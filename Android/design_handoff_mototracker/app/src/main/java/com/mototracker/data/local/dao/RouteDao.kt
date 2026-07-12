@@ -56,4 +56,25 @@ interface RouteDao {
      */
     @Query("UPDATE routes SET synced = :synced WHERE id = :id")
     suspend fun setSynced(id: String, synced: Boolean)
+
+    /**
+     * Returns a live [Flow] of the route with [id], emitting `null` whenever
+     * no matching row exists. Downstream collectors re-emit after any UPDATE to
+     * the row (e.g. after correction status or confidence changes).
+     *
+     * @param id Route primary key to observe.
+     */
+    @Query("SELECT * FROM routes WHERE id = :id LIMIT 1")
+    fun observeById(id: String): Flow<RouteEntity?>
+
+    /**
+     * Clears the road-corrected trace for route [id], resetting [RouteEntity.correctionStatus]
+     * to `'NONE'` and nulling out [RouteEntity.correctedPathJson] and [RouteEntity.confidence].
+     *
+     * The raw [RouteEntity.pathJson] is **never** modified — it is the permanent source of truth.
+     *
+     * @param id Route primary key.
+     */
+    @Query("UPDATE routes SET correctedPathJson = NULL, correctionStatus = 'NONE', confidence = NULL WHERE id = :id")
+    suspend fun clearCorrection(id: String)
 }

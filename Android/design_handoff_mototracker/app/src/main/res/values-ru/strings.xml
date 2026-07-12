@@ -310,4 +310,8 @@
     <string name="record_resume_session_body">Найдена прерванная запись. Продолжить?</string>
     <string name="btn_session_resume">Продолжить поездку</string>
     <string name="btn_session_discard">Отменить</string>
+
+    <!-- Статус BLE-трансляции (B21) -->
+    <string name="ble_unsupported">Bluetooth-приветствия не поддерживаются на этом устройстве</string>
+    <string name="ble_scanning_riders">Поиск ближайших мотоциклистов…</string>
 </resources>

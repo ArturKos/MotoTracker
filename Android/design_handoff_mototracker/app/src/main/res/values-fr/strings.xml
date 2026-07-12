@@ -310,4 +310,8 @@
     <string name="record_resume_session_body">Un enregistrement interrompu a été trouvé. Reprendre?</string>
     <string name="btn_session_resume">Reprendre la balade</string>
     <string name="btn_session_discard">Abandonner</string>
+
+    <!-- État de diffusion BLE (B21) -->
+    <string name="ble_unsupported">Saluts Bluetooth non pris en charge sur cet appareil</string>
+    <string name="ble_scanning_riders">Recherche de pilotes à proximité…</string>
 </resources>

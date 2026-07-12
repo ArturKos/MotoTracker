@@ -31,6 +31,10 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param resumableSession  A previously interrupted session snapshot detected on startup (B20).
  *                          Non-null triggers the resume-or-discard prompt. Null once the user
  *                          has acted on it or when no unfinished session exists.
+ * @param activeRouteId     UUID pre-assigned to the active route at recording start.
+ *                          Passed to [com.mototracker.service.RecordingService] via Intent
+ *                          so BLE-discovered waves are associated with the correct route.
+ *                          Null when not recording.
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -40,6 +44,7 @@ data class RecordingUiState(
     val weather: WeatherInfo? = null,
     val trackPoints: List<GeoCoord> = emptyList(),
     val resumableSession: ActiveSessionSnapshot? = null,
+    val activeRouteId: String? = null,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */

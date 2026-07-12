@@ -310,4 +310,8 @@
     <string name="record_resume_session_body">Byla nalezena přerušená nahrávka. Pokračovat?</string>
     <string name="btn_session_resume">Pokračovat v jízdě</string>
     <string name="btn_session_discard">Zahodit</string>
+
+    <!-- Stav BLE vysílání (B21) -->
+    <string name="ble_unsupported">Bluetooth vlny nejsou na tomto zařízení podporovány</string>
+    <string name="ble_scanning_riders">Hledám jezdce v okolí…</string>
 </resources>

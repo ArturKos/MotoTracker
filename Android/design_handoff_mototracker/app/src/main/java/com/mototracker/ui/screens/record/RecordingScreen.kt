@@ -107,7 +107,7 @@ fun RecordingScreen(
 
     LaunchedEffect(state.phase) {
         when (state.phase) {
-            RecordingPhase.Recording -> startRecordingService(context)
+            RecordingPhase.Recording -> startRecordingService(context, state.activeRouteId)
             RecordingPhase.Idle -> stopRecordingService(context)
             RecordingPhase.Paused -> Unit
         }
@@ -755,8 +755,11 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
-private fun startRecordingService(context: Context) {
-    context.startForegroundService(Intent(context, RecordingService::class.java))
+private fun startRecordingService(context: Context, routeId: String?) {
+    val intent = Intent(context, RecordingService::class.java).apply {
+        if (routeId != null) putExtra(RecordingService.EXTRA_ROUTE_ID, routeId)
+    }
+    context.startForegroundService(intent)
 }
 
 private fun stopRecordingService(context: Context) {

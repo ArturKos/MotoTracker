@@ -310,4 +310,8 @@
     <string name="record_resume_session_body">Eine unterbrochene Aufnahme wurde gefunden. Fortsetzen?</string>
     <string name="btn_session_resume">Fahrt fortsetzen</string>
     <string name="btn_session_discard">Verwerfen</string>
+
+    <!-- BLE-Wellen-Sendestatus (B21) -->
+    <string name="ble_unsupported">Bluetooth-Winken auf diesem Gerät nicht unterstützt</string>
+    <string name="ble_scanning_riders">Suche nach Fahrern in der Nähe…</string>
 </resources>

@@ -20,6 +20,12 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
 
+    <!-- BLE hardware feature; required=false so the app installs on non-BLE devices
+         and degrades gracefully via BleWaveCapability.BLE_UNAVAILABLE (B21). -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <application
         android:name=".MotoTrackerApp"
         android:allowBackup="true"

@@ -109,6 +109,12 @@ class RecordingViewModel @Inject constructor(
     /** Most-recently observed bike ID from settings; used when writing snapshots. */
     private var currentBikeId: String? = null
 
+    /**
+     * Route UUID pre-assigned when recording starts so BLE wave rows discovered
+     * during the ride can reference the route before it is persisted at Finish.
+     */
+    private var pendingRouteId: String? = null
+
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
         // also forward the active units preference to the Android Auto bridge.
@@ -156,11 +162,13 @@ class RecordingViewModel @Inject constructor(
         engine.reset()
         rideDebugLogger.beginRide()
         recordingStartMs = timeProvider.nowEpochMs()
+        pendingRouteId = UUID.randomUUID().toString()
         _uiState.update {
             it.copy(
                 phase = RecordingPhase.Recording,
                 trackPoints = emptyList(),
                 resumableSession = null,
+                activeRouteId = pendingRouteId,
             )
         }
         startTicker()
@@ -246,8 +254,10 @@ class RecordingViewModel @Inject constructor(
                 rideLabel
             }
 
+            val routeId = pendingRouteId ?: UUID.randomUUID().toString()
+            pendingRouteId = null
             val route = Route(
-                id = UUID.randomUUID().toString(),
+                id = routeId,
                 name = routeName,
                 dateEpochMs = timeProvider.nowEpochMs(),
                 bikeId = settings.currentBikeId,
@@ -272,7 +282,7 @@ class RecordingViewModel @Inject constructor(
             // B20: Clear snapshot AFTER the route is durably saved.
             sessionStore.clear()
 
-            _uiState.update { it.copy(phase = RecordingPhase.Idle, trackPoints = emptyList()) }
+            _uiState.update { it.copy(phase = RecordingPhase.Idle, trackPoints = emptyList(), activeRouteId = null) }
             _effects.emit(RecordingEffect.Saved(offline = offline))
             _effects.emit(RecordingEffect.NavigateToDetail(route.id))
             rideDebugLogger.endRide()
@@ -306,7 +316,8 @@ class RecordingViewModel @Inject constructor(
 
     /** Clears a detected resumable session without restoring it (B20). */
     private fun doDiscardSession() {
-        _uiState.update { it.copy(resumableSession = null) }
+        pendingRouteId = null
+        _uiState.update { it.copy(resumableSession = null, activeRouteId = null) }
         viewModelScope.launch { sessionStore.clear() }
     }
 

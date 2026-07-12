@@ -2,6 +2,8 @@ package com.mototracker.di
 
 import com.mototracker.core.resource.ContextStringResolver
 import com.mototracker.core.resource.StringResolver
+import com.mototracker.data.bluetooth.AndroidBleWaveSource
+import com.mototracker.data.bluetooth.BleWaveSource
 import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
 import com.mototracker.data.location.LocationClient
@@ -72,4 +74,9 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindRecordingSessionStore(impl: DataStoreRecordingSessionStore): RecordingSessionStore
+
+    /** Binds [AndroidBleWaveSource] as the [BleWaveSource] singleton (B21). */
+    @Binds
+    @Singleton
+    abstract fun bindBleWaveSource(impl: AndroidBleWaveSource): BleWaveSource
 }

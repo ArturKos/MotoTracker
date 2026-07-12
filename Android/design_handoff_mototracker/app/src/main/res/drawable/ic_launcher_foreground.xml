@@ -1,0 +1,34 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Content scaled to ~66% and centred so nothing is clipped by the adaptive mask's safe zone. -->
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="0.66"
+        android:scaleY="0.66">
+        <!-- Route track -->
+        <path
+            android:pathData="M128,372 C176,300 150,232 214,236 C278,240 250,152 320,150 C356,149 372,168 388,150"
+            android:strokeColor="#00D1B2"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- Start marker: dark fill + teal ring (circle cx=128 cy=372 r=26) -->
+        <path
+            android:pathData="M102,372 a26,26 0 1,0 52,0 a26,26 0 1,0 -52,0"
+            android:fillColor="#0E1114"
+            android:strokeColor="#00D1B2"
+            android:strokeWidth="18" />
+        <!-- End pin: teal disc (circle cx=388 cy=150 r=42) -->
+        <path
+            android:pathData="M346,150 a42,42 0 1,0 84,0 a42,42 0 1,0 -84,0"
+            android:fillColor="#00D1B2" />
+        <!-- End pin hole: dark centre (circle cx=388 cy=150 r=16) -->
+        <path
+            android:pathData="M372,150 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0"
+            android:fillColor="#0E1114" />
+    </group>
+</vector>

@@ -38,6 +38,15 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  *                          Passed to [com.mototracker.service.RecordingService] via Intent
  *                          so BLE-discovered waves are associated with the correct route.
  *                          Null when not recording.
+ * @param liveHeadingDeg    Tilt-compensated magnetic azimuth in degrees [0, 360) from the
+ *                          magnetometer, populated whenever the screen is active regardless of
+ *                          recording phase.  Null until the first sensor reading arrives.
+ *                          Used to animate the compass in Idle/Paused before GPS bearing is
+ *                          available (F2).
+ * @param liveLeanDeg       Live lean angle in degrees from the gravity sensor, populated
+ *                          regardless of recording phase.  Null until the first reading.
+ *                          Used to animate the lean bar in Idle so the rider can orient the
+ *                          phone before starting (F2).
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -49,6 +58,8 @@ data class RecordingUiState(
     val trackPoints: List<GeoCoord> = emptyList(),
     val resumableSession: ActiveSessionSnapshot? = null,
     val activeRouteId: String? = null,
+    val liveHeadingDeg: Float? = null,
+    val liveLeanDeg: Double? = null,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */

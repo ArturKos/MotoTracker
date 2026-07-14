@@ -16,7 +16,9 @@ import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.RouteRepositoryImpl
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.repository.WaveRepositoryImpl
+import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
+import com.mototracker.data.sensor.SensorManagerHeadingSource
 import com.mototracker.data.sensor.SensorManagerLeanSource
 import dagger.Binds
 import dagger.Module
@@ -44,6 +46,11 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindLeanSensorSource(impl: SensorManagerLeanSource): LeanSensorSource
+
+    /** Binds [SensorManagerHeadingSource] as the [HeadingSensorSource] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindHeadingSensorSource(impl: SensorManagerHeadingSource): HeadingSensorSource
 
     /** Binds [RouteRepositoryImpl] as the [RouteRepository] singleton. */
     @Binds

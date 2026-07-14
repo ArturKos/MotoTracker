@@ -18,6 +18,7 @@ import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -66,6 +67,10 @@ private class FakeResumeLocationClient : LocationClient {
 
 private class FakeResumeLeanSource : LeanSensorSource {
     override val leanAngles: Flow<Double> = flow {}
+}
+
+private class FakeResumeHeadingSource : HeadingSensorSource {
+    override val headings: Flow<Float> = flow {}
 }
 
 private class FakeResumeRouteRepository : RouteRepository {
@@ -171,6 +176,7 @@ class RecordingViewModelResumeTest {
     ) = RecordingViewModel(
         locationClient = FakeResumeLocationClient(),
         leanSensorSource = FakeResumeLeanSource(),
+        headingSensorSource = FakeResumeHeadingSource(),
         routeRepository = routeRepo,
         syncRepository = FakeResumeSyncRepository(),
         settingsSource = FakeResumeSettingsSource(),

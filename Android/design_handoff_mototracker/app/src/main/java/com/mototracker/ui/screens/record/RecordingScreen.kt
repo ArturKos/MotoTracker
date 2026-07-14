@@ -196,6 +196,15 @@ fun RecordingContent(
     mapSlot: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    // F2: Resolve display heading — GPS bearing during Recording, magnetometer otherwise.
+    val displayHeadingDeg = if (state.phase == RecordingPhase.Recording) {
+        state.metrics.headingDeg
+    } else {
+        state.liveHeadingDeg ?: state.metrics.headingDeg
+    }
+    // F2: Live lean — always from sensor; falls back to last-recorded value.
+    val displayLeanDeg = state.liveLeanDeg ?: state.metrics.currentLeanDeg
+
     // B20: Resume-or-discard prompt when an interrupted session is detected on startup.
     if (state.resumableSession != null) {
         ResumeSessionDialog(
@@ -231,7 +240,7 @@ fun RecordingContent(
                 )
 
                 WindRose(
-                    headingDeg = state.metrics.headingDeg,
+                    headingDeg = displayHeadingDeg,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp),
@@ -248,12 +257,12 @@ fun RecordingContent(
                     .padding(horizontal = 8.dp),
             ) {
                 Spacer(Modifier.height(8.dp))
-                SpeedAndTimeRow(state)
+                SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg)
                 Spacer(Modifier.height(6.dp))
                 DistanceAltitudeFuelRow(state)
                 FuelTankRow(state = state, onEvent = onEvent)
                 Spacer(Modifier.height(6.dp))
-                LeanRow(state)
+                LeanRow(state = state, currentLeanDeg = displayLeanDeg)
                 Spacer(Modifier.height(6.dp))
                 TimersRow(state)
                 Spacer(Modifier.height(12.dp))
@@ -397,7 +406,7 @@ private fun WindRose(headingDeg: Float, modifier: Modifier = Modifier) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SpeedAndTimeRow(state: RecordingUiState) {
+private fun SpeedAndTimeRow(state: RecordingUiState, headingDeg: Float) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -405,7 +414,7 @@ private fun SpeedAndTimeRow(state: RecordingUiState) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.weight(1f).fillMaxHeight())
-        CompassDial(headingDeg = state.metrics.headingDeg, modifier = Modifier.weight(1f).fillMaxHeight())
+        CompassDial(headingDeg = headingDeg, modifier = Modifier.weight(1f).fillMaxHeight())
     }
 }
 
@@ -596,9 +605,9 @@ private fun DistanceAltitudeFuelRow(state: RecordingUiState) {
 }
 
 @Composable
-private fun LeanRow(state: RecordingUiState) {
+private fun LeanRow(state: RecordingUiState, currentLeanDeg: Double) {
     LeanTiltBar(
-        currentLeanDeg = state.metrics.currentLeanDeg,
+        currentLeanDeg = currentLeanDeg,
         maxLeanLeftDeg = state.metrics.maxLeanLeftDeg,
         maxLeanRightDeg = state.metrics.maxLeanRightDeg,
         modifier = Modifier.fillMaxWidth(),

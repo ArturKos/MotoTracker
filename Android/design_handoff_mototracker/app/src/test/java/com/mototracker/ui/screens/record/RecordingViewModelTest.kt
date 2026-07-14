@@ -18,6 +18,7 @@ import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -57,6 +58,12 @@ private class FakeLeanSensorSource(
     private val angles: Flow<Double> = flow {},
 ) : LeanSensorSource {
     override val leanAngles: Flow<Double> = angles
+}
+
+private class FakeHeadingSensorSource(
+    private val headingFlow: Flow<Float> = flow {},
+) : HeadingSensorSource {
+    override val headings: Flow<Float> = headingFlow
 }
 
 private class FakeRouteRepository : RouteRepository {
@@ -752,6 +759,84 @@ class RecordingViewModelTest {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    // ── F2 — live compass + lean in Idle ────────────────────────────────────
+
+    @Test
+    fun `heading sensor updates liveHeadingDeg in Idle without starting recording`() =
+        runTest(testDispatcher) {
+            val vm = buildViewModel(
+                headingSensorSource = FakeHeadingSensorSource(kotlinx.coroutines.flow.flowOf(135f)),
+            )
+            advanceTimeBy(200L)
+
+            assertEquals(
+                "liveHeadingDeg should be updated from sensor in Idle",
+                RecordingPhase.Idle,
+                vm.uiState.value.phase,
+            )
+            assertEquals(135f, vm.uiState.value.liveHeadingDeg ?: -1f, 0.01f)
+        }
+
+    @Test
+    fun `lean sensor updates liveLeanDeg in Idle without calling engine`() =
+        runTest(testDispatcher) {
+            val vm = buildViewModel(
+                leanSensorSource = FakeLeanSensorSource(kotlinx.coroutines.flow.flowOf(22.5)),
+            )
+            advanceTimeBy(200L)
+
+            assertEquals(RecordingPhase.Idle, vm.uiState.value.phase)
+            assertEquals(22.5, vm.uiState.value.liveLeanDeg ?: -1.0, 0.001)
+            // Engine/metrics should not be affected in Idle
+            assertEquals(0.0, vm.uiState.value.metrics.currentLeanDeg, 0.0)
+        }
+
+    @Test
+    fun `lean sensor reaches engine while Recording`() = runTest(testDispatcher) {
+        val vm = buildViewModel(
+            leanSensorSource = FakeLeanSensorSource(kotlinx.coroutines.flow.flowOf(30.0)),
+        )
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(200L)
+
+        assertEquals(RecordingPhase.Recording, vm.uiState.value.phase)
+        // Engine should have received the lean angle → currentLeanDeg updated
+        assertEquals(30.0, vm.uiState.value.metrics.currentLeanDeg, 0.001)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `heading sensor does not affect engine metrics`() = runTest(testDispatcher) {
+        val vm = buildViewModel(
+            headingSensorSource = FakeHeadingSensorSource(kotlinx.coroutines.flow.flowOf(180f)),
+        )
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(200L)
+
+        // headingDeg in metrics comes from GPS (engine), not from headingSensorSource
+        assertEquals(0f, vm.uiState.value.metrics.headingDeg, 0.01f)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `lean sensor logs LEAN tag only while Recording not in Idle`() =
+        runTest(testDispatcher) {
+            val logger = FakeRideDebugLogger()
+            val vm = buildViewModel(
+                leanSensorSource = FakeLeanSensorSource(kotlinx.coroutines.flow.flowOf(10.0)),
+                rideDebugLogger = logger,
+            )
+            // Do NOT start recording — remains Idle
+            advanceTimeBy(200L)
+
+            assertFalse(
+                "LEAN tag should not be logged in Idle",
+                logger.logCalls.any { it.first == "LEAN" },
+            )
+        }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
     private fun buildViewModel(
         online: Boolean = true,
         offline: Boolean = false,
@@ -761,6 +846,7 @@ class RecordingViewModelTest {
         fixedTimeMs: Long = 1_000_000L,
         locationClient: LocationClient = FakeLocationClient(),
         leanSensorSource: LeanSensorSource = FakeLeanSensorSource(),
+        headingSensorSource: HeadingSensorSource = FakeHeadingSensorSource(),
         rideDebugLogger: RideDebugLogger = fakeLogger,
         reverseGeocoder: ReverseGeocoder = FakeReverseGeocoder(),
         stringResolver: StringResolver = FakeStringResolver(),
@@ -769,6 +855,7 @@ class RecordingViewModelTest {
     ) = RecordingViewModel(
         locationClient = locationClient,
         leanSensorSource = leanSensorSource,
+        headingSensorSource = headingSensorSource,
         routeRepository = routeRepository,
         syncRepository = syncRepo,
         settingsSource = FakeSettingsSource(settings),

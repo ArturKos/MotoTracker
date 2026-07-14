@@ -16,6 +16,7 @@ import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.naming.PartOfDay
@@ -62,9 +63,11 @@ import javax.inject.Inject
  * All collaborators are injectable interfaces so the ViewModel is fully unit-testable
  * with fakes (no Android runtime needed).
  *
- * @param locationClient    GPS location updates.
- * @param leanSensorSource  Gravity-sensor lean angles.
- * @param routeRepository   Persistence for completed routes.
+ * @param locationClient      GPS location updates.
+ * @param leanSensorSource    Gravity-sensor lean angles.
+ * @param headingSensorSource Magnetometer + gravity heading source; feeds [RecordingUiState.liveHeadingDeg]
+ *                            always, regardless of phase (F2 — live compass in Idle).
+ * @param routeRepository     Persistence for completed routes.
  * @param syncRepository    Outbound sync queue.
  * @param settingsSource    Read-only app settings stream.
  * @param bikeRepository    Read-only bike list for resolving per-bike fuel consumption.
@@ -82,6 +85,7 @@ import javax.inject.Inject
 class RecordingViewModel @Inject constructor(
     private val locationClient: LocationClient,
     private val leanSensorSource: LeanSensorSource,
+    private val headingSensorSource: HeadingSensorSource,
     private val routeRepository: RouteRepository,
     private val syncRepository: SyncRepository,
     private val settingsSource: AppSettingsSource,
@@ -107,7 +111,6 @@ class RecordingViewModel @Inject constructor(
 
     private var tickerJob: Job? = null
     private var locationJob: Job? = null
-    private var leanJob: Job? = null
 
     /** Epoch-ms timestamp captured at recording start; used for part-of-day naming. */
     private var recordingStartMs: Long = 0L
@@ -161,6 +164,30 @@ class RecordingViewModel @Inject constructor(
                 _uiState.update { it.copy(resumableSession = existing) }
             }
         }
+
+        // F2: Always-on lean collector — liveLeanDeg updates regardless of phase so the
+        // rider can see the tilt bar before starting a ride.  Engine and logger are only
+        // fed while actively Recording.
+        viewModelScope.launch {
+            leanSensorSource.leanAngles.collect { deg ->
+                val currentPhase = _uiState.value.phase
+                _uiState.update { it.copy(liveLeanDeg = deg) }
+                if (currentPhase == RecordingPhase.Recording) {
+                    rideDebugLogger.log("LEAN", "angle=$deg")
+                    engine.onLean(deg)
+                    _uiState.update { it.copy(metrics = engine.snapshot()) }
+                }
+            }
+        }
+
+        // F2: Always-on heading collector — liveHeadingDeg updates regardless of phase so
+        // the compass needle is live on the Idle screen.  GPS bearing (engine) remains the
+        // authoritative heading recorded per D6.
+        viewModelScope.launch {
+            headingSensorSource.headings.collect { deg ->
+                _uiState.update { it.copy(liveHeadingDeg = deg) }
+            }
+        }
     }
 
     /**
@@ -196,7 +223,6 @@ class RecordingViewModel @Inject constructor(
         }
         startTicker()
         startLocationUpdates()
-        startLeanUpdates()
     }
 
     private fun doPause() {
@@ -238,10 +264,8 @@ class RecordingViewModel @Inject constructor(
         rideDebugLogger.log("LIFECYCLE", "finish")
         tickerJob?.cancel()
         locationJob?.cancel()
-        leanJob?.cancel()
         tickerJob = null
         locationJob = null
-        leanJob = null
 
         viewModelScope.launch {
             val settings = settingsSource.settings.first()
@@ -334,9 +358,9 @@ class RecordingViewModel @Inject constructor(
                 resumableSession = null,
             )
         }
-        // Start sensor flows so that once the user taps Resume, GPS and lean are live.
+        // Start location updates so GPS fixes accumulate once the user taps Resume.
+        // Lean is already live from the always-on init collector (F2).
         startLocationUpdates()
-        startLeanUpdates()
     }
 
     /** Clears a detected resumable session without restoring it (B20). */
@@ -411,16 +435,6 @@ class RecordingViewModel @Inject constructor(
             } catch (_: SecurityException) {
                 rideDebugLogger.log("ERROR", "SecurityException — location permission revoked mid-session")
                 // Permission was revoked mid-session; recording continues on ticker/lean only.
-            }
-        }
-    }
-
-    private fun startLeanUpdates() {
-        leanJob = viewModelScope.launch {
-            leanSensorSource.leanAngles.collect { deg ->
-                rideDebugLogger.log("LEAN", "angle=$deg")
-                engine.onLean(deg)
-                _uiState.update { it.copy(metrics = engine.snapshot()) }
             }
         }
     }

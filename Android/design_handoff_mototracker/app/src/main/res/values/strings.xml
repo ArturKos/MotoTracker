@@ -382,4 +382,14 @@
 
     <!-- Moving-time timer (E5) -->
     <string name="tile_moving_time">Moving time</string>
+
+    <!-- Analog compass cardinal abbreviations (E6) -->
+    <string name="compass_n">N</string>
+    <string name="compass_ne">NE</string>
+    <string name="compass_e">E</string>
+    <string name="compass_se">SE</string>
+    <string name="compass_s">S</string>
+    <string name="compass_sw">SW</string>
+    <string name="compass_w">W</string>
+    <string name="compass_nw">NW</string>
 </resources>

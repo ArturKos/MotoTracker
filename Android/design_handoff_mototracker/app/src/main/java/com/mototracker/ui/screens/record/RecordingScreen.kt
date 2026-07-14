@@ -61,6 +61,8 @@ import com.mototracker.ui.map.OsmTrackMap
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Recording screen — ViewModel + permission wrapper that delegates to [RecordingContent].
@@ -238,7 +240,7 @@ fun RecordingContent(
                 DistanceAltitudeFuelRow(state)
                 FuelTankRow(state = state, onEvent = onEvent)
                 Spacer(Modifier.height(6.dp))
-                LeanCompassRow(state)
+                LeanRow(state)
                 Spacer(Modifier.height(6.dp))
                 TimersRow(state)
                 Spacer(Modifier.height(12.dp))
@@ -383,7 +385,13 @@ private fun WindRose(headingDeg: Float, modifier: Modifier = Modifier) {
 
 @Composable
 private fun SpeedAndTimeRow(state: RecordingUiState) {
-    SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.fillMaxWidth())
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.weight(2f))
+        CompassDial(headingDeg = state.metrics.headingDeg, modifier = Modifier.weight(1f))
+    }
 }
 
 @Composable
@@ -574,14 +582,8 @@ private fun DistanceAltitudeFuelRow(state: RecordingUiState) {
 }
 
 @Composable
-private fun LeanCompassRow(state: RecordingUiState) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        LeanTile(leanDeg = state.metrics.currentLeanDeg, modifier = Modifier.weight(1f))
-        CompassTile(headingDeg = state.metrics.headingDeg, modifier = Modifier.weight(1f))
-    }
+private fun LeanRow(state: RecordingUiState) {
+    LeanTile(leanDeg = state.metrics.currentLeanDeg, modifier = Modifier.fillMaxWidth())
 }
 
 @Composable
@@ -621,8 +623,42 @@ private fun LeanTile(leanDeg: Double, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Analog compass dial rendered adjacent to the speedometer.
+ *
+ * Draws a compass rose inside a [MetricTile]: an outer ring, tick marks for all
+ * eight cardinal directions (N is longer and red), and a two-colour needle.  The
+ * whole rose is rotated by the normalised heading so the needle points in the
+ * direction of travel.  Below the rose the numeric heading and the localised
+ * [CompassMath.Cardinal] abbreviation are shown.
+ *
+ * Heading comes from GPS bearing ([RecordingMetrics.headingDeg]) and only updates
+ * while moving — correct rotation on a live ride is verified on-device (🔬).
+ *
+ * @param headingDeg Raw GPS bearing in degrees; may be any float (normalised internally).
+ * @param modifier   Standard Compose modifier applied to the enclosing [MetricTile].
+ */
 @Composable
-private fun CompassTile(headingDeg: Float, modifier: Modifier = Modifier) {
+private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
+    val normalised = CompassMath.normalizeHeading(headingDeg)
+    val cardinal = CompassMath.cardinal(headingDeg)
+
+    val cardinalRes = when (cardinal) {
+        CompassMath.Cardinal.N  -> R.string.compass_n
+        CompassMath.Cardinal.NE -> R.string.compass_ne
+        CompassMath.Cardinal.E  -> R.string.compass_e
+        CompassMath.Cardinal.SE -> R.string.compass_se
+        CompassMath.Cardinal.S  -> R.string.compass_s
+        CompassMath.Cardinal.SW -> R.string.compass_sw
+        CompassMath.Cardinal.W  -> R.string.compass_w
+        CompassMath.Cardinal.NW -> R.string.compass_nw
+    }
+    val cardinalLabel = stringResource(cardinalRes)
+
+    val accent = MotoTracker.colors.accent
+    val ringColor = Color.White.copy(alpha = 0.25f)
+    val tickDim = Color.White.copy(alpha = 0.55f)
+
     MetricTile(modifier = modifier) {
         Text(
             text = stringResource(R.string.label_compass),
@@ -630,36 +666,76 @@ private fun CompassTile(headingDeg: Float, modifier: Modifier = Modifier) {
             color = MotoTracker.colors.dim,
         )
         Box(
-            Modifier.size(48.dp),
+            Modifier.size(72.dp),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(
                 Modifier
-                    .size(40.dp)
-                    .rotate(headingDeg),
+                    .size(68.dp)
+                    .rotate(normalised),
             ) {
                 val cx = size.width / 2
                 val cy = size.height / 2
                 val r = size.minDimension / 2 - 2.dp.toPx()
+
+                // Outer ring
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.2f),
+                    color = ringColor,
                     radius = r,
-                    style = Stroke(width = 1.dp.toPx()),
+                    style = Stroke(width = 1.5.dp.toPx()),
                 )
-                // North pointer
+
+                // 8 cardinal tick marks — N is longer/red, others are shorter/dim
+                val tickAngles = floatArrayOf(0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f)
+                for (i in tickAngles.indices) {
+                    val angleRad = Math.toRadians(tickAngles[i].toDouble())
+                    val isNorth = i == 0
+                    val outerR = r
+                    val innerR = if (isNorth) r * 0.58f else r * 0.76f
+                    val tickColor = if (isNorth) Color.Red else tickDim
+                    val tickWidth = if (isNorth) 3.dp.toPx() else 1.5.dp.toPx()
+                    // Canvas: up = -y, so x = sin(θ), y = -cos(θ) for bearing θ from N
+                    val sx = (sin(angleRad) * innerR).toFloat()
+                    val sy = (-cos(angleRad) * innerR).toFloat()
+                    val ex = (sin(angleRad) * outerR).toFloat()
+                    val ey = (-cos(angleRad) * outerR).toFloat()
+                    drawLine(
+                        color = tickColor,
+                        start = Offset(cx + sx, cy + sy),
+                        end   = Offset(cx + ex, cy + ey),
+                        strokeWidth = tickWidth,
+                        cap = StrokeCap.Round,
+                    )
+                }
+
+                // Needle — red tip (north / direction of travel) + grey tail
                 drawLine(
                     color = Color.Red,
                     start = Offset(cx, cy),
-                    end = Offset(cx, cy - r),
+                    end   = Offset(cx, cy - r * 0.54f),
                     strokeWidth = 3.dp.toPx(),
                     cap = StrokeCap.Round,
                 )
+                drawLine(
+                    color = Color.White.copy(alpha = 0.35f),
+                    start = Offset(cx, cy),
+                    end   = Offset(cx, cy + r * 0.38f),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                // Centre dot
+                drawCircle(color = accent, radius = 3.dp.toPx())
             }
         }
         Text(
-            text = String.format(Locale.US, "%.0f°", headingDeg),
+            text = String.format(Locale.US, "%.0f°", normalised),
             style = MotoTracker.typography.bigCardNumber,
             color = MotoTracker.colors.text,
+        )
+        Text(
+            text = cardinalLabel,
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.dim,
         )
     }
 }

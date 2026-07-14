@@ -352,4 +352,14 @@
 
     <!-- Fahrzeitanzeige (E5) -->
     <string name="tile_moving_time">Fahrzeit</string>
+
+    <!-- Himmelsrichtungs-Abkürzungen — Analog-Kompass (E6) -->
+    <string name="compass_n">N</string>
+    <string name="compass_ne">NO</string>
+    <string name="compass_e">O</string>
+    <string name="compass_se">SO</string>
+    <string name="compass_s">S</string>
+    <string name="compass_sw">SW</string>
+    <string name="compass_w">W</string>
+    <string name="compass_nw">NW</string>
 </resources>

@@ -352,4 +352,14 @@
 
     <!-- Časovač pohybu (E5) -->
     <string name="tile_moving_time">Čas v pohybu</string>
+
+    <!-- Zkratky světových stran — analogový kompas (E6) -->
+    <string name="compass_n">S</string>
+    <string name="compass_ne">SV</string>
+    <string name="compass_e">V</string>
+    <string name="compass_se">JV</string>
+    <string name="compass_s">J</string>
+    <string name="compass_sw">JZ</string>
+    <string name="compass_w">Z</string>
+    <string name="compass_nw">SZ</string>
 </resources>

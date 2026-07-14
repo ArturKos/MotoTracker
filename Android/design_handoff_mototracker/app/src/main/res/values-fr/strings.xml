@@ -352,4 +352,14 @@
 
     <!-- Minuterie de temps en mouvement (E5) -->
     <string name="tile_moving_time">Temps en mouvement</string>
+
+    <!-- Abréviations des points cardinaux — boussole analogique (E6) -->
+    <string name="compass_n">N</string>
+    <string name="compass_ne">NE</string>
+    <string name="compass_e">E</string>
+    <string name="compass_se">SE</string>
+    <string name="compass_s">S</string>
+    <string name="compass_sw">SO</string>
+    <string name="compass_w">O</string>
+    <string name="compass_nw">NO</string>
 </resources>

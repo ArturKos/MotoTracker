@@ -399,4 +399,8 @@
     <string name="label_lean_right_marker">R</string>
     <string name="label_lean_max_left">Max L</string>
     <string name="label_lean_max_right">Max R</string>
+
+    <!-- Route detail: full-screen map toggle (E8) -->
+    <string name="route_detail_expand_map">Expand map</string>
+    <string name="route_detail_collapse_map">Collapse map</string>
 </resources>

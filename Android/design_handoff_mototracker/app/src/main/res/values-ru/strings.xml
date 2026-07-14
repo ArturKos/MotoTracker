@@ -369,4 +369,8 @@
     <string name="label_lean_right_marker">П</string>
     <string name="label_lean_max_left">Макс. Л</string>
     <string name="label_lean_max_right">Макс. П</string>
+
+    <!-- Детали маршрута: карта на весь экран (E8) -->
+    <string name="route_detail_expand_map">Развернуть карту</string>
+    <string name="route_detail_collapse_map">Свернуть карту</string>
 </resources>

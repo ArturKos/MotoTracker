@@ -369,4 +369,8 @@
     <string name="label_lean_right_marker">P</string>
     <string name="label_lean_max_left">Maks. L</string>
     <string name="label_lean_max_right">Maks. P</string>
+
+    <!-- Szczegóły trasy: mapa pełnoekranowa (E8) -->
+    <string name="route_detail_expand_map">Rozwiń mapę</string>
+    <string name="route_detail_collapse_map">Zwiń mapę</string>
 </resources>

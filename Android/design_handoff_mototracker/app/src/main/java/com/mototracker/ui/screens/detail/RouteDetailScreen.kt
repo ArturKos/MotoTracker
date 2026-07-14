@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.TwoWheeler
@@ -42,7 +44,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -92,6 +97,7 @@ fun RouteDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showExportSheet by remember { mutableStateOf(false) }
     var pendingGpx by remember { mutableStateOf<String?>(null) }
+    var mapFullscreen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
     val gpxSavedMsg = stringResource(R.string.toast_gpx_saved)
@@ -142,6 +148,8 @@ fun RouteDetailScreen(
         onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
         onRename = { viewModel.rename(it) },
         onChangeBike = { viewModel.setBike(it) },
+        mapFullscreen = mapFullscreen,
+        onToggleMapFullscreen = { mapFullscreen = !mapFullscreen },
         mapSlot = {
             OsmTrackMap(
                 points = state.trackPoints,
@@ -149,6 +157,13 @@ fun RouteDetailScreen(
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(10.dp)),
+                showStartEndMarkers = true,
+            )
+        },
+        fullscreenMapSlot = {
+            OsmTrackMap(
+                points = state.trackPoints,
+                modifier = Modifier.fillMaxSize(),
                 showStartEndMarkers = true,
             )
         },
@@ -167,7 +182,7 @@ fun RouteDetailScreen(
 
 /**
  * Pure renderer for the Route Detail screen: loading/not-found panes or the full detail view.
- * Extracted for Paparazzi screenshot testing — no ViewModels, LaunchedEffects, or export sheets.
+ * Extracted for Roborazzi screenshot testing — no ViewModels, LaunchedEffects, or export sheets.
  *
  * @param state                  Pre-computed detail UI state (loading/notFound/data).
  * @param onExport               Called when the user taps the Export/Share button.
@@ -178,8 +193,13 @@ fun RouteDetailScreen(
  * @param onRename               Called with the new name when the user confirms the rename dialog.
  * @param onChangeBike           Called with the selected bike UUID (or `null` to clear) when the
  *                               user confirms the bike-picker dialog.
- * @param mapSlot                Composable rendered in the map slot; in production this is [OsmTrackMap],
- *                               in Paparazzi tests a static placeholder Box is used instead.
+ * @param mapSlot                Composable rendered in the inline map slot; in production this is
+ *                               [OsmTrackMap], in Roborazzi tests a static placeholder Box is used.
+ * @param fullscreenMapSlot      Composable rendered inside the fullscreen Dialog overlay; in
+ *                               production this is a fresh [OsmTrackMap] at [Modifier.fillMaxSize],
+ *                               in Roborazzi tests a static placeholder Box is used instead.
+ * @param mapFullscreen          `true` when the fullscreen map overlay is active.
+ * @param onToggleMapFullscreen  Called to expand or collapse the fullscreen map.
  * @param modifier               Standard Compose modifier.
  */
 @Composable
@@ -193,6 +213,9 @@ fun RouteDetailContent(
     onRename: (String) -> Unit = {},
     onChangeBike: (String?) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
+    fullscreenMapSlot: @Composable () -> Unit = {},
+    mapFullscreen: Boolean = false,
+    onToggleMapFullscreen: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -209,6 +232,9 @@ fun RouteDetailContent(
             onRename = onRename,
             onChangeBike = onChangeBike,
             mapSlot = mapSlot,
+            fullscreenMapSlot = fullscreenMapSlot,
+            mapFullscreen = mapFullscreen,
+            onToggleMapFullscreen = onToggleMapFullscreen,
         )
     }
 }
@@ -235,6 +261,24 @@ private fun NotFoundPane(modifier: Modifier = Modifier) {
 
 // ── Main content ──────────────────────────────────────────────────────────────
 
+/**
+ * Stateful detail content rendered when route data is available.
+ *
+ * @param state                  Loaded route UI state.
+ * @param modifier               Standard Compose modifier.
+ * @param onExport               Called when the user taps Export/Share.
+ * @param onSend                 Called when the user taps Send to server.
+ * @param onSelectTrackView      Called when the Raw|Corrected toggle changes.
+ * @param onCorrectNow           Called when the user requests an immediate correction.
+ * @param onDeleteCorrectedTrace Called when the user confirms deleting the corrected trace.
+ * @param onRename               Called with the new name when the user confirms rename.
+ * @param onChangeBike           Called with the selected bike UUID (or `null`) when the user
+ *                               confirms the bike-picker dialog.
+ * @param mapSlot                Composable for the inline map tile (200 dp tall).
+ * @param fullscreenMapSlot      Composable for the fullscreen Dialog overlay map.
+ * @param mapFullscreen          `true` when the fullscreen Dialog overlay is visible.
+ * @param onToggleMapFullscreen  Toggles [mapFullscreen]; handles both expand and collapse.
+ */
 @Composable
 private fun DetailContent(
     state: RouteDetailUiState,
@@ -247,6 +291,9 @@ private fun DetailContent(
     onRename: (String) -> Unit,
     onChangeBike: (String?) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
+    fullscreenMapSlot: @Composable () -> Unit = {},
+    mapFullscreen: Boolean = false,
+    onToggleMapFullscreen: () -> Unit = {},
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBikePickerDialog by remember { mutableStateOf(false) }
@@ -290,7 +337,24 @@ private fun DetailContent(
             )
         }
 
-        item { mapSlot() }
+        item {
+            Box {
+                mapSlot()
+                IconButton(
+                    onClick = onToggleMapFullscreen,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.35f), shape = CircleShape),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Fullscreen,
+                        contentDescription = stringResource(R.string.route_detail_expand_map),
+                        tint = Color.White,
+                    )
+                }
+            }
+        }
 
         item {
             CorrectionPanel(
@@ -407,6 +471,34 @@ private fun DetailContent(
         }
 
         item { Spacer(Modifier.height(24.dp)) }
+    }
+
+    if (mapFullscreen) {
+        Dialog(
+            onDismissRequest = onToggleMapFullscreen,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MotoTracker.colors.bg),
+            ) {
+                fullscreenMapSlot()
+                IconButton(
+                    onClick = onToggleMapFullscreen,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = 0.35f), shape = CircleShape),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FullscreenExit,
+                        contentDescription = stringResource(R.string.route_detail_collapse_map),
+                        tint = Color.White,
+                    )
+                }
+            }
+        }
     }
 }
 

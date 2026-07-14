@@ -1,7 +1,16 @@
 package com.mototracker.ui.screenshot
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.mototracker.ui.screens.detail.RouteDetailContent
@@ -44,6 +53,11 @@ class ScreenshotTest {
 
     private fun snapshot(name: String) {
         composeRule.onRoot().captureRoboImage("src/test/snapshots/$name.png")
+    }
+
+    /** Captures the dialog root (second root node) for fullscreen-overlay tests. */
+    private fun snapshotDialog(name: String) {
+        composeRule.onAllNodes(isRoot())[1].captureRoboImage("src/test/snapshots/$name.png")
     }
 
     // ── Login ─────────────────────────────────────────────────────────────────
@@ -223,5 +237,162 @@ class ScreenshotTest {
             }
         }
         snapshot("detail_cockpit_populated")
+    }
+
+    // ── Route Detail E8: inline map with expand button ────────────────────────
+
+    @Test
+    fun detail_cockpit_map_inline() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RouteDetailContent(
+                    state = ScreenshotFixtures.routeDetailPopulated,
+                    mapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color(0xFF1A2030)),
+                        )
+                    },
+                    mapFullscreen = false,
+                    onToggleMapFullscreen = {},
+                )
+            }
+        }
+        snapshot("detail_cockpit_map_inline")
+    }
+
+    @Test
+    fun detail_grid_map_inline() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.GRID, accent = AccentColor.TEAL) {
+                RouteDetailContent(
+                    state = ScreenshotFixtures.routeDetailPopulated,
+                    mapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color(0xFF1A2030)),
+                        )
+                    },
+                    mapFullscreen = false,
+                    onToggleMapFullscreen = {},
+                )
+            }
+        }
+        snapshot("detail_grid_map_inline")
+    }
+
+    @Test
+    fun detail_light_map_inline() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.LIGHT, accent = AccentColor.TEAL) {
+                RouteDetailContent(
+                    state = ScreenshotFixtures.routeDetailPopulated,
+                    mapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color(0xFFCDD8E0)),
+                        )
+                    },
+                    mapFullscreen = false,
+                    onToggleMapFullscreen = {},
+                )
+            }
+        }
+        snapshot("detail_light_map_inline")
+    }
+
+    // ── Route Detail E8: fullscreen map overlay ───────────────────────────────
+
+    @Test
+    fun detail_cockpit_map_fullscreen() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RouteDetailContent(
+                    state = ScreenshotFixtures.routeDetailPopulated,
+                    mapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color(0xFF1A2030)),
+                        )
+                    },
+                    fullscreenMapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF1A2030)),
+                        )
+                    },
+                    mapFullscreen = true,
+                    onToggleMapFullscreen = {},
+                )
+            }
+        }
+        snapshotDialog("detail_cockpit_map_fullscreen")
+    }
+
+    @Test
+    fun detail_grid_map_fullscreen() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.GRID, accent = AccentColor.TEAL) {
+                RouteDetailContent(
+                    state = ScreenshotFixtures.routeDetailPopulated,
+                    mapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color(0xFF1A2030)),
+                        )
+                    },
+                    fullscreenMapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF1A2030)),
+                        )
+                    },
+                    mapFullscreen = true,
+                    onToggleMapFullscreen = {},
+                )
+            }
+        }
+        snapshotDialog("detail_grid_map_fullscreen")
+    }
+
+    @Test
+    fun detail_light_map_fullscreen() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.LIGHT, accent = AccentColor.TEAL) {
+                RouteDetailContent(
+                    state = ScreenshotFixtures.routeDetailPopulated,
+                    mapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color(0xFFCDD8E0)),
+                        )
+                    },
+                    fullscreenMapSlot = {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFFCDD8E0)),
+                        )
+                    },
+                    mapFullscreen = true,
+                    onToggleMapFullscreen = {},
+                )
+            }
+        }
+        snapshotDialog("detail_light_map_fullscreen")
     }
 }

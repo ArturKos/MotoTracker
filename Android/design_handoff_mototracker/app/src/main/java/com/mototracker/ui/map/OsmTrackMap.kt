@@ -90,46 +90,65 @@ fun OsmTrackMap(
             }
             mv.overlays.add(polyline)
 
+            // Overlays (markers) can be added immediately; camera positioning must wait until the
+            // MapView has real dimensions (see applyCamera below).
             if (followLatest) {
-                val last = geoPoints.last()
-                val positionMarker = Marker(mv).apply {
-                    position = last
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                }
-                mv.overlays.add(positionMarker)
-                mv.controller.setCenter(last)
-                mv.controller.setZoom(15.0)
-            } else {
-                if (showStartEndMarkers) {
+                mv.overlays.add(
+                    Marker(mv).apply {
+                        position = geoPoints.last()
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    },
+                )
+            } else if (showStartEndMarkers) {
+                mv.overlays.add(
+                    Marker(mv).apply {
+                        position = geoPoints.first()
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    },
+                )
+                if (geoPoints.size > 1) {
                     mv.overlays.add(
                         Marker(mv).apply {
-                            position = geoPoints.first()
+                            position = geoPoints.last()
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         },
                     )
-                    if (geoPoints.size > 1) {
-                        mv.overlays.add(
-                            Marker(mv).apply {
-                                position = geoPoints.last()
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                            },
-                        )
-                    }
-                }
-                if (geoPoints.size > 1) {
-                    val b = TrackGeometry.bounds(points)
-                    if (b != null) {
-                        mv.zoomToBoundingBox(
-                            BoundingBox(b.north, b.east, b.south, b.west),
-                            false,
-                        )
-                    }
-                } else {
-                    mv.controller.setCenter(geoPoints.first())
-                    mv.controller.setZoom(15.0)
                 }
             }
-            mv.invalidate()
+
+            // osmdroid's zoomToBoundingBox / zoom math needs the view's width & height. On the first
+            // AndroidView update pass the MapView has not been laid out yet (width == height == 0), so
+            // the call is a no-op and the map stays at the world-level default zoom — leaving the track
+            // a sub-pixel dot and only low-zoom world tiles visible. Defer camera positioning until the
+            // view has real dimensions (immediately if already laid out, else on first layout).
+            val applyCamera: () -> Unit = {
+                when {
+                    followLatest -> {
+                        mv.controller.setCenter(geoPoints.last())
+                        mv.controller.setZoom(15.0)
+                    }
+                    geoPoints.size > 1 -> {
+                        val b = TrackGeometry.bounds(points)
+                        if (b != null) {
+                            mv.zoomToBoundingBox(
+                                BoundingBox(b.north, b.east, b.south, b.west),
+                                false,
+                            )
+                        }
+                    }
+                    else -> {
+                        mv.controller.setCenter(geoPoints.first())
+                        mv.controller.setZoom(15.0)
+                    }
+                }
+                mv.invalidate()
+            }
+
+            if (mv.width > 0 && mv.height > 0) {
+                applyCamera()
+            } else {
+                mv.addOnFirstLayoutListener { _, _, _, _, _ -> applyCamera() }
+            }
         },
     )
 }

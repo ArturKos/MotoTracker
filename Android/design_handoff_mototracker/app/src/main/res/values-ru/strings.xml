@@ -202,6 +202,9 @@
     <string name="btn_cancel">Отмена</string>
     <string name="error_name_blank">Введите название</string>
     <string name="error_year_invalid">Допустимый год (1900–2030)</string>
+    <string name="error_tank_capacity_invalid">Неверное число</string>
+    <string name="error_fuel_price_invalid">Неверное число</string>
+    <string name="error_consumption_invalid">Неверное число</string>
 
     <string name="label_new_bike_default">Новый мотоцикл</string>
     <string name="toast_add_bike">Добавить мотоцикл — форма</string>

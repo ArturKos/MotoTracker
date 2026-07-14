@@ -575,6 +575,50 @@ class SettingsViewModelTest {
         assertEquals(4.8, updated.consumptionLper100km!!, 0.001)
     }
 
+    @Test
+    fun `addBike with blank fuel fields persists nulls to repo`() = runTest {
+        vm.addBike(
+            name = "Yamaha MT-07",
+            year = 2021,
+            plate = "WA 1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityLText = "",
+            fuelPricePerLText = "",
+            consumptionLper100kmText = "",
+        )
+        val added = bikeRepo.addedBikes.single()
+        assertNull(added.tankCapacityL)
+        assertNull(added.fuelPricePerL)
+        assertNull(added.consumptionLper100km)
+    }
+
+    @Test
+    fun `addBike no-ops on invalid tank capacity text`() = runTest {
+        val sizeBefore = bikeRepo.addedBikes.size
+        vm.addBike(
+            name = "Yamaha MT-07",
+            year = 2021,
+            plate = "WA 1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityLText = "-5.0",
+        )
+        assertEquals(sizeBefore, bikeRepo.addedBikes.size)
+    }
+
+    @Test
+    fun `updateBike no-ops on invalid fuel price text`() = runTest {
+        val sizeBefore = bikeRepo.addedBikes.size
+        vm.updateBike(
+            id = "b1",
+            name = "Honda CBR",
+            year = 2022,
+            plate = "KR 5678",
+            status = BikeStatus.ACTIVE,
+            fuelPricePerLText = "not-a-number",
+        )
+        assertEquals(sizeBefore, bikeRepo.addedBikes.size)
+    }
+
     // ── BikeFormValidation (pure unit tests) ──────────────────────────────────
 
     @Test

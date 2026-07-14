@@ -230,6 +230,9 @@
     <string name="btn_cancel">Cancel</string>
     <string name="error_name_blank">Name is required</string>
     <string name="error_year_invalid">Enter a valid year (1900–2030)</string>
+    <string name="error_tank_capacity_invalid">Invalid number</string>
+    <string name="error_fuel_price_invalid">Invalid number</string>
+    <string name="error_consumption_invalid">Invalid number</string>
 
     <!-- Riders toast messages -->
     <string name="label_new_bike_default">New motorcycle</string>

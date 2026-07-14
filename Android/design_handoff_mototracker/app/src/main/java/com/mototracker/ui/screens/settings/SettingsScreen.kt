@@ -191,11 +191,13 @@ fun SettingsScreen(
         },
         onSelectBike = viewModel::selectBike,
         onOpenBikeDetail = onOpenBikeDetail,
-        onAddBike = { name, year, plate, status ->
-            viewModel.addBike(name, year, plate, status)
+        onAddBike = { name, year, plate, status, tankText, priceText, consumptionText ->
+            viewModel.addBike(name, year, plate, status, tankText, priceText, consumptionText)
             Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
         },
-        onUpdateBike = viewModel::updateBike,
+        onUpdateBike = { id, name, year, plate, status, tankText, priceText, consumptionText ->
+            viewModel.updateBike(id, name, year, plate, status, tankText, priceText, consumptionText)
+        },
         onTheme = { key ->
             viewModel.setTheme(key)
             appStateVm.setTheme(MotoTheme.entries.firstOrNull { it.name.lowercase() == key } ?: MotoTheme.COCKPIT)
@@ -254,8 +256,8 @@ fun SettingsScreen(
  * @param authed               Whether the user is currently signed in (drives Account section).
  * @param onSignOut            Called when the user taps Sign out or Login (navigates away).
  * @param onSelectBike         Called with the bike UUID when the user selects it as active.
- * @param onAddBike            Called when a new bike is confirmed via the Add dialog.
- * @param onUpdateBike         Called when an existing bike is updated via the Edit dialog.
+ * @param onAddBike            Called when a new bike is confirmed via the Add dialog (name, year, plate, status, tankText, priceText, consumptionText).
+ * @param onUpdateBike         Called when an existing bike is updated via the Edit dialog (id, name, year, plate, status, tankText, priceText, consumptionText).
  * @param onTheme              Called with the theme key ("cockpit"|"grid"|"light").
  * @param onAccent             Called with the accent hex string.
  * @param onLanguage           Called with the BCP-47 language tag.
@@ -284,8 +286,8 @@ fun SettingsContent(
     onSignOut: () -> Unit = {},
     onSelectBike: (String) -> Unit = {},
     onOpenBikeDetail: (String) -> Unit = {},
-    onAddBike: (String, Int, String, BikeStatus) -> Unit = { _, _, _, _ -> },
-    onUpdateBike: (String, String, Int, String, BikeStatus) -> Unit = { _, _, _, _, _ -> },
+    onAddBike: (String, Int, String, BikeStatus, String, String, String) -> Unit = { _, _, _, _, _, _, _ -> },
+    onUpdateBike: (String, String, Int, String, BikeStatus, String, String, String) -> Unit = { _, _, _, _, _, _, _, _ -> },
     onTheme: (String) -> Unit = {},
     onAccent: (String) -> Unit = {},
     onLanguage: (String) -> Unit = {},
@@ -316,11 +318,11 @@ fun SettingsContent(
         val editBike = editBikeId?.let { id -> state.bikes.find { it.id == id } }
         AddEditBikeDialog(
             initial = editBike,
-            onConfirm = { name, year, plate, status ->
+            onConfirm = { name, year, plate, status, tankText, priceText, consumptionText ->
                 if (editBikeId != null) {
-                    onUpdateBike(editBikeId!!, name, year, plate, status)
+                    onUpdateBike(editBikeId!!, name, year, plate, status, tankText, priceText, consumptionText)
                 } else {
-                    onAddBike(name, year, plate, status)
+                    onAddBike(name, year, plate, status, tankText, priceText, consumptionText)
                 }
             },
             onDismiss = {
@@ -1044,13 +1046,14 @@ private fun BcTextField(
  * highlights the offending field on invalid input.
  *
  * @param initial    Pre-fills the form for edit mode; null means add mode.
- * @param onConfirm  Called with validated values when the user taps Save.
+ * @param onConfirm  Called with validated values when the user taps Save:
+ *                   (name, year, plate, status, tankCapacityLText, fuelPricePerLText, consumptionLper100kmText).
  * @param onDismiss  Called when the user taps Cancel or dismisses the dialog.
  */
 @Composable
 private fun AddEditBikeDialog(
     initial: BikeUi?,
-    onConfirm: (name: String, year: Int, plate: String, status: BikeStatus) -> Unit,
+    onConfirm: (name: String, year: Int, plate: String, status: BikeStatus, tankCapacityLText: String, fuelPricePerLText: String, consumptionLper100kmText: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var nameText by rememberSaveable { mutableStateOf(initial?.name ?: "") }
@@ -1058,9 +1061,21 @@ private fun AddEditBikeDialog(
         mutableStateOf(if (initial != null && initial.year > 0) initial.year.toString() else "")
     }
     var plateText by rememberSaveable { mutableStateOf(initial?.plate ?: "") }
+    var tankText by rememberSaveable {
+        mutableStateOf(initial?.tankCapacityL?.toString() ?: "")
+    }
+    var priceText by rememberSaveable {
+        mutableStateOf(initial?.fuelPricePerL?.toString() ?: "")
+    }
+    var consumptionText by rememberSaveable {
+        mutableStateOf(initial?.consumptionLper100km?.toString() ?: "")
+    }
     var status by remember { mutableStateOf(initial?.status ?: BikeStatus.ACTIVE) }
     var nameError by rememberSaveable { mutableStateOf(false) }
     var yearError by rememberSaveable { mutableStateOf(false) }
+    var tankError by rememberSaveable { mutableStateOf(false) }
+    var priceError by rememberSaveable { mutableStateOf(false) }
+    var consumptionError by rememberSaveable { mutableStateOf(false) }
 
     val title = if (initial == null) stringResource(R.string.dialog_title_add_bike)
     else stringResource(R.string.dialog_title_edit_bike)
@@ -1107,6 +1122,48 @@ private fun AddEditBikeDialog(
                     value = plateText,
                     onValue = { plateText = it },
                 )
+                BcTextField(
+                    label = stringResource(R.string.label_tank_capacity),
+                    value = tankText,
+                    onValue = { tankText = it; tankError = false },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                if (tankError) {
+                    Text(
+                        text = stringResource(R.string.error_tank_capacity_invalid),
+                        color = Color.Red,
+                        style = MotoTracker.typography.label,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    )
+                }
+                BcTextField(
+                    label = stringResource(R.string.label_fuel_price_per_liter),
+                    value = priceText,
+                    onValue = { priceText = it; priceError = false },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                if (priceError) {
+                    Text(
+                        text = stringResource(R.string.error_fuel_price_invalid),
+                        color = Color.Red,
+                        style = MotoTracker.typography.label,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    )
+                }
+                BcTextField(
+                    label = stringResource(R.string.label_consumption_l100km),
+                    value = consumptionText,
+                    onValue = { consumptionText = it; consumptionError = false },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                if (consumptionError) {
+                    Text(
+                        text = stringResource(R.string.error_consumption_invalid),
+                        color = Color.Red,
+                        style = MotoTracker.typography.label,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.label_bike_status),
@@ -1137,14 +1194,14 @@ private fun AddEditBikeDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                when (val result = BikeFormValidation.validate(nameText, yearText, plateText)) {
+                when (val result = BikeFormValidation.validate(nameText, yearText, plateText, tankText, priceText, consumptionText)) {
                     is BikeFormResult.NameBlank -> nameError = true
                     is BikeFormResult.YearInvalid -> yearError = true
-                    is BikeFormResult.TankCapacityInvalid -> { /* 🔬 fuel field errors: shown in future dialog */ }
-                    is BikeFormResult.FuelPriceInvalid -> { /* 🔬 fuel field errors: shown in future dialog */ }
-                    is BikeFormResult.ConsumptionInvalid -> { /* 🔬 fuel field errors: shown in future dialog */ }
+                    is BikeFormResult.TankCapacityInvalid -> tankError = true
+                    is BikeFormResult.FuelPriceInvalid -> priceError = true
+                    is BikeFormResult.ConsumptionInvalid -> consumptionError = true
                     is BikeFormResult.Valid -> {
-                        onConfirm(result.name, result.year, result.plate, status)
+                        onConfirm(result.name, result.year, result.plate, status, tankText, priceText, consumptionText)
                         onDismiss()
                     }
                 }

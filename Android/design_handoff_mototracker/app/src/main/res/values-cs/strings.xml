@@ -202,6 +202,9 @@
     <string name="btn_cancel">Zrušit</string>
     <string name="error_name_blank">Zadejte název</string>
     <string name="error_year_invalid">Platný rok (1900–2030)</string>
+    <string name="error_tank_capacity_invalid">Neplatné číslo</string>
+    <string name="error_fuel_price_invalid">Neplatné číslo</string>
+    <string name="error_consumption_invalid">Neplatné číslo</string>
 
     <string name="label_new_bike_default">Nová motorka</string>
     <string name="toast_add_bike">Přidat motorku — formulář</string>

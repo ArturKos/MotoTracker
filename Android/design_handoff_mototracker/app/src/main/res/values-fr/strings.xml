@@ -202,6 +202,9 @@
     <string name="btn_cancel">Annuler</string>
     <string name="error_name_blank">Nom requis</string>
     <string name="error_year_invalid">Année valide (1900–2030)</string>
+    <string name="error_tank_capacity_invalid">Nombre invalide</string>
+    <string name="error_fuel_price_invalid">Nombre invalide</string>
+    <string name="error_consumption_invalid">Nombre invalide</string>
 
     <string name="label_new_bike_default">Nouvelle moto</string>
     <string name="toast_add_bike">Ajouter une moto — formulaire</string>

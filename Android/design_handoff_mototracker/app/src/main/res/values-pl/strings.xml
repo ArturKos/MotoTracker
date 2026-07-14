@@ -202,6 +202,9 @@
     <string name="btn_cancel">Anuluj</string>
     <string name="error_name_blank">Podaj nazwę</string>
     <string name="error_year_invalid">Podaj prawidłowy rok (1900–2030)</string>
+    <string name="error_tank_capacity_invalid">Nieprawidłowa liczba</string>
+    <string name="error_fuel_price_invalid">Nieprawidłowa liczba</string>
+    <string name="error_consumption_invalid">Nieprawidłowa liczba</string>
 
     <string name="label_new_bike_default">Nowy motocykl</string>
     <string name="toast_add_bike">Dodaj motocykl — formularz</string>

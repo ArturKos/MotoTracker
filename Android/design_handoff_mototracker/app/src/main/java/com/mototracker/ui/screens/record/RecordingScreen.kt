@@ -188,12 +188,10 @@ fun RecordingContent(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier,
 ) {
-    // F2: Resolve display heading — GPS bearing during Recording, magnetometer otherwise.
-    val displayHeadingDeg = if (state.phase == RecordingPhase.Recording) {
-        state.metrics.headingDeg
-    } else {
-        state.liveHeadingDeg ?: state.metrics.headingDeg
-    }
+    // G3: Resolve display heading — always prefer magnetometer; GPS bearing is fallback only.
+    val displayHeadingDeg = CompassMath.selectDisplayHeading(
+        state.phase, state.liveHeadingDeg, state.metrics.headingDeg
+    )
     // F2: Live lean — always from sensor; falls back to last-recorded value.
     val displayLeanDeg = state.liveLeanDeg ?: state.metrics.currentLeanDeg
 

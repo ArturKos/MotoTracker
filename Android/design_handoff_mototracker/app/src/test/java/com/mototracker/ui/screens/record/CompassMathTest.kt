@@ -140,6 +140,69 @@ class CompassMathTest {
         assertEquals(CompassMath.Cardinal.N,  CompassMath.cardinal(337.6f))
     }
 
+    // ─── selectDisplayHeading — G3 regression guard ──────────────────────────
+
+    @Test
+    fun selectDisplayHeading_recording_withLive_returnsLive() {
+        // G3: during Recording, magnetometer must win over GPS bearing.
+        val result = CompassMath.selectDisplayHeading(
+            phase = RecordingPhase.Recording,
+            liveHeadingDeg = 45f,
+            gpsHeadingDeg = 0f,  // GPS bearing 0° (stationary / slow — D6 freeze scenario)
+        )
+        assertEquals(45f, result, 0.001f)
+    }
+
+    @Test
+    fun selectDisplayHeading_recording_nullLive_returnsGps() {
+        val result = CompassMath.selectDisplayHeading(
+            phase = RecordingPhase.Recording,
+            liveHeadingDeg = null,
+            gpsHeadingDeg = 90f,
+        )
+        assertEquals(90f, result, 0.001f)
+    }
+
+    @Test
+    fun selectDisplayHeading_idle_withLive_returnsLive() {
+        val result = CompassMath.selectDisplayHeading(
+            phase = RecordingPhase.Idle,
+            liveHeadingDeg = 270f,
+            gpsHeadingDeg = 180f,
+        )
+        assertEquals(270f, result, 0.001f)
+    }
+
+    @Test
+    fun selectDisplayHeading_paused_withLive_returnsLive() {
+        val result = CompassMath.selectDisplayHeading(
+            phase = RecordingPhase.Paused,
+            liveHeadingDeg = 135f,
+            gpsHeadingDeg = 0f,
+        )
+        assertEquals(135f, result, 0.001f)
+    }
+
+    @Test
+    fun selectDisplayHeading_idle_nullLive_returnsGps() {
+        val result = CompassMath.selectDisplayHeading(
+            phase = RecordingPhase.Idle,
+            liveHeadingDeg = null,
+            gpsHeadingDeg = 30f,
+        )
+        assertEquals(30f, result, 0.001f)
+    }
+
+    @Test
+    fun selectDisplayHeading_paused_nullLive_returnsGps() {
+        val result = CompassMath.selectDisplayHeading(
+            phase = RecordingPhase.Paused,
+            liveHeadingDeg = null,
+            gpsHeadingDeg = 200f,
+        )
+        assertEquals(200f, result, 0.001f)
+    }
+
     // ─── cardinal — edge cases ───────────────────────────────────────────────
 
     @Test

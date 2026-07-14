@@ -1,5 +1,6 @@
 package com.mototracker.ui.screenshot
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,12 +8,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.mototracker.R
 import com.mototracker.ui.screens.detail.RouteDetailContent
 import com.mototracker.ui.screens.login.LoginContent
 import com.mototracker.ui.screens.record.RecordingContent
@@ -102,6 +107,36 @@ class ScreenshotTest {
             }
         }
         snapshot("record_light_populated")
+    }
+
+    /**
+     * Anti-clipping regression guard (F1).
+     *
+     * Renders [RecordingContent] in Idle state on a P20-class short screen
+     * (w411dp × h781dp / 1080×2280, xxhdpi) and asserts that BOTH the start control
+     * and the fill-to-full control are on-screen via [assertIsDisplayed].
+     *
+     * Pixel-diff alone is insufficient — a composable that is laid out off-screen
+     * still renders; this check deterministically fails if either control is clipped.
+     */
+    @Test
+    @Config(sdk = [33], qualifiers = "w411dp-h781dp-xxhdpi")
+    fun record_idle_controls_always_visible() {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val startLabel = ctx.getString(R.string.btn_start_ride)
+        val fillLabel = ctx.getString(R.string.action_fill_to_full)
+
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RecordingContent(state = ScreenshotFixtures.recordingIdle)
+            }
+        }
+
+        // Both controls must be visible without scrolling on a 781dp-tall screen.
+        composeRule.onNodeWithContentDescription(startLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(fillLabel).assertIsDisplayed()
+
+        snapshot("record_idle_controls_visible")
     }
 
     // ── Routes ────────────────────────────────────────────────────────────────

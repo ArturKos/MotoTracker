@@ -49,6 +49,24 @@ object ScreenshotFixtures {
 
     // ── Recording ─────────────────────────────────────────────────────────────
 
+    /**
+     * Idle recording screen with tank capacity configured so [FuelTankRow] renders.
+     *
+     * Used by the anti-clipping regression guard: both the start control and the
+     * fill-to-full icon button must be on-screen on a P20-class (w411dp-h781dp) display.
+     */
+    val recordingIdle = RecordingUiState(
+        phase = RecordingPhase.Idle,
+        metrics = RecordingMetrics(
+            tankCapacityL = 17.5,
+            remainingFuelL = 12.3,
+            remainingRangeKm = 210.0,
+        ),
+        gpsSatCount = 0,
+        gpsOnRoad = false,
+        weather = null,
+    )
+
     /** Active recording session with typical mid-ride metrics. */
     val recordingPopulated = RecordingUiState(
         phase = RecordingPhase.Recording,

@@ -11,21 +11,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -194,11 +206,11 @@ fun RecordingContent(
 
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // ── Map area ─────────────────────────────────────────────────────
+            // ── Map area — capped at 220 dp so the tile column is never clipped ──
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .height(220.dp)
                     .background(MotoTracker.colors.panel),
             ) {
                 mapSlot()
@@ -226,10 +238,12 @@ fun RecordingContent(
                 )
             }
 
-            // ── Tiles ─────────────────────────────────────────────────────────
+            // ── Tiles — fills remaining space; scrollable fallback so nothing clips ─
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
                     .background(MotoTracker.colors.bg)
                     .padding(horizontal = 8.dp),
             ) {
@@ -385,11 +399,13 @@ private fun WindRose(headingDeg: Float, modifier: Modifier = Modifier) {
 @Composable
 private fun SpeedAndTimeRow(state: RecordingUiState) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.weight(2f))
-        CompassDial(headingDeg = state.metrics.headingDeg, modifier = Modifier.weight(1f))
+        SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.weight(1f).fillMaxHeight())
+        CompassDial(headingDeg = state.metrics.headingDeg, modifier = Modifier.weight(1f).fillMaxHeight())
     }
 }
 
@@ -447,7 +463,10 @@ private fun TimeTile(durationSec: Long, modifier: Modifier = Modifier) {
 }
 
 /**
- * Row placed near the bottom of the tile column showing total ride time and moving time side by side.
+ * Compact row showing ride time and moving time side by side.
+ *
+ * Uses [MotoTypography.bigCardNumber] (30 sp mono) instead of [MotoTypography.timer] (52 sp)
+ * so both timers fit without wrapping on a P20-class screen (w411dp).
  *
  * @param state Current recording UI state; reads [RecordingMetrics.durationSec] and [RecordingMetrics.movingSec].
  */
@@ -465,7 +484,7 @@ private fun TimersRow(state: RecordingUiState) {
             )
             Text(
                 text = formatHms(state.metrics.durationSec),
-                style = MotoTracker.typography.timer,
+                style = MotoTracker.typography.bigCardNumber,
                 color = MotoTracker.colors.text,
             )
         }
@@ -477,7 +496,7 @@ private fun TimersRow(state: RecordingUiState) {
             )
             Text(
                 text = formatHms(state.metrics.movingSec),
-                style = MotoTracker.typography.timer,
+                style = MotoTracker.typography.bigCardNumber,
                 color = MotoTracker.colors.text,
             )
         }
@@ -524,19 +543,15 @@ private fun FuelTankRow(state: RecordingUiState, onEvent: (RecordingEvent) -> Un
                 modifier = Modifier.weight(1f),
             )
         }
-        // Fill-to-full button
-        OutlinedButton(
+        // Fill-to-full compact icon button
+        OutlinedIconButton(
             onClick = { onEvent(RecordingEvent.FillToFull) },
             enabled = isActive,
-            modifier = Modifier.height(48.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MotoTracker.colors.accent,
-            ),
         ) {
-            Text(
-                text = stringResource(R.string.action_fill_to_full),
-                style = MotoTracker.typography.label,
+            Icon(
+                imageVector = Icons.Filled.LocalGasStation,
+                contentDescription = stringResource(R.string.action_fill_to_full),
+                tint = MotoTracker.colors.accent,
             )
         }
     }
@@ -636,62 +651,86 @@ private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
             Modifier.size(72.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Canvas(
-                Modifier
-                    .size(68.dp)
-                    .rotate(normalised),
-            ) {
-                val cx = size.width / 2
-                val cy = size.height / 2
-                val r = size.minDimension / 2 - 2.dp.toPx()
+            // Inner Box rotates with the heading so the rose + N/E/S/W labels turn together.
+            Box(Modifier.size(68.dp).rotate(normalised)) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val cx = size.width / 2
+                    val cy = size.height / 2
+                    val r = size.minDimension / 2 - 2.dp.toPx()
 
-                // Outer ring
-                drawCircle(
-                    color = ringColor,
-                    radius = r,
-                    style = Stroke(width = 1.5.dp.toPx()),
-                )
+                    // Outer ring
+                    drawCircle(
+                        color = ringColor,
+                        radius = r,
+                        style = Stroke(width = 1.5.dp.toPx()),
+                    )
 
-                // 8 cardinal tick marks — N is longer/red, others are shorter/dim
-                val tickAngles = floatArrayOf(0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f)
-                for (i in tickAngles.indices) {
-                    val angleRad = Math.toRadians(tickAngles[i].toDouble())
-                    val isNorth = i == 0
-                    val outerR = r
-                    val innerR = if (isNorth) r * 0.58f else r * 0.76f
-                    val tickColor = if (isNorth) Color.Red else tickDim
-                    val tickWidth = if (isNorth) 3.dp.toPx() else 1.5.dp.toPx()
-                    // Canvas: up = -y, so x = sin(θ), y = -cos(θ) for bearing θ from N
-                    val sx = (sin(angleRad) * innerR).toFloat()
-                    val sy = (-cos(angleRad) * innerR).toFloat()
-                    val ex = (sin(angleRad) * outerR).toFloat()
-                    val ey = (-cos(angleRad) * outerR).toFloat()
+                    // 8 cardinal tick marks — N is longer/red, others are shorter/dim
+                    val tickAngles = floatArrayOf(0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f)
+                    for (i in tickAngles.indices) {
+                        val angleRad = Math.toRadians(tickAngles[i].toDouble())
+                        val isNorth = i == 0
+                        val outerR = r
+                        val innerR = if (isNorth) r * 0.58f else r * 0.76f
+                        val tickColor = if (isNorth) Color.Red else tickDim
+                        val tickWidth = if (isNorth) 3.dp.toPx() else 1.5.dp.toPx()
+                        // Canvas: up = -y, so x = sin(θ), y = -cos(θ) for bearing θ from N
+                        val sx = (sin(angleRad) * innerR).toFloat()
+                        val sy = (-cos(angleRad) * innerR).toFloat()
+                        val ex = (sin(angleRad) * outerR).toFloat()
+                        val ey = (-cos(angleRad) * outerR).toFloat()
+                        drawLine(
+                            color = tickColor,
+                            start = Offset(cx + sx, cy + sy),
+                            end   = Offset(cx + ex, cy + ey),
+                            strokeWidth = tickWidth,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+
+                    // Needle — red tip (north / direction of travel) + grey tail
                     drawLine(
-                        color = tickColor,
-                        start = Offset(cx + sx, cy + sy),
-                        end   = Offset(cx + ex, cy + ey),
-                        strokeWidth = tickWidth,
+                        color = Color.Red,
+                        start = Offset(cx, cy),
+                        end   = Offset(cx, cy - r * 0.54f),
+                        strokeWidth = 3.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.35f),
+                        start = Offset(cx, cy),
+                        end   = Offset(cx, cy + r * 0.38f),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                    // Centre dot
+                    drawCircle(color = accent, radius = 3.dp.toPx())
                 }
-
-                // Needle — red tip (north / direction of travel) + grey tail
-                drawLine(
-                    color = Color.Red,
-                    start = Offset(cx, cy),
-                    end   = Offset(cx, cy - r * 0.54f),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round,
+                // N/E/S/W cardinal text labels at the 4 compass points — rotate with the rose.
+                Text(
+                    text = "N",
+                    style = MotoTracker.typography.label,
+                    color = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.align(Alignment.TopCenter),
                 )
-                drawLine(
-                    color = Color.White.copy(alpha = 0.35f),
-                    start = Offset(cx, cy),
-                    end   = Offset(cx, cy + r * 0.38f),
-                    strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round,
+                Text(
+                    text = "E",
+                    style = MotoTracker.typography.label,
+                    color = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 )
-                // Centre dot
-                drawCircle(color = accent, radius = 3.dp.toPx())
+                Text(
+                    text = "S",
+                    style = MotoTracker.typography.label,
+                    color = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+                Text(
+                    text = "W",
+                    style = MotoTracker.typography.label,
+                    color = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
             }
         }
         Text(
@@ -758,107 +797,92 @@ private fun SmallMetricTile(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Start / Pause / Resume / Finish control strip; appearance adapts to [phase].
+ * Compact icon-button control strip; appearance adapts to [phase].
+ *
+ * Idle → single PlayArrow [FilledIconButton]; Recording → Pause + Stop; Paused → PlayArrow + Stop.
+ * Each icon carries a contentDescription bound to the existing string resource for a11y and
+ * Compose-UI test discovery.
  *
  * @param phase   Current recording phase from [RecordingUiState].
  * @param onEvent Callback for dispatching [RecordingEvent]s to the ViewModel.
  */
 @Composable
 private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent) -> Unit) {
-    when (phase) {
-        RecordingPhase.Idle -> {
-            Button(
-                onClick = { onEvent(RecordingEvent.Start) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MotoTracker.colors.accent,
-                    contentColor = MotoTracker.colors.onAccent,
-                ),
-                shape = RoundedCornerShape(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.btn_start_ride),
-                    style = MotoTracker.typography.routeTitle,
-                )
-            }
-        }
-
-        RecordingPhase.Recording -> {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = { onEvent(RecordingEvent.Pause) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MotoTracker.colors.text,
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(R.string.btn_pause),
-                        style = MotoTracker.typography.routeTitle,
-                    )
-                }
-                Button(
-                    onClick = { onEvent(RecordingEvent.Finish) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MotoTracker.colors.accent2,
-                        contentColor = MotoTracker.colors.onAccent2,
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.btn_finish),
-                        style = MotoTracker.typography.routeTitle,
-                    )
-                }
-            }
-        }
-
-        RecordingPhase.Paused -> {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = { onEvent(RecordingEvent.Resume) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when (phase) {
+            RecordingPhase.Idle -> {
+                FilledIconButton(
+                    onClick = { onEvent(RecordingEvent.Start) },
+                    modifier = Modifier.size(56.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MotoTracker.colors.accent,
                         contentColor = MotoTracker.colors.onAccent,
                     ),
-                    shape = RoundedCornerShape(8.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.btn_resume),
-                        style = MotoTracker.typography.routeTitle,
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(R.string.btn_start_ride),
+                        modifier = Modifier.size(32.dp),
                     )
                 }
-                Button(
+            }
+
+            RecordingPhase.Recording -> {
+                OutlinedIconButton(
+                    onClick = { onEvent(RecordingEvent.Pause) },
+                    modifier = Modifier.size(52.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Pause,
+                        contentDescription = stringResource(R.string.btn_pause),
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                FilledIconButton(
                     onClick = { onEvent(RecordingEvent.Finish) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
+                    modifier = Modifier.size(52.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MotoTracker.colors.accent2,
                         contentColor = MotoTracker.colors.onAccent2,
                     ),
-                    shape = RoundedCornerShape(8.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.btn_finish),
-                        style = MotoTracker.typography.routeTitle,
+                    Icon(
+                        imageVector = Icons.Filled.Stop,
+                        contentDescription = stringResource(R.string.btn_finish),
+                    )
+                }
+            }
+
+            RecordingPhase.Paused -> {
+                FilledIconButton(
+                    onClick = { onEvent(RecordingEvent.Resume) },
+                    modifier = Modifier.size(52.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MotoTracker.colors.accent,
+                        contentColor = MotoTracker.colors.onAccent,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(R.string.btn_resume),
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                FilledIconButton(
+                    onClick = { onEvent(RecordingEvent.Finish) },
+                    modifier = Modifier.size(52.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MotoTracker.colors.accent2,
+                        contentColor = MotoTracker.colors.onAccent2,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Stop,
+                        contentDescription = stringResource(R.string.btn_finish),
                     )
                 }
             }

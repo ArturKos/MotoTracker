@@ -87,6 +87,10 @@ data class MeetingUi(
  * @param assignableBikes          Bikes available in the "change bike" picker. Includes all
  *                                 ACTIVE bikes plus the currently-assigned bike even if it is
  *                                 SOLD, so the current selection is always representable.
+ * @param bikeChangeEnabled        `true` when the garage has at least one assignable bike, meaning
+ *                                 the "change bike" affordance on the route-detail header should
+ *                                 be interactive and open the [BikePickerDialog]. `false` when the
+ *                                 garage is empty — the bike row is rendered non-interactive/dimmed.
  */
 data class RouteDetailUiState(
     val loading: Boolean = true,
@@ -119,4 +123,5 @@ data class RouteDetailUiState(
     val selectedTrackView: TrackView = TrackView.RAW,
     val currentBikeId: String? = null,
     val assignableBikes: List<BikePickerItemUi> = emptyList(),
+    val bikeChangeEnabled: Boolean = false,
 )

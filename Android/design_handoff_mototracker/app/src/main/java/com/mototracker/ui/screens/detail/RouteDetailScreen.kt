@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -319,38 +321,18 @@ private fun DetailContent(
                     }
                 }
                 Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = state.dateDisplay,
-                        style = MotoTracker.typography.bodySmall,
-                        color = MotoTracker.colors.dim,
-                    )
-                    if (state.bikeName != "—") {
-                        Text(
-                            text = " · ${state.bikeName}",
-                            style = MotoTracker.typography.bodySmall,
-                            color = MotoTracker.colors.dim,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (state.bikeSold) {
-                            Spacer(Modifier.width(6.dp))
-                            SoldChip()
-                        }
-                    }
-                    Spacer(Modifier.width(2.dp))
-                    IconButton(
-                        onClick = { showBikePickerDialog = true },
-                        modifier = Modifier.size(28.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.TwoWheeler,
-                            contentDescription = stringResource(R.string.route_detail_change_bike),
-                            tint = MotoTracker.colors.dim,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
+                Text(
+                    text = state.dateDisplay,
+                    style = MotoTracker.typography.bodySmall,
+                    color = MotoTracker.colors.dim,
+                )
+                Spacer(Modifier.height(8.dp))
+                BikeRow(
+                    bikeName = state.bikeName,
+                    bikeSold = state.bikeSold,
+                    enabled = state.bikeChangeEnabled,
+                    onTap = { showBikePickerDialog = true },
+                )
             }
         }
 
@@ -618,6 +600,73 @@ private fun MeetupRow(meeting: MeetingUi) {
                 text = "${stringResource(R.string.label_wave_at)} ${meeting.place} · ${meeting.timeLabel}",
                 style = MotoTracker.typography.bodySmall,
                 color = MotoTracker.colors.dim,
+            )
+        }
+    }
+}
+
+// ── Bike row ──────────────────────────────────────────────────────────────────
+
+/**
+ * Prominent motorcycle row displayed directly under the route title and date.
+ *
+ * Shows a [Icons.Filled.TwoWheeler] icon and the assigned bike's [bikeName], with a
+ * [SoldChip] when [bikeSold] is `true`. A trailing [Icons.Filled.Edit] affordance signals
+ * that the row is tappable.
+ *
+ * When [enabled] is `false` (garage has no assignable bikes), the row is rendered at
+ * reduced alpha and [onTap] is never invoked.
+ *
+ * @param bikeName  Display name of the motorcycle, or `"—"` when no bike is assigned.
+ * @param bikeSold  `true` when the assigned bike has been marked as sold.
+ * @param enabled   `true` when there is ≥1 assignable bike; gates interactivity.
+ * @param onTap     Called when the user taps the row (only when [enabled]).
+ * @param modifier  Standard Compose modifier.
+ */
+@Composable
+private fun BikeRow(
+    bikeName: String,
+    bikeSold: Boolean,
+    enabled: Boolean,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.38f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MotoTracker.colors.panel)
+            .then(if (enabled) Modifier.clickable(onClick = onTap) else Modifier)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.TwoWheeler,
+            contentDescription = null,
+            tint = MotoTracker.colors.accent,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = bikeName,
+            style = MotoTracker.typography.body,
+            color = MotoTracker.colors.text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (bikeSold) {
+            Spacer(Modifier.width(6.dp))
+            SoldChip()
+        }
+        if (enabled) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = stringResource(R.string.route_detail_change_bike),
+                tint = MotoTracker.colors.dim,
+                modifier = Modifier.size(16.dp),
             )
         }
     }

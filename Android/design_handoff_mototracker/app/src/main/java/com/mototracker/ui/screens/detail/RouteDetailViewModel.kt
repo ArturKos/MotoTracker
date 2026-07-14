@@ -304,6 +304,7 @@ class RouteDetailViewModel @Inject constructor(
             bikeSold = bike?.status == BikeStatus.SOLD,
             currentBikeId = route.bikeId,
             assignableBikes = assignableBikes,
+            bikeChangeEnabled = assignableBikes.isNotEmpty(),
             distanceTile = StatTileUi(
                 value = formatDistanceValue(route.km, units),
                 unit = UnitFormatter.distanceUnitLabel(units),

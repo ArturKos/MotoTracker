@@ -991,6 +991,44 @@ class RouteDetailViewModelTest {
         }
     }
 
+    // ── E1 bikeChangeEnabled ──────────────────────────────────────────────────
+
+    @Test
+    fun `bikeChangeEnabled is true when garage has at least one active bike`() = runTest {
+        val route = makeRoute(id = "route-1", bikeId = null)
+        val vm = buildVm(
+            routeId = route.id,
+            route = route,
+            bikes = listOf(makeBike("bike-active", "Yamaha MT-07", BikeStatus.ACTIVE)),
+        )
+        vm.uiState.test {
+            assertTrue("bikeChangeEnabled must be true with >=1 active bike", skipToLoaded().bikeChangeEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `bikeChangeEnabled is false when garage is empty`() = runTest {
+        val route = makeRoute(id = "route-1", bikeId = null)
+        val vm = buildVm(routeId = route.id, route = route, bikes = emptyList())
+        vm.uiState.test {
+            assertFalse("bikeChangeEnabled must be false with empty garage", skipToLoaded().bikeChangeEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `bikeName is dash and currentBikeId is null when route has no bikeId`() = runTest {
+        val route = makeRoute(id = "route-1", bikeId = null)
+        val vm = buildVm(routeId = route.id, route = route)
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertEquals("—", state.bikeName)
+            assertNull(state.currentBikeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── helper ───────────────────────────────────────────────────────────────
 
     /** Skips the initial [RouteDetailUiState.loading] state if present. */

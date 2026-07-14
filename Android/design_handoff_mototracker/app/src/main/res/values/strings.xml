@@ -406,4 +406,11 @@
     <!-- Route detail: full-screen map toggle (E8) -->
     <string name="route_detail_expand_map">Expand map</string>
     <string name="route_detail_collapse_map">Collapse map</string>
+
+    <!-- Route detail: delete route (G4) -->
+    <string name="action_delete_route">Delete route</string>
+    <string name="dialog_delete_route_title">Delete route</string>
+    <string name="dialog_delete_route_message">This route will be permanently deleted and cannot be recovered.</string>
+    <string name="action_delete">Delete</string>
+    <string name="toast_route_deleted">Route deleted</string>
 </resources>

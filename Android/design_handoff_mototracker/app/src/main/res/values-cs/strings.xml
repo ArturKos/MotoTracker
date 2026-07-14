@@ -376,4 +376,11 @@
     <!-- Detail trasy: mapa na celou obrazovku (E8) -->
     <string name="route_detail_expand_map">Rozbalit mapu</string>
     <string name="route_detail_collapse_map">Sbalit mapu</string>
+
+    <!-- Detail trasy: smazat trasu (G4) -->
+    <string name="action_delete_route">Smazat trasu</string>
+    <string name="dialog_delete_route_title">Smazat trasu</string>
+    <string name="dialog_delete_route_message">Tato trasa bude trvale smazána a nelze ji obnovit.</string>
+    <string name="action_delete">Smazat</string>
+    <string name="toast_route_deleted">Trasa smazána</string>
 </resources>

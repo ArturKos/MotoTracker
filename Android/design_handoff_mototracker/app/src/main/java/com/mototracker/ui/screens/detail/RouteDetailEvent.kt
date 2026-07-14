@@ -39,4 +39,12 @@ sealed interface RouteDetailEvent {
      * The Composable should show a brief informational toast to the user.
      */
     data object CorrectionQueued : RouteDetailEvent
+
+    /**
+     * The route has been permanently deleted from local storage.
+     *
+     * The Composable should navigate away (typically [androidx.navigation.NavController.popBackStack])
+     * since the detail screen no longer has a subject to display.
+     */
+    data object RouteDeleted : RouteDetailEvent
 }

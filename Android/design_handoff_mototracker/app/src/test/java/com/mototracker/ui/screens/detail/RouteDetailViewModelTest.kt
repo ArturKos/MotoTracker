@@ -45,6 +45,7 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     val setBikeCallArgs = mutableListOf<Pair<String, String?>>()
     val setFuelCallArgs = mutableListOf<Pair<String, Double>>()
     val setFuelPriceCallArgs = mutableListOf<Pair<String, Double?>>()
+    val deleteRouteCallArgs = mutableListOf<String>()
 
     /** Push a new route value (used by tests to simulate DB updates). */
     fun emit(route: Route?) { _flow.value = route }
@@ -94,6 +95,11 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     }
 
     override suspend fun deleteAll() { _flow.value = null }
+
+    override suspend fun deleteRoute(id: String) {
+        deleteRouteCallArgs += id
+        if (_flow.value?.id == id) _flow.value = null
+    }
 }
 
 private class FakeBikeRepository(bikes: List<Bike> = emptyList()) : BikeRepository {
@@ -1146,6 +1152,52 @@ class RouteDetailViewModelTest {
         vm.uiState.test {
             val state = skipToLoaded()
             assertEquals(7.3, state.fuelL, 0.001)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── G4 deleteRoute ────────────────────────────────────────────────────────
+
+    @Test
+    fun `deleteRoute calls repository and emits RouteDeleted event`() = runTest {
+        val route = makeRoute(id = "route-delete-me")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.deleteRoute()
+            val event = awaitItem()
+            assertTrue("Event must be RouteDeleted", event is RouteDetailEvent.RouteDeleted)
+            assertEquals(1, fakeRepo.deleteRouteCallArgs.size)
+            assertEquals("route-delete-me", fakeRepo.deleteRouteCallArgs.first())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `deleteRoute is no-op before route loads`() = runTest {
+        val fakeRepo = FakeRouteRepository(stored = null)
+        val vmNoRoute = RouteDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("routeId" to "nonexistent")),
+            routeRepository = fakeRepo,
+            bikeRepository = FakeBikeRepository(),
+            waveRepository = FakeWaveRepository(),
+            settingsSource = FakeSettingsSource(),
+            syncRepository = fakeSyncRepo,
+            gpsCorrectionRepository = FakeGpsCorrectionRepository(),
+        )
+        vmNoRoute.uiState.test {
+            val s = awaitItem(); if (s.loading) awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vmNoRoute.events.test {
+            vmNoRoute.deleteRoute()
+            testDispatcher.scheduler.advanceUntilIdle()
+            expectNoEvents()
+            assertTrue("no-op: deleteRoute must not call repo when route not loaded", fakeRepo.deleteRouteCallArgs.isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }

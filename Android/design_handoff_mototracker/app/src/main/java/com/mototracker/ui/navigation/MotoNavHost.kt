@@ -181,7 +181,10 @@ fun MotoApp(
                 route = MotoDestination.ROUTE_DETAIL.route,
                 arguments = listOf(navArgument("routeId") { type = NavType.StringType }),
             ) {
-                RouteDetailScreen(onToast = showToast)
+                RouteDetailScreen(
+                    onToast = showToast,
+                    onDeleted = { navController.popBackStack() },
+                )
             }
             composable(
                 route = MotoDestination.BIKE_DETAIL.route,

@@ -266,6 +266,20 @@ class RouteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Permanently deletes the current route from local storage and emits [RouteDetailEvent.RouteDeleted].
+     *
+     * The Composable should navigate away on receiving [RouteDetailEvent.RouteDeleted] since the
+     * screen no longer has a subject to display. No-op when the route has not yet loaded.
+     */
+    fun deleteRoute() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            routeRepository.deleteRoute(route.id)
+            _events.send(RouteDetailEvent.RouteDeleted)
+        }
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(

@@ -117,4 +117,20 @@ interface RouteRepository {
      * @param pricePerL New price per litre, or null to remove the override.
      */
     suspend fun setFuelPrice(routeId: String, pricePerL: Double?) {}
+
+    /**
+     * Permanently deletes the route with [id] and all associated data.
+     *
+     * **Cascade behaviour (FK ON DELETE):**
+     * - `route_trace_chunks` → CASCADE (raw + corrected chunks removed)
+     * - `sync_queue`         → CASCADE (pending sync items removed)
+     * - `correction_queue`   → CASCADE (pending correction items removed)
+     * - `waves`              → SET NULL (wave records lose their route association)
+     *
+     * No-op when no route with the given [id] exists. Default no-op body matches
+     * [setFuel]/[setFuelPrice] convention so test fakes keep compiling without override.
+     *
+     * @param id Route UUID to delete.
+     */
+    suspend fun deleteRoute(id: String) {}
 }

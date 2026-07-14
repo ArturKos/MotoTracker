@@ -376,4 +376,11 @@
     <!-- Детали маршрута: карта на весь экран (E8) -->
     <string name="route_detail_expand_map">Развернуть карту</string>
     <string name="route_detail_collapse_map">Свернуть карту</string>
+
+    <!-- Детали маршрута: удалить маршрут (G4) -->
+    <string name="action_delete_route">Удалить маршрут</string>
+    <string name="dialog_delete_route_title">Удалить маршрут</string>
+    <string name="dialog_delete_route_message">Этот маршрут будет безвозвратно удалён.</string>
+    <string name="action_delete">Удалить</string>
+    <string name="toast_route_deleted">Маршрут удалён</string>
 </resources>

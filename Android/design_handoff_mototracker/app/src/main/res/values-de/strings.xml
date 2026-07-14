@@ -376,4 +376,11 @@
     <!-- Routendetail: Vollbildkarte (E8) -->
     <string name="route_detail_expand_map">Karte vergrößern</string>
     <string name="route_detail_collapse_map">Karte verkleinern</string>
+
+    <!-- Routendetail: Route löschen (G4) -->
+    <string name="action_delete_route">Route löschen</string>
+    <string name="dialog_delete_route_title">Route löschen</string>
+    <string name="dialog_delete_route_message">Die Route wird dauerhaft gelöscht und kann nicht wiederhergestellt werden.</string>
+    <string name="action_delete">Löschen</string>
+    <string name="toast_route_deleted">Route gelöscht</string>
 </resources>

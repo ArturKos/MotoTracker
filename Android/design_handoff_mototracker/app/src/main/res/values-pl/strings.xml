@@ -376,4 +376,11 @@
     <!-- Szczegóły trasy: mapa pełnoekranowa (E8) -->
     <string name="route_detail_expand_map">Rozwiń mapę</string>
     <string name="route_detail_collapse_map">Zwiń mapę</string>
+
+    <!-- Szczegóły trasy: usuwanie trasy (G4) -->
+    <string name="action_delete_route">Usuń trasę</string>
+    <string name="dialog_delete_route_title">Usuń trasę</string>
+    <string name="dialog_delete_route_message">Trasa zostanie trwale usunięta i nie będzie można jej odzyskać.</string>
+    <string name="action_delete">Usuń</string>
+    <string name="toast_route_deleted">Trasa usunięta</string>
 </resources>

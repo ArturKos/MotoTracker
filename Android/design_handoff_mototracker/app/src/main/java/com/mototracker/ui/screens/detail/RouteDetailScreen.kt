@@ -87,12 +87,14 @@ import kotlinx.coroutines.flow.collectLatest
  * @param modifier   Standard Compose modifier.
  * @param viewModel  Hilt-injected [RouteDetailViewModel].
  * @param onToast    Called with a localised message string whenever an action completes.
+ * @param onDeleted  Called after the route is permanently deleted (navigate away).
  */
 @Composable
 fun RouteDetailScreen(
     modifier: Modifier = Modifier,
     viewModel: RouteDetailViewModel = hiltViewModel(),
     onToast: (String) -> Unit = {},
+    onDeleted: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showExportSheet by remember { mutableStateOf(false) }
@@ -105,6 +107,7 @@ fun RouteDetailScreen(
     val linkCopiedMsg = stringResource(R.string.toast_link_copied)
     val serverSentMsg = stringResource(R.string.toast_server_sent)
     val correctionQueuedMsg = stringResource(R.string.toast_correction_queued)
+    val routeDeletedMsg = stringResource(R.string.toast_route_deleted)
 
     // SAF launcher: presents the system file-picker so the user chooses where to save the GPX.
     // No storage permission is needed on any API level (CreateDocument uses SAF).
@@ -134,6 +137,10 @@ fun RouteDetailScreen(
                 is RouteDetailEvent.LinkCopied -> onToast(linkCopiedMsg)
                 is RouteDetailEvent.ServerSent -> onToast(serverSentMsg)
                 is RouteDetailEvent.CorrectionQueued -> onToast(correctionQueuedMsg)
+                is RouteDetailEvent.RouteDeleted -> {
+                    onToast(routeDeletedMsg)
+                    onDeleted()
+                }
             }
         }
     }
@@ -148,6 +155,7 @@ fun RouteDetailScreen(
         onDeleteCorrectedTrace = { viewModel.deleteCorrectedTrace() },
         onRename = { viewModel.rename(it) },
         onChangeBike = { viewModel.setBike(it) },
+        onDeleteRoute = { viewModel.deleteRoute() },
         mapFullscreen = mapFullscreen,
         onToggleMapFullscreen = { mapFullscreen = !mapFullscreen },
         mapSlot = {
@@ -193,6 +201,7 @@ fun RouteDetailScreen(
  * @param onRename               Called with the new name when the user confirms the rename dialog.
  * @param onChangeBike           Called with the selected bike UUID (or `null` to clear) when the
  *                               user confirms the bike-picker dialog.
+ * @param onDeleteRoute          Called when the user confirms the delete-route dialog.
  * @param mapSlot                Composable rendered in the inline map slot; in production this is
  *                               [OsmTrackMap], in Roborazzi tests a static placeholder Box is used.
  * @param fullscreenMapSlot      Composable rendered inside the fullscreen Dialog overlay; in
@@ -212,6 +221,7 @@ fun RouteDetailContent(
     onDeleteCorrectedTrace: () -> Unit = {},
     onRename: (String) -> Unit = {},
     onChangeBike: (String?) -> Unit = {},
+    onDeleteRoute: () -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     fullscreenMapSlot: @Composable () -> Unit = {},
     mapFullscreen: Boolean = false,
@@ -231,6 +241,7 @@ fun RouteDetailContent(
             onDeleteCorrectedTrace = onDeleteCorrectedTrace,
             onRename = onRename,
             onChangeBike = onChangeBike,
+            onDeleteRoute = onDeleteRoute,
             mapSlot = mapSlot,
             fullscreenMapSlot = fullscreenMapSlot,
             mapFullscreen = mapFullscreen,
@@ -274,6 +285,7 @@ private fun NotFoundPane(modifier: Modifier = Modifier) {
  * @param onRename               Called with the new name when the user confirms rename.
  * @param onChangeBike           Called with the selected bike UUID (or `null`) when the user
  *                               confirms the bike-picker dialog.
+ * @param onDeleteRoute          Called when the user confirms the delete-route dialog.
  * @param mapSlot                Composable for the inline map tile (200 dp tall).
  * @param fullscreenMapSlot      Composable for the fullscreen Dialog overlay map.
  * @param mapFullscreen          `true` when the fullscreen Dialog overlay is visible.
@@ -290,6 +302,7 @@ private fun DetailContent(
     onDeleteCorrectedTrace: () -> Unit,
     onRename: (String) -> Unit,
     onChangeBike: (String?) -> Unit = {},
+    onDeleteRoute: () -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     fullscreenMapSlot: @Composable () -> Unit = {},
     mapFullscreen: Boolean = false,
@@ -297,6 +310,7 @@ private fun DetailContent(
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBikePickerDialog by remember { mutableStateOf(false) }
+    var showDeleteRouteDialog by remember { mutableStateOf(false) }
 
     if (showRenameDialog) {
         RenameDialog(
@@ -318,6 +332,16 @@ private fun DetailContent(
                 showBikePickerDialog = false
             },
             onDismiss = { showBikePickerDialog = false },
+        )
+    }
+
+    if (showDeleteRouteDialog) {
+        DeleteRouteDialog(
+            onConfirm = {
+                showDeleteRouteDialog = false
+                onDeleteRoute()
+            },
+            onDismiss = { showDeleteRouteDialog = false },
         )
     }
 
@@ -381,6 +405,13 @@ private fun DetailContent(
                         Icon(
                             imageVector = Icons.Filled.Edit,
                             contentDescription = stringResource(R.string.action_rename),
+                            tint = MotoTracker.colors.dim,
+                        )
+                    }
+                    IconButton(onClick = { showDeleteRouteDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.action_delete_route),
                             tint = MotoTracker.colors.dim,
                         )
                     }
@@ -1022,6 +1053,57 @@ private fun RenameDialog(
             TextButton(onClick = { onConfirm(text) }) {
                 Text(
                     text = stringResource(R.string.btn_save),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+// ── Delete route dialog ───────────────────────────────────────────────────────
+
+/**
+ * AlertDialog that asks the user to confirm permanent deletion of the current route.
+ *
+ * Calls [onConfirm] when the user taps the destructive confirm button and [onDismiss]
+ * on Cancel or outside-dismiss.
+ *
+ * @param onConfirm Called when the user confirms deletion.
+ * @param onDismiss Called when the dialog is dismissed without confirming.
+ */
+@Composable
+private fun DeleteRouteDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_delete_route_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.dialog_delete_route_message),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.dim,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(R.string.action_delete),
                     color = MotoTracker.colors.accent,
                 )
             }

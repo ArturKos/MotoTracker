@@ -101,6 +101,23 @@ class RouteRepositoryImpl @Inject constructor(
         routeDao.setFuelPrice(routeId, pricePerL)
     }
 
+    /**
+     * Permanently deletes the route with [id] and its trace chunks.
+     *
+     * Fetches the entity first so the Room `@Delete` annotation can match by primary key.
+     * FK CASCADE removes `sync_queue` and `correction_queue` rows; `waves` rows have `routeId`
+     * SET NULL. Trace chunks are deleted explicitly before the entity deletion so fakes in tests
+     * behave identically to the production Room FK cascade. No-op when the route does not exist.
+     *
+     * @param id Route UUID to delete.
+     */
+    override suspend fun deleteRoute(id: String) {
+        val entity = routeDao.getById(id) ?: return
+        traceChunkDao.deleteFor(id, KIND_RAW)
+        traceChunkDao.deleteFor(id, KIND_CORRECTED)
+        routeDao.delete(entity)
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private suspend fun assembleTrace(routeId: String, kind: String): String? {

@@ -376,4 +376,11 @@
     <!-- Détail itinéraire : carte plein écran (E8) -->
     <string name="route_detail_expand_map">Agrandir la carte</string>
     <string name="route_detail_collapse_map">Réduire la carte</string>
+
+    <!-- Détail itinéraire : supprimer l'itinéraire (G4) -->
+    <string name="action_delete_route">Supprimer l\'itinéraire</string>
+    <string name="dialog_delete_route_title">Supprimer l\'itinéraire</string>
+    <string name="dialog_delete_route_message">Cet itinéraire sera définitivement supprimé et ne pourra pas être récupéré.</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="toast_route_deleted">Itinéraire supprimé</string>
 </resources>

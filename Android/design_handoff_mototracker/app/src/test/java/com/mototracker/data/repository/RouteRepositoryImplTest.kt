@@ -390,6 +390,43 @@ class RouteRepositoryImplTest {
         assertEquals(CorrectionStatus.NONE, dao.upsertCalls.first().correctionStatus)
     }
 
+    // ── deleteRoute ───────────────────────────────────────────────────────────
+
+    @Test
+    fun `deleteRoute removes route so getById returns null`() = runTest {
+        repo.save(buildRoute(id = "del-1", pathJson = """[{"lat":50.0,"lng":20.0}]"""))
+        assertNotNull(repo.getById("del-1"))
+
+        repo.deleteRoute("del-1")
+
+        assertNull(repo.getById("del-1"))
+    }
+
+    @Test
+    fun `deleteRoute removes associated RAW and CORRECTED chunks`() = runTest {
+        repo.save(
+            buildRoute(
+                id = "del-2",
+                pathJson = """[{"lat":50.0,"lng":20.0}]""",
+                correctedPathJson = """[{"lat":50.0,"lng":20.0}]""",
+            )
+        )
+        assertTrue("RAW chunks must exist before delete", chunkDao.hasChunks("del-2", "RAW"))
+        assertTrue("CORRECTED chunks must exist before delete", chunkDao.hasChunks("del-2", "CORRECTED"))
+
+        repo.deleteRoute("del-2")
+
+        assertFalse("RAW chunks must be gone after delete", chunkDao.hasChunks("del-2", "RAW"))
+        assertFalse("CORRECTED chunks must be gone after delete", chunkDao.hasChunks("del-2", "CORRECTED"))
+    }
+
+    @Test
+    fun `deleteRoute is a no-op when route does not exist`() = runTest {
+        // Must not throw
+        repo.deleteRoute("nonexistent-id")
+        assertNull(repo.getById("nonexistent-id"))
+    }
+
     // ── setBike ───────────────────────────────────────────────────────────────
 
     @Test

@@ -110,14 +110,13 @@ class ScreenshotTest {
     }
 
     /**
-     * Anti-clipping regression guard (F1).
+     * Anti-clipping regression guard (G2 — revised from F1).
      *
      * Renders [RecordingContent] in Idle state on a P20-class short screen
-     * (w411dp × h781dp / 1080×2280, xxhdpi) and asserts that BOTH the start control
-     * and the fill-to-full control are on-screen via [assertIsDisplayed].
+     * (w411dp × h781dp / 1080×2280, xxhdpi).
      *
-     * Pixel-diff alone is insufficient — a composable that is laid out off-screen
-     * still renders; this check deterministically fails if either control is clipped.
+     * G2 rule: fill-to-full is only visible during Recording/Paused when a tank is configured —
+     * it must NOT appear in Idle. The start control must still be on-screen.
      */
     @Test
     @Config(sdk = [33], qualifiers = "w411dp-h781dp-xxhdpi")
@@ -132,11 +131,40 @@ class ScreenshotTest {
             }
         }
 
-        // Both controls must be visible without scrolling on a 781dp-tall screen.
+        // Start control must be visible on a 781dp-tall screen.
         composeRule.onNodeWithContentDescription(startLabel).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription(fillLabel).assertIsDisplayed()
+        // Fill-to-full must NOT appear in Idle (G2).
+        composeRule.onNodeWithContentDescription(fillLabel).assertDoesNotExist()
 
         snapshot("record_idle_controls_visible")
+    }
+
+    /**
+     * Recording-phase control-strip guard (G2).
+     *
+     * Verifies that pause, stop, AND fill-to-full controls are all displayed during an active
+     * recording session when the current bike has a tank capacity configured.
+     */
+    @Test
+    @Config(sdk = [33], qualifiers = "w411dp-h781dp-xxhdpi")
+    fun record_recording_fuel_controls_visible() {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val pauseLabel = ctx.getString(R.string.btn_pause)
+        val finishLabel = ctx.getString(R.string.btn_finish)
+        val fillLabel = ctx.getString(R.string.action_fill_to_full)
+
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RecordingContent(state = ScreenshotFixtures.recordingWithFuelTank)
+            }
+        }
+
+        // All three controls must be visible during Recording with a configured fuel tank.
+        composeRule.onNodeWithContentDescription(pauseLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(finishLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(fillLabel).assertIsDisplayed()
+
+        snapshot("record_recording_fuel_controls_visible")
     }
 
     // ── Routes ────────────────────────────────────────────────────────────────

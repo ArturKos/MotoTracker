@@ -47,6 +47,11 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  *                          regardless of recording phase.  Null until the first reading.
  *                          Used to animate the lean bar in Idle so the rider can orient the
  *                          phone before starting (F2).
+ * @param fuelPricePerL     Fuel price per litre from the current bike's configuration; null when
+ *                          the bike has no price set.  Used to compute the running fuel cost
+ *                          displayed in the fuel readout (G2).
+ * @param currency          ISO 4217 currency code for fuel cost display (e.g. "PLN", "EUR").
+ *                          Sourced from [com.mototracker.data.settings.AppSettings.currency].
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -60,6 +65,8 @@ data class RecordingUiState(
     val activeRouteId: String? = null,
     val liveHeadingDeg: Float? = null,
     val liveLeanDeg: Double? = null,
+    val fuelPricePerL: Double? = null,
+    val currency: String = "PLN",
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */

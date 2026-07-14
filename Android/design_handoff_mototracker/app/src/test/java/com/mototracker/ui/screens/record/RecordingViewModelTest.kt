@@ -835,6 +835,76 @@ class RecordingViewModelTest {
             )
         }
 
+    // ── G2 — fuel price per litre + currency in uiState ─────────────────────
+
+    @Test
+    fun `fuelPricePerL is populated from current bike when price is configured`() =
+        runTest(testDispatcher) {
+            val bike = Bike(
+                id = "bike-fuel",
+                name = "MT-07",
+                year = 2022,
+                plate = "WA 001",
+                status = BikeStatus.ACTIVE,
+                fuelPricePerL = 6.89,
+            )
+            val vm = buildViewModel(
+                settings = AppSettings(currentBikeId = "bike-fuel"),
+                bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            )
+            advanceTimeBy(200L)
+
+            assertEquals(
+                "fuelPricePerL should be 6.89 when bike has it configured",
+                6.89,
+                vm.uiState.value.fuelPricePerL ?: -1.0,
+                0.001,
+            )
+        }
+
+    @Test
+    fun `fuelPricePerL is null when current bike has no price configured`() =
+        runTest(testDispatcher) {
+            val bike = Bike(
+                id = "bike-no-price",
+                name = "CB500F",
+                year = 2019,
+                plate = "KR 001",
+                status = BikeStatus.ACTIVE,
+                fuelPricePerL = null,
+            )
+            val vm = buildViewModel(
+                settings = AppSettings(currentBikeId = "bike-no-price"),
+                bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            )
+            advanceTimeBy(200L)
+
+            assertTrue(
+                "fuelPricePerL should be null when bike has no price",
+                vm.uiState.value.fuelPricePerL == null,
+            )
+        }
+
+    @Test
+    fun `currency is populated from settings`() = runTest(testDispatcher) {
+        val vm = buildViewModel(
+            settings = AppSettings(currency = "EUR"),
+        )
+        advanceTimeBy(200L)
+
+        assertEquals("currency should reflect settings value", "EUR", vm.uiState.value.currency)
+    }
+
+    @Test
+    fun `currency defaults to PLN when not overridden`() = runTest(testDispatcher) {
+        val vm = buildViewModel(
+            settings = AppSettings(), // default currency = "PLN"
+        )
+        advanceTimeBy(200L)
+
+        assertEquals("default currency should be PLN", "PLN", vm.uiState.value.currency)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun buildViewModel(

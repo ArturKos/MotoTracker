@@ -65,6 +65,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.domain.fuel.FuelCostCalculator
+import com.mototracker.domain.recording.RecordingControl
+import com.mototracker.domain.recording.RecordingControls
 import com.mototracker.service.RecordingService
 import com.mototracker.ui.permissions.AppFeaturePermission
 import com.mototracker.ui.permissions.PermissionDeniedBanner
@@ -230,7 +233,7 @@ fun RecordingContent(
                 SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg)
                 Spacer(Modifier.height(6.dp))
                 DistanceAltitudeFuelRow(state)
-                FuelTankRow(state = state, onEvent = onEvent)
+                FuelTankRow(state = state)
                 Spacer(Modifier.height(6.dp))
                 LeanRow(state = state, currentLeanDeg = displayLeanDeg)
                 Spacer(Modifier.height(6.dp))
@@ -242,7 +245,11 @@ fun RecordingContent(
                         onRetry = { onEvent(RecordingEvent.Start) },
                     )
                 } else {
-                    RecordingControlRow(phase = state.phase, onEvent = onEvent)
+                    RecordingControlRow(
+                        phase = state.phase,
+                        hasFuelTank = state.metrics.tankCapacityL != null,
+                        onEvent = onEvent,
+                    )
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -483,21 +490,21 @@ private fun TimersRow(state: RecordingUiState) {
 }
 
 /**
- * Fuel-tank row shown below the distance/altitude/fuel row when the current bike has a
- * tank capacity configured. Displays remaining fuel, remaining range, an optional low-fuel
- * warning, and a "fill to full" quick-action button.
+ * Fuel-tank readout row shown when the current bike has a tank capacity configured.
  *
- * Hidden entirely when [RecordingUiState.metrics.tankCapacityL] is null (bike not configured).
+ * Displays remaining fuel, remaining range, running fuel cost (when [RecordingUiState.fuelPricePerL]
+ * is set), and an optional low-fuel warning. The fill-to-full action has moved to the control strip
+ * (G2); this composable is a pure readout with no interactive elements.
  *
- * @param state   Current recording UI state.
- * @param onEvent Callback for dispatching [RecordingEvent.FillToFull].
+ * Hidden entirely when [RecordingUiState.metrics.tankCapacityL] is null.
+ *
+ * @param state Current recording UI state.
  */
 @Composable
-private fun FuelTankRow(state: RecordingUiState, onEvent: (RecordingEvent) -> Unit) {
+private fun FuelTankRow(state: RecordingUiState) {
     val metrics = state.metrics
     if (metrics.tankCapacityL == null) return
 
-    val isActive = state.phase == RecordingPhase.Recording || state.phase == RecordingPhase.Paused
     Spacer(Modifier.height(4.dp))
     Row(
         Modifier.fillMaxWidth(),
@@ -522,15 +529,14 @@ private fun FuelTankRow(state: RecordingUiState, onEvent: (RecordingEvent) -> Un
                 modifier = Modifier.weight(1f),
             )
         }
-        // Fill-to-full compact icon button
-        OutlinedIconButton(
-            onClick = { onEvent(RecordingEvent.FillToFull) },
-            enabled = isActive,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.LocalGasStation,
-                contentDescription = stringResource(R.string.action_fill_to_full),
-                tint = MotoTracker.colors.accent,
+        // Running fuel cost tile — shown only when a price per litre is configured
+        state.fuelPricePerL?.let { pricePerL ->
+            val cost = FuelCostCalculator.cost(metrics.fuelL, pricePerL)
+            SmallMetricTile(
+                label = stringResource(R.string.label_fuel_cost),
+                value = "%.2f".format(cost),
+                unit = state.currency,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -781,25 +787,33 @@ private fun SmallMetricTile(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Compact icon-button control strip; appearance adapts to [phase].
+ * Compact icon-button control strip driven by [RecordingControls.forPhase].
  *
- * Idle → single PlayArrow [FilledIconButton]; Recording → Pause + Stop; Paused → PlayArrow + Stop.
- * Each icon carries a contentDescription bound to the existing string resource for a11y and
- * Compose-UI test discovery.
+ * The visible controls depend on both [phase] and whether the current bike has a fuel tank
+ * ([hasFuelTank]): the fill-to-full button only appears during Recording and Paused when a tank
+ * is configured; it is never shown in Idle. Each icon carries a contentDescription string
+ * resource for a11y and Compose-UI test discovery.
  *
- * @param phase   Current recording phase from [RecordingUiState].
- * @param onEvent Callback for dispatching [RecordingEvent]s to the ViewModel.
+ * @param phase       Current recording phase from [RecordingUiState].
+ * @param hasFuelTank True when the current bike has a tank capacity configured.
+ * @param onEvent     Callback for dispatching [RecordingEvent]s to the ViewModel.
  */
 @Composable
-private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent) -> Unit) {
+private fun RecordingControlRow(
+    phase: RecordingPhase,
+    hasFuelTank: Boolean,
+    onEvent: (RecordingEvent) -> Unit,
+) {
+    val controls = RecordingControls.forPhase(phase, hasFuelTank)
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        when (phase) {
-            RecordingPhase.Idle -> {
-                FilledIconButton(
+        controls.forEachIndexed { index, control ->
+            if (index > 0) Spacer(Modifier.width(16.dp))
+            when (control) {
+                RecordingControl.START -> FilledIconButton(
                     onClick = { onEvent(RecordingEvent.Start) },
                     modifier = Modifier.size(56.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -813,10 +827,7 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
                         modifier = Modifier.size(32.dp),
                     )
                 }
-            }
-
-            RecordingPhase.Recording -> {
-                OutlinedIconButton(
+                RecordingControl.PAUSE -> OutlinedIconButton(
                     onClick = { onEvent(RecordingEvent.Pause) },
                     modifier = Modifier.size(52.dp),
                 ) {
@@ -825,24 +836,7 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
                         contentDescription = stringResource(R.string.btn_pause),
                     )
                 }
-                Spacer(Modifier.width(16.dp))
-                FilledIconButton(
-                    onClick = { onEvent(RecordingEvent.Finish) },
-                    modifier = Modifier.size(52.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MotoTracker.colors.accent2,
-                        contentColor = MotoTracker.colors.onAccent2,
-                    ),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Stop,
-                        contentDescription = stringResource(R.string.btn_finish),
-                    )
-                }
-            }
-
-            RecordingPhase.Paused -> {
-                FilledIconButton(
+                RecordingControl.RESUME -> FilledIconButton(
                     onClick = { onEvent(RecordingEvent.Resume) },
                     modifier = Modifier.size(52.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -855,8 +849,7 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
                         contentDescription = stringResource(R.string.btn_resume),
                     )
                 }
-                Spacer(Modifier.width(16.dp))
-                FilledIconButton(
+                RecordingControl.STOP -> FilledIconButton(
                     onClick = { onEvent(RecordingEvent.Finish) },
                     modifier = Modifier.size(52.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -867,6 +860,16 @@ private fun RecordingControlRow(phase: RecordingPhase, onEvent: (RecordingEvent)
                     Icon(
                         imageVector = Icons.Filled.Stop,
                         contentDescription = stringResource(R.string.btn_finish),
+                    )
+                }
+                RecordingControl.FILL_TO_FULL -> OutlinedIconButton(
+                    onClick = { onEvent(RecordingEvent.FillToFull) },
+                    modifier = Modifier.size(52.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocalGasStation,
+                        contentDescription = stringResource(R.string.action_fill_to_full),
+                        tint = MotoTracker.colors.accent,
                     )
                 }
             }

@@ -149,12 +149,19 @@ class RecordingViewModel @Inject constructor(
             carBridge.commands.collect { event -> onEvent(event) }
         }
         // Track the current bike's fuel properties so doStart() passes the right values to the engine.
+        // Also resolves fuelPricePerL and currency for the live fuel-cost readout (G2).
         combine(settingsSource.settings, bikeRepository.observeAll()) { s, bikes ->
             val bike = bikes.find { it.id == s.currentBikeId }
-            Pair(bike?.consumptionLper100km ?: 5.0, bike?.tankCapacityL)
-        }.onEach { (consumption, tankCap) ->
-            currentBikeConsumption = consumption
-            currentBikeTankCapacity = tankCap
+            BikeSnapshot(
+                consumption = bike?.consumptionLper100km ?: 5.0,
+                tankCapacity = bike?.tankCapacityL,
+                fuelPricePerL = bike?.fuelPricePerL,
+                currency = s.currency,
+            )
+        }.onEach { bs ->
+            currentBikeConsumption = bs.consumption
+            currentBikeTankCapacity = bs.tankCapacity
+            _uiState.update { it.copy(fuelPricePerL = bs.fuelPricePerL, currency = bs.currency) }
         }.launchIn(viewModelScope)
 
         // B20: Detect an unfinished session from a previous process lifetime.
@@ -448,3 +455,11 @@ class RecordingViewModel @Inject constructor(
         return List(maxCount) { i -> points[(i * step).toInt()] }
     }
 }
+
+/** Aggregated per-bike and per-settings values resolved in the settings/bike combine block. */
+private data class BikeSnapshot(
+    val consumption: Double,
+    val tankCapacity: Double?,
+    val fuelPricePerL: Double?,
+    val currency: String,
+)

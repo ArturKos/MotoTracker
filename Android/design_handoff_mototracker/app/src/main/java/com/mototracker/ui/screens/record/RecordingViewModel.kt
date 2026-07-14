@@ -13,6 +13,7 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
@@ -32,7 +33,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -63,6 +67,7 @@ import javax.inject.Inject
  * @param routeRepository   Persistence for completed routes.
  * @param syncRepository    Outbound sync queue.
  * @param settingsSource    Read-only app settings stream.
+ * @param bikeRepository    Read-only bike list for resolving per-bike fuel consumption.
  * @param networkMonitor    Online/offline connectivity.
  * @param timeProvider      Wall-clock source (injectable for tests).
  * @param carBridge         App-scoped bridge that mirrors recording state to the Android Auto screen.
@@ -80,6 +85,7 @@ class RecordingViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
     private val syncRepository: SyncRepository,
     private val settingsSource: AppSettingsSource,
+    private val bikeRepository: BikeRepository,
     private val networkMonitor: NetworkMonitor,
     private val timeProvider: TimeProvider,
     private val carBridge: CarRecordingBridge,
@@ -109,6 +115,9 @@ class RecordingViewModel @Inject constructor(
     /** Most-recently observed bike ID from settings; used when writing snapshots. */
     private var currentBikeId: String? = null
 
+    /** Per-session fuel consumption resolved from the current bike; defaults to 5.0 L/100km. */
+    private var currentBikeConsumption: Double = 5.0
+
     /**
      * Route UUID pre-assigned when recording starts so BLE wave rows discovered
      * during the ride can reference the route before it is persisted at Finish.
@@ -133,6 +142,13 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             carBridge.commands.collect { event -> onEvent(event) }
         }
+        // Track the current bike's fuel consumption so doStart() passes the right rate to the engine.
+        combine(settingsSource.settings, bikeRepository.observeAll()) { s, bikes ->
+            bikes.find { it.id == s.currentBikeId }?.consumptionLper100km ?: 5.0
+        }.onEach { consumption ->
+            currentBikeConsumption = consumption
+        }.launchIn(viewModelScope)
+
         // B20: Detect an unfinished session from a previous process lifetime.
         viewModelScope.launch {
             val existing = sessionStore.snapshot.first()
@@ -159,7 +175,7 @@ class RecordingViewModel @Inject constructor(
     // ── State machine ────────────────────────────────────────────────────────
 
     private fun doStart() {
-        engine.reset()
+        engine.reset(fuelLper100km = currentBikeConsumption)
         rideDebugLogger.beginRide()
         recordingStartMs = timeProvider.nowEpochMs()
         pendingRouteId = UUID.randomUUID().toString()

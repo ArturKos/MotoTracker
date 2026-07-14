@@ -93,6 +93,14 @@ class RouteRepositoryImpl @Inject constructor(
         routeDao.deleteAll()
     }
 
+    override suspend fun setFuel(routeId: String, fuelL: Double) {
+        routeDao.setFuel(routeId, fuelL)
+    }
+
+    override suspend fun setFuelPrice(routeId: String, pricePerL: Double?) {
+        routeDao.setFuelPrice(routeId, pricePerL)
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private suspend fun assembleTrace(routeId: String, kind: String): String? {

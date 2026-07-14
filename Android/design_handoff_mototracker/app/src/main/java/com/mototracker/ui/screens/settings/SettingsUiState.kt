@@ -5,13 +5,16 @@ import com.mototracker.data.local.entity.BikeStatus
 /**
  * Represents a single motorcycle row in the Settings → My motorcycles section.
  *
- * @param id         Bike UUID.
- * @param name       Display name.
- * @param yearPlate  Formatted "year · plate" string, e.g. "2020 · WA 12345".
- * @param status     Active or sold lifecycle flag.
- * @param isCurrent  Whether this is the user-selected active bike.
- * @param year       Model year; used to prefill the add/edit dialog.
- * @param plate      Registration plate; used to prefill the add/edit dialog.
+ * @param id                   Bike UUID.
+ * @param name                 Display name.
+ * @param yearPlate            Formatted "year · plate" string, e.g. "2020 · WA 12345".
+ * @param status               Active or sold lifecycle flag.
+ * @param isCurrent            Whether this is the user-selected active bike.
+ * @param year                 Model year; used to prefill the add/edit dialog.
+ * @param plate                Registration plate; used to prefill the add/edit dialog.
+ * @param tankCapacityL        Fuel tank capacity in litres; null when not configured.
+ * @param fuelPricePerL        Fuel price per litre; null when not configured.
+ * @param consumptionLper100km Average fuel consumption in L/100km; null when not configured.
  */
 data class BikeUi(
     val id: String,
@@ -21,6 +24,9 @@ data class BikeUi(
     val isCurrent: Boolean,
     val year: Int = 0,
     val plate: String = "",
+    val tankCapacityL: Double? = null,
+    val fuelPricePerL: Double? = null,
+    val consumptionLper100km: Double? = null,
 )
 
 /**
@@ -70,6 +76,7 @@ data class SyncQueueItemUi(
  * @param debugLoggingEnabled  Diagnostics: write per-ride log files to external storage.
  * @param rideLogUsedBytes     Diagnostics: total bytes consumed by ride-log files in
  *                             external storage; 0 when logging is disabled or no logs exist.
+ * @param currency             ISO 4217 currency code used for fuel cost display, e.g. "PLN".
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -96,4 +103,5 @@ data class SettingsUiState(
     val keepScreenOn: Boolean = false,
     val debugLoggingEnabled: Boolean = false,
     val rideLogUsedBytes: Long = 0L,
+    val currency: String = "PLN",
 )

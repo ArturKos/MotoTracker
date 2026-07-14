@@ -91,6 +91,13 @@ data class MeetingUi(
  *                                 the "change bike" affordance on the route-detail header should
  *                                 be interactive and open the [BikePickerDialog]. `false` when the
  *                                 garage is empty — the bike row is rendered non-interactive/dimmed.
+ * @param fuelL                    Raw fuel value in litres; exposed for the edit-fuel dialog.
+ * @param fuelCostDisplay          Formatted fuel cost string including currency code (e.g. "31.20 PLN"),
+ *                                 or an empty string when no price information is available.
+ * @param effectiveFuelPricePerL   The resolved fuel price per litre used to compute [fuelCostDisplay];
+ *                                 null when neither a route override nor a bike price is configured.
+ * @param isFuelPriceRouteOverride `true` when [effectiveFuelPricePerL] comes from a per-route
+ *                                 override rather than the bike default.
  */
 data class RouteDetailUiState(
     val loading: Boolean = true,
@@ -124,4 +131,8 @@ data class RouteDetailUiState(
     val currentBikeId: String? = null,
     val assignableBikes: List<BikePickerItemUi> = emptyList(),
     val bikeChangeEnabled: Boolean = false,
+    val fuelL: Double = 0.0,
+    val fuelCostDisplay: String = "",
+    val effectiveFuelPricePerL: Double? = null,
+    val isFuelPriceRouteOverride: Boolean = false,
 )

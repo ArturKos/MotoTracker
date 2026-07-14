@@ -59,6 +59,7 @@ android {
             }
         }
     }
+
 }
 
 ksp {
@@ -88,6 +89,10 @@ dependencies {
     implementation(libs.androidx.car.app)
     implementation(libs.osmdroid.android)
     debugImplementation(libs.androidx.ui.tooling)
+
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

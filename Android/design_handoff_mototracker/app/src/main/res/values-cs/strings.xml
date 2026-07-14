@@ -318,4 +318,15 @@
 
     <!-- Upozornění na vypršení relace na přihlašovací obrazovce (B22) -->
     <string name="login_session_expired">Relace vypršela — přihlaste se znovu</string>
+
+    <!-- Model paliva (E3) -->
+    <string name="label_tank_capacity">Objem nádrže (L)</string>
+    <string name="label_fuel_price_per_liter">Cena paliva (za L)</string>
+    <string name="label_consumption_l100km">Spotřeba (L/100 km)</string>
+    <string name="label_currency">Měna</string>
+    <string name="label_fuel_cost">Náklady na palivo</string>
+    <string name="action_edit_fuel">Upravit palivo</string>
+    <string name="action_edit_price">Upravit cenu</string>
+    <string name="error_invalid_number">Neplatné číslo</string>
+    <string name="error_negative_number">Hodnota musí být kladná</string>
 </resources>

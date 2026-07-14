@@ -28,6 +28,8 @@ import com.mototracker.data.local.entity.CorrectionStatus
  * @param correctedPathJson  Road-snapped GPS trace ([{lat,lng}] format); null until correction is DONE.
  * @param correctionStatus   Current GPS-correction pipeline state.
  * @param confidence         OSRM matching confidence score (0–1); null when not yet attempted.
+ * @param fuelPricePerL      Per-route fuel price override (user's currency/L); null → fall back to
+ *                           the assigned bike's price.
  */
 data class Route(
     val id: String,
@@ -50,4 +52,5 @@ data class Route(
     val correctedPathJson: String? = null,
     val correctionStatus: CorrectionStatus = CorrectionStatus.NONE,
     val confidence: Double? = null,
+    val fuelPricePerL: Double? = null,
 )

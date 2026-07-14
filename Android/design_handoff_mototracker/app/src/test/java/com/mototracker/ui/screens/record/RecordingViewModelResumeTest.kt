@@ -8,12 +8,14 @@ import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
@@ -111,6 +113,12 @@ private class FakeResumeGeocoder : ReverseGeocoder {
     override suspend fun areaName(lat: Double, lng: Double): String? = null
 }
 
+private class FakeResumeBikeRepository : BikeRepository {
+    override fun observeAll(): Flow<List<Bike>> = MutableStateFlow(emptyList())
+    override suspend fun addBike(bike: Bike) {}
+    override suspend fun deleteAll() {}
+}
+
 private class FakeResumeStringResolver : StringResolver {
     override fun getString(resId: Int): String = when (resId) {
         R.string.route_name_ride_morning   -> "morning ride"
@@ -159,12 +167,14 @@ class RecordingViewModelResumeTest {
     private fun buildVm(
         store: RecordingSessionStore = FakeSessionStore(),
         routeRepo: FakeResumeRouteRepository = FakeResumeRouteRepository(),
+        bikeRepository: BikeRepository = FakeResumeBikeRepository(),
     ) = RecordingViewModel(
         locationClient = FakeResumeLocationClient(),
         leanSensorSource = FakeResumeLeanSource(),
         routeRepository = routeRepo,
         syncRepository = FakeResumeSyncRepository(),
         settingsSource = FakeResumeSettingsSource(),
+        bikeRepository = bikeRepository,
         networkMonitor = FakeResumeNetworkMonitor(),
         timeProvider = FakeResumeTimeProvider(),
         carBridge = CarRecordingBridge(),

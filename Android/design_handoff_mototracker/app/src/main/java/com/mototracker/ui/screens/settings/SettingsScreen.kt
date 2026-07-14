@@ -1125,6 +1125,9 @@ private fun AddEditBikeDialog(
                 when (val result = BikeFormValidation.validate(nameText, yearText, plateText)) {
                     is BikeFormResult.NameBlank -> nameError = true
                     is BikeFormResult.YearInvalid -> yearError = true
+                    is BikeFormResult.TankCapacityInvalid -> { /* 🔬 fuel field errors: shown in future dialog */ }
+                    is BikeFormResult.FuelPriceInvalid -> { /* 🔬 fuel field errors: shown in future dialog */ }
+                    is BikeFormResult.ConsumptionInvalid -> { /* 🔬 fuel field errors: shown in future dialog */ }
                     is BikeFormResult.Valid -> {
                         onConfirm(result.name, result.year, result.plate, status)
                         onDismiss()

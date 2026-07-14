@@ -424,6 +424,28 @@ private fun StatGrid(state: RouteDetailUiState) {
             StatTile(label = stringResource(R.string.label_lean_short), tile = state.leanTile, modifier = Modifier.weight(1f))
             StatTile(label = stringResource(R.string.tile_fuel), tile = state.fuelTile, modifier = Modifier.weight(1f))
         }
+        if (state.fuelCostDisplay.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MotoTracker.colors.panel)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.label_fuel_cost).uppercase(),
+                    style = MotoTracker.typography.label,
+                    color = MotoTracker.colors.dim,
+                )
+                Text(
+                    text = state.fuelCostDisplay,
+                    style = MotoTracker.typography.bigCardNumber.copy(fontSize = 20.sp),
+                    color = MotoTracker.colors.text,
+                )
+            }
+        }
     }
 }
 

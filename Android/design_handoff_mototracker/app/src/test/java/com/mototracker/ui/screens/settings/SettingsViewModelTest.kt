@@ -63,6 +63,7 @@ private class FakeSettingsStore(
     var lastBcPhone: String? = null
     var lastBcOrigin: String? = null
     var lastBcSocial: String? = null
+    var lastCurrency: String? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -84,6 +85,7 @@ private class FakeSettingsStore(
     override suspend fun setBcOrigin(origin: String) { lastBcOrigin = origin; _flow.value = _flow.value.copy(bcOrigin = origin) }
     override suspend fun setBcSocial(social: String) { lastBcSocial = social; _flow.value = _flow.value.copy(bcSocial = social) }
     override suspend fun setDebugLoggingEnabled(value: Boolean) { _flow.value = _flow.value.copy(debugLoggingEnabled = value) }
+    override suspend fun setCurrency(currency: String) { lastCurrency = currency; _flow.value = _flow.value.copy(currency = currency) }
 }
 
 private class FakeBikeRepository : BikeRepository {
@@ -537,6 +539,42 @@ class SettingsViewModelTest {
         assertEquals(sizeBefore, bikeRepo.addedBikes.size)
     }
 
+    @Test
+    fun `addBike with fuel fields persists correct nullable Double values`() = runTest {
+        vm.addBike(
+            name = "Yamaha MT-07",
+            year = 2021,
+            plate = "WA 1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityLText = "14.0",
+            fuelPricePerLText = "6.50",
+            consumptionLper100kmText = "5.5",
+        )
+        val added = bikeRepo.addedBikes.single()
+        assertEquals(14.0, added.tankCapacityL!!, 0.001)
+        assertEquals(6.50, added.fuelPricePerL!!, 0.001)
+        assertEquals(5.5, added.consumptionLper100km!!, 0.001)
+    }
+
+    @Test
+    fun `updateBike with fuel fields persists correct nullable Double values`() = runTest {
+        bikeRepo.emit(listOf(makeBike("b2", name = "Honda CB500", year = 2019, plate = "KR 9999")))
+        vm.updateBike(
+            id = "b2",
+            name = "Honda CB500",
+            year = 2019,
+            plate = "KR 9999",
+            status = BikeStatus.ACTIVE,
+            tankCapacityLText = "17.7",
+            fuelPricePerLText = "7.20",
+            consumptionLper100kmText = "4.8",
+        )
+        val updated = bikeRepo.addedBikes.single { it.id == "b2" }
+        assertEquals(17.7, updated.tankCapacityL!!, 0.001)
+        assertEquals(7.20, updated.fuelPricePerL!!, 0.001)
+        assertEquals(4.8, updated.consumptionLper100km!!, 0.001)
+    }
+
     // ── BikeFormValidation (pure unit tests) ──────────────────────────────────
 
     @Test
@@ -702,6 +740,46 @@ class SettingsViewModelTest {
         }
     }
 
+    // ── BikeFormValidation fuel fields (E3) ──────────────────────────────────
+
+    @Test
+    fun `BikeFormValidation TankCapacityInvalid for negative value`() {
+        val result = BikeFormValidation.validate("MT-07", "2020", "WA 1234", tankCapacityLText = "-5")
+        assertEquals(BikeFormResult.TankCapacityInvalid, result)
+    }
+
+    @Test
+    fun `BikeFormValidation FuelPriceInvalid for non-numeric price`() {
+        val result = BikeFormValidation.validate("MT-07", "2020", "WA 1234", fuelPricePerLText = "abc")
+        assertEquals(BikeFormResult.FuelPriceInvalid, result)
+    }
+
+    @Test
+    fun `BikeFormValidation ConsumptionInvalid for negative value`() {
+        val result = BikeFormValidation.validate("MT-07", "2020", "WA 1234", consumptionLper100kmText = "-1.0")
+        assertEquals(BikeFormResult.ConsumptionInvalid, result)
+    }
+
+    @Test
+    fun `BikeFormValidation blank fuel fields resolve to null in Valid result`() {
+        val result = BikeFormValidation.validate("MT-07", "2020", "WA 1234", "", "", "")
+        assertTrue(result is BikeFormResult.Valid)
+        val valid = result as BikeFormResult.Valid
+        assertNull("blank tankCapacityLText should yield null", valid.tankCapacityL)
+        assertNull("blank fuelPricePerLText should yield null", valid.fuelPricePerL)
+        assertNull("blank consumptionLper100kmText should yield null", valid.consumptionLper100km)
+    }
+
+    @Test
+    fun `BikeFormValidation valid fuel fields parsed correctly in Valid result`() {
+        val result = BikeFormValidation.validate("MT-07", "2020", "WA 1234", "17.0", "2.50", "6.5")
+        assertTrue(result is BikeFormResult.Valid)
+        val valid = result as BikeFormResult.Valid
+        assertEquals(17.0, valid.tankCapacityL!!, 0.001)
+        assertEquals(2.50, valid.fuelPricePerL!!, 0.001)
+        assertEquals(6.5, valid.consumptionLper100km!!, 0.001)
+    }
+
     // ── Tab selection (B18) ───────────────────────────────────────────────────
 
     @Test
@@ -715,6 +793,30 @@ class SettingsViewModelTest {
             assertEquals(SettingsTab.ACCOUNT, awaitItem())
             vm.selectTab(SettingsTab.MOTORCYCLES)
             assertEquals(SettingsTab.MOTORCYCLES, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── setCurrency (E3) ──────────────────────────────────────────────────────
+
+    @Test
+    fun `setCurrency delegates to store setCurrency`() = runTest {
+        vm.setCurrency("EUR")
+        assertEquals("EUR", store.lastCurrency)
+    }
+
+    @Test
+    fun `setCurrency with different code delegates correctly`() = runTest {
+        vm.setCurrency("USD")
+        assertEquals("USD", store.lastCurrency)
+    }
+
+    @Test
+    fun `store emit currency propagates to uiState currency`() = runTest {
+        store.emit(AppSettings(currency = "EUR"))
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals("EUR", state.currency)
             cancelAndIgnoreRemainingEvents()
         }
     }

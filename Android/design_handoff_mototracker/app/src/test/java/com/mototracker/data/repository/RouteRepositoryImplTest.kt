@@ -76,6 +76,14 @@ private class FakeRouteDaoImpl : RouteDao {
         store[id]?.let { store[id] = it.copy(bikeId = bikeId) }
     }
 
+    override suspend fun setFuel(id: String, fuelL: Double) {
+        store[id]?.let { store[id] = it.copy(fuel = fuelL) }
+    }
+
+    override suspend fun setFuelPrice(id: String, pricePerL: Double?) {
+        store[id]?.let { store[id] = it.copy(fuelPricePerL = pricePerL) }
+    }
+
     override suspend fun deleteAll() {
         store.clear()
         allFlow.value = emptyList()

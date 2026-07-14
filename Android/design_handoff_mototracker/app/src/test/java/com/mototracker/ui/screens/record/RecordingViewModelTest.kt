@@ -7,12 +7,14 @@ import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.LeanSensorSource
@@ -73,6 +75,14 @@ private class FakeRouteRepository : RouteRepository {
     override suspend fun deleteAll() { saved.clear(); allFlow.value = emptyList() }
     override suspend fun rename(id: String, name: String) { /* stub */ }
     override suspend fun setBike(routeId: String, bikeId: String?) { /* stub */ }
+}
+
+private class FakeBikeRepository(
+    private val bikes: List<Bike> = emptyList(),
+) : BikeRepository {
+    override fun observeAll(): Flow<List<Bike>> = MutableStateFlow(bikes)
+    override suspend fun addBike(bike: Bike) {}
+    override suspend fun deleteAll() {}
 }
 
 private class FakeSyncRepository : SyncRepository {
@@ -628,12 +638,14 @@ class RecordingViewModelTest {
         reverseGeocoder: ReverseGeocoder = FakeReverseGeocoder(),
         stringResolver: StringResolver = FakeStringResolver(),
         sessionStore: RecordingSessionStore = FakeRecordingSessionStore(),
+        bikeRepository: BikeRepository = FakeBikeRepository(),
     ) = RecordingViewModel(
         locationClient = locationClient,
         leanSensorSource = leanSensorSource,
         routeRepository = routeRepository,
         syncRepository = syncRepo,
         settingsSource = FakeSettingsSource(settings),
+        bikeRepository = bikeRepository,
         networkMonitor = FakeNetworkMonitor(isOnline = online),
         timeProvider = FakeTimeProvider(fixedTimeMs),
         carBridge = com.mototracker.car.CarRecordingBridge(),

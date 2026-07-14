@@ -211,6 +211,18 @@ class RecordingEngineTest {
         assertEquals(0.0, m.fuelL, 0.0)
     }
 
+    @Test
+    fun `reset with custom consumption yields correct fuel estimate`() {
+        val e = RecordingEngine()
+        e.reset(fuelLper100km = 8.0)
+        // Drive 100 km worth of GPS fixes
+        e.onLocation(sample(lat = 0.0, lng = 0.0))
+        e.onLocation(sample(lat = 0.9009, lng = 0.0)) // ~100 km
+        val m = e.snapshot()
+        // Expect approximately 8.0 L for 100 km at 8 L/100km
+        assertEquals(8.0, m.fuelL, 1.0)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun sample(

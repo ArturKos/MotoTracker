@@ -43,6 +43,8 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     private val _flow = MutableStateFlow(stored)
     val renameCallArgs = mutableListOf<Pair<String, String>>()
     val setBikeCallArgs = mutableListOf<Pair<String, String?>>()
+    val setFuelCallArgs = mutableListOf<Pair<String, Double>>()
+    val setFuelPriceCallArgs = mutableListOf<Pair<String, Double?>>()
 
     /** Push a new route value (used by tests to simulate DB updates). */
     fun emit(route: Route?) { _flow.value = route }
@@ -77,6 +79,18 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
         setBikeCallArgs += routeId to bikeId
         val r = _flow.value?.takeIf { it.id == routeId } ?: return
         _flow.value = r.copy(bikeId = bikeId)
+    }
+
+    override suspend fun setFuel(routeId: String, fuelL: Double) {
+        setFuelCallArgs += routeId to fuelL
+        val r = _flow.value?.takeIf { it.id == routeId } ?: return
+        _flow.value = r.copy(fuel = fuelL)
+    }
+
+    override suspend fun setFuelPrice(routeId: String, pricePerL: Double?) {
+        setFuelPriceCallArgs += routeId to pricePerL
+        val r = _flow.value?.takeIf { it.id == routeId } ?: return
+        _flow.value = r.copy(fuelPricePerL = pricePerL)
     }
 
     override suspend fun deleteAll() { _flow.value = null }
@@ -153,6 +167,7 @@ private fun makeRoute(
     correctedPathJson: String? = null,
     correctionStatus: CorrectionStatus = CorrectionStatus.NONE,
     confidence: Double? = null,
+    fuelPricePerL: Double? = null,
 ): Route = Route(
     id = id, name = name, dateEpochMs = 1_700_000_000_000L,
     bikeId = bikeId, km = km, durSec = durSec, avg = avg, max = max,
@@ -162,11 +177,15 @@ private fun makeRoute(
     correctedPathJson = correctedPathJson,
     correctionStatus = correctionStatus,
     confidence = confidence,
+    fuelPricePerL = fuelPricePerL,
 )
 
 private fun makeBike(
-    id: String, name: String, status: BikeStatus = BikeStatus.ACTIVE,
-): Bike = Bike(id = id, name = name, year = 2020, plate = "AB1234", status = status)
+    id: String,
+    name: String,
+    status: BikeStatus = BikeStatus.ACTIVE,
+    fuelPricePerL: Double? = null,
+): Bike = Bike(id = id, name = name, year = 2020, plate = "AB1234", status = status, fuelPricePerL = fuelPricePerL)
 
 private fun makeWave(
     id: String = "w1", routeId: String = "route-1",
@@ -1025,6 +1044,108 @@ class RouteDetailViewModelTest {
             val state = skipToLoaded()
             assertEquals("—", state.bikeName)
             assertNull(state.currentBikeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── E3 fuel cost ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `fuelCostDisplay is empty when no price configured`() = runTest {
+        val route = makeRoute(id = "route-1", fuel = 5.0, fuelPricePerL = null, bikeId = null)
+        val vm = buildVm(routeId = route.id, route = route, bikes = emptyList())
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertTrue("fuelCostDisplay should be empty when no price set", state.fuelCostDisplay.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `fuelCostDisplay uses route price override when set`() = runTest {
+        val route = makeRoute(id = "route-1", fuel = 10.0, fuelPricePerL = 2.0)
+        val vm = buildVm(routeId = route.id, route = route)
+        vm.uiState.test {
+            val state = skipToLoaded()
+            // 10 L * 2.0 PLN = 20.00 PLN
+            assertTrue("cost must contain 20.00", state.fuelCostDisplay.contains("20.00"))
+            assertTrue("isFuelPriceRouteOverride must be true", state.isFuelPriceRouteOverride)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `fuelCostDisplay falls back to bike price when route has no override`() = runTest {
+        val bike = makeBike("b-1", "MT-07", fuelPricePerL = 1.5)
+        val route = makeRoute(id = "route-1", fuel = 10.0, fuelPricePerL = null, bikeId = "b-1")
+        val vm = buildVm(routeId = route.id, route = route, bikes = listOf(bike))
+        vm.uiState.test {
+            val state = skipToLoaded()
+            // 10 L * 1.5 PLN = 15.00 PLN
+            assertTrue("cost must contain 15.00", state.fuelCostDisplay.contains("15.00"))
+            assertFalse("isFuelPriceRouteOverride must be false when using bike price", state.isFuelPriceRouteOverride)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setFuel persists new value and recomputes cost`() = runTest {
+        val route = makeRoute(id = "route-1", fuel = 5.0, fuelPricePerL = 2.0)
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            vm.setFuel(10.0)
+            val after = awaitItem()
+            assertEquals(1, fakeRepo.setFuelCallArgs.size)
+            assertEquals("route-1", fakeRepo.setFuelCallArgs.first().first)
+            assertEquals(10.0, fakeRepo.setFuelCallArgs.first().second, 0.001)
+            assertTrue("cost must contain 20.00 after setFuel(10.0)", after.fuelCostDisplay.contains("20.00"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setFuelPrice persists override and recomputes cost`() = runTest {
+        val route = makeRoute(id = "route-1", fuel = 10.0, fuelPricePerL = null)
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            vm.setFuelPrice(3.0)
+            val after = awaitItem()
+            assertEquals(1, fakeRepo.setFuelPriceCallArgs.size)
+            assertEquals(3.0, fakeRepo.setFuelPriceCallArgs.first().second)
+            assertTrue("cost must contain 30.00 after setFuelPrice(3.0)", after.fuelCostDisplay.contains("30.00"))
+            assertTrue("isFuelPriceRouteOverride must be true after setFuelPrice", after.isFuelPriceRouteOverride)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setFuelPrice null clears override and falls back to bike price`() = runTest {
+        val bike = makeBike("b-1", "MT-07", fuelPricePerL = 1.5)
+        val route = makeRoute(id = "route-1", fuel = 10.0, fuelPricePerL = 2.5, bikeId = "b-1")
+        val fakeRepo = FakeRouteRepository(stored = route)
+        val vm = buildVm(routeId = route.id, fakeRouteRepo = fakeRepo, bikes = listOf(bike))
+        vm.uiState.test {
+            skipToLoaded()
+            vm.setFuelPrice(null)
+            val after = awaitItem()
+            assertFalse("isFuelPriceRouteOverride must be false after clearing override", after.isFuelPriceRouteOverride)
+            // Falls back to bike price 1.5: 10 * 1.5 = 15.00
+            assertTrue("cost must fall back to bike price 15.00", after.fuelCostDisplay.contains("15.00"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `fuelL in uiState matches route fuel`() = runTest {
+        val route = makeRoute(id = "route-1", fuel = 7.3)
+        val vm = buildVm(routeId = route.id, route = route)
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertEquals(7.3, state.fuelL, 0.001)
             cancelAndIgnoreRemainingEvents()
         }
     }

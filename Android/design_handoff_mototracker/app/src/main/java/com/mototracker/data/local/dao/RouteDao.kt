@@ -132,4 +132,26 @@ interface RouteDao {
      */
     @Query("UPDATE routes SET thumbnailPathD = :thumbnailPathD WHERE id = :id")
     suspend fun setThumbnailPathD(id: String, thumbnailPathD: String?)
+
+    /**
+     * Updates the estimated fuel consumed for route [id].
+     *
+     * Performs a targeted UPDATE — trace chunks and all other fields are untouched.
+     *
+     * @param id    Route primary key.
+     * @param fuelL New fuel amount in litres.
+     */
+    @Query("UPDATE routes SET fuel = :fuelL WHERE id = :id")
+    suspend fun setFuel(id: String, fuelL: Double)
+
+    /**
+     * Sets or clears the per-route fuel price override for route [id].
+     *
+     * Null clears the override so the bike's default price is used instead.
+     *
+     * @param id        Route primary key.
+     * @param pricePerL New price per litre, or null to remove the override.
+     */
+    @Query("UPDATE routes SET fuelPricePerL = :pricePerL WHERE id = :id")
+    suspend fun setFuelPrice(id: String, pricePerL: Double?)
 }

@@ -35,6 +35,7 @@ fun RouteEntity.toDomain(pathJson: String? = null, correctedPathJson: String? = 
     correctedPathJson = correctedPathJson,
     correctionStatus = correctionStatus,
     confidence = confidence,
+    fuelPricePerL = fuelPricePerL,
 )
 
 /**
@@ -65,6 +66,7 @@ fun Route.toEntity(): RouteEntity = RouteEntity(
     notes = notes,
     correctionStatus = correctionStatus,
     confidence = confidence,
+    fuelPricePerL = fuelPricePerL,
 )
 
 /**

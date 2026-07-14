@@ -95,4 +95,26 @@ interface RouteRepository {
      * all existing data before inserting the imported set.
      */
     suspend fun deleteAll()
+
+    /**
+     * Updates the estimated fuel consumed for route [routeId].
+     *
+     * Performs a targeted UPDATE — raw trace and all other fields are untouched.
+     * Default no-op; override in implementations and test fakes that need to verify persistence.
+     *
+     * @param routeId Route UUID.
+     * @param fuelL   New fuel amount in litres.
+     */
+    suspend fun setFuel(routeId: String, fuelL: Double) {}
+
+    /**
+     * Sets or clears the per-route fuel price override for route [routeId].
+     *
+     * Null clears the override so the bike's default price is used instead.
+     * Default no-op; override in implementations and test fakes that need to verify persistence.
+     *
+     * @param routeId   Route UUID.
+     * @param pricePerL New price per litre, or null to remove the override.
+     */
+    suspend fun setFuelPrice(routeId: String, pricePerL: Double?) {}
 }

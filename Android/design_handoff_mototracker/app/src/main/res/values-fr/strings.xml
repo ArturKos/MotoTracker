@@ -318,4 +318,15 @@
 
     <!-- Avis de session expirée sur l\'écran de connexion (B22) -->
     <string name="login_session_expired">Session expirée — veuillez vous reconnecter</string>
+
+    <!-- Modèle de carburant (E3) -->
+    <string name="label_tank_capacity">Capacité du réservoir (L)</string>
+    <string name="label_fuel_price_per_liter">Prix du carburant (par L)</string>
+    <string name="label_consumption_l100km">Consommation (L/100 km)</string>
+    <string name="label_currency">Devise</string>
+    <string name="label_fuel_cost">Coût du carburant</string>
+    <string name="action_edit_fuel">Modifier le carburant</string>
+    <string name="action_edit_price">Modifier le prix</string>
+    <string name="error_invalid_number">Nombre invalide</string>
+    <string name="error_negative_number">La valeur doit être positive</string>
 </resources>

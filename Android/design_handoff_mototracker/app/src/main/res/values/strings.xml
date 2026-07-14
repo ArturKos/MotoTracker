@@ -348,4 +348,15 @@
 
     <!-- Session expired notice on Login screen (B22) -->
     <string name="login_session_expired">Session expired — please sign in again</string>
+
+    <!-- Fuel model (E3) -->
+    <string name="label_tank_capacity">Tank capacity (L)</string>
+    <string name="label_fuel_price_per_liter">Fuel price (per L)</string>
+    <string name="label_consumption_l100km">Consumption (L/100 km)</string>
+    <string name="label_currency">Currency</string>
+    <string name="label_fuel_cost">Fuel cost</string>
+    <string name="action_edit_fuel">Edit fuel</string>
+    <string name="action_edit_price">Edit price</string>
+    <string name="error_invalid_number">Invalid number</string>
+    <string name="error_negative_number">Value must be positive</string>
 </resources>

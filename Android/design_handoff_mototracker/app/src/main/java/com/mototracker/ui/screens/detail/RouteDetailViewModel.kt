@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mototracker.R
 import com.mototracker.core.format.ChartPolyline
 import com.mototracker.core.format.GpxExporter
+import com.mototracker.core.format.MoneyFormatter
 import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.core.format.RouteWeather
 import com.mototracker.core.format.UnitFormatter
@@ -21,6 +22,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.domain.fuel.FuelCostCalculator
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -231,6 +233,39 @@ class RouteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Updates the estimated fuel consumed on this route.
+     *
+     * Persists [fuelL] via [RouteRepository.setFuel]; the live [routeRepository.observeById]
+     * stream re-emits so [uiState] recomputes the cost display automatically.
+     * No-op when the route has not yet loaded.
+     *
+     * @param fuelL New fuel value in litres (must be ≥ 0).
+     */
+    fun setFuel(fuelL: Double) {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            routeRepository.setFuel(route.id, fuelL)
+        }
+    }
+
+    /**
+     * Sets or clears the per-route fuel price override.
+     *
+     * A non-null [pricePerL] overrides the bike's default price; `null` reverts to the
+     * bike's default. Persists via [RouteRepository.setFuelPrice]; the live stream
+     * re-emits so [uiState] recomputes the cost display automatically.
+     * No-op when the route has not yet loaded.
+     *
+     * @param pricePerL Price per litre override, or `null` to clear.
+     */
+    fun setFuelPrice(pricePerL: Double?) {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            routeRepository.setFuelPrice(route.id, pricePerL)
+        }
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(
@@ -295,6 +330,17 @@ class RouteDetailViewModel @Inject constructor(
             ?.let { String.format(Locale.US, "%.0f%%", it * 100.0) }
             ?: ""
 
+        val effectivePricePerL = FuelCostCalculator.effectivePricePerL(
+            routePrice = route.fuelPricePerL,
+            bikePrice = bike?.fuelPricePerL,
+        )
+        val fuelCostDisplay = if (effectivePricePerL != null) {
+            val cost = FuelCostCalculator.cost(route.fuel, effectivePricePerL)
+            MoneyFormatter.format(cost, settings.currency)
+        } else {
+            ""
+        }
+
         return RouteDetailUiState(
             loading = false,
             routeNotFound = false,
@@ -345,6 +391,10 @@ class RouteDetailViewModel @Inject constructor(
             correctionStatusLabelRes = correctionStatusLabelRes,
             confidenceLabel = confidenceLabel,
             selectedTrackView = effectiveView,
+            fuelL = route.fuel,
+            fuelCostDisplay = fuelCostDisplay,
+            effectiveFuelPricePerL = effectivePricePerL,
+            isFuelPriceRouteOverride = route.fuelPricePerL != null,
         )
     }
 

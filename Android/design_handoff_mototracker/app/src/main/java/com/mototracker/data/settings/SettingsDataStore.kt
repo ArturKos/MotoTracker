@@ -48,6 +48,7 @@ class SettingsDataStore @Inject constructor(
         val BC_SOCIAL = stringPreferencesKey("bc_social")
         val DEBUG_LOGGING_ENABLED = booleanPreferencesKey("debug_logging_enabled")
         val OSRM_BASE_URL = stringPreferencesKey("osrm_base_url")
+        val CURRENCY = stringPreferencesKey("currency")
     }
 
     private val defaults = AppSettings()
@@ -74,6 +75,7 @@ class SettingsDataStore @Inject constructor(
             bcSocial = prefs[Keys.BC_SOCIAL] ?: defaults.bcSocial,
             debugLoggingEnabled = prefs[Keys.DEBUG_LOGGING_ENABLED] ?: defaults.debugLoggingEnabled,
             osrmBaseUrl = prefs[Keys.OSRM_BASE_URL] ?: defaults.osrmBaseUrl,
+            currency = prefs[Keys.CURRENCY] ?: defaults.currency,
         )
     }
 
@@ -177,5 +179,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the OSRM map-matching base URL. */
     override suspend fun setOsrmBaseUrl(url: String) {
         dataStore.edit { it[Keys.OSRM_BASE_URL] = url }
+    }
+
+    /** Persists the ISO 4217 currency code used for fuel cost display. */
+    override suspend fun setCurrency(currency: String) {
+        dataStore.edit { it[Keys.CURRENCY] = currency }
     }
 }

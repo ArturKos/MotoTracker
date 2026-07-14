@@ -318,4 +318,15 @@
 
     <!-- Уведомление об истечении сессии на экране входа (B22) -->
     <string name="login_session_expired">Сессия истекла — войдите снова</string>
+
+    <!-- Модель топлива (E3) -->
+    <string name="label_tank_capacity">Объём бака (л)</string>
+    <string name="label_fuel_price_per_liter">Цена топлива (за л)</string>
+    <string name="label_consumption_l100km">Расход (л/100 км)</string>
+    <string name="label_currency">Валюта</string>
+    <string name="label_fuel_cost">Стоимость топлива</string>
+    <string name="action_edit_fuel">Изменить топливо</string>
+    <string name="action_edit_price">Изменить цену</string>
+    <string name="error_invalid_number">Неверное число</string>
+    <string name="error_negative_number">Значение должно быть положительным</string>
 </resources>

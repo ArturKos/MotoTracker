@@ -318,4 +318,15 @@
 
     <!-- Hinweis auf abgelaufene Sitzung im Anmeldebildschirm (B22) -->
     <string name="login_session_expired">Sitzung abgelaufen — bitte erneut anmelden</string>
+
+    <!-- Kraftstoffmodell (E3) -->
+    <string name="label_tank_capacity">Tankinhalt (L)</string>
+    <string name="label_fuel_price_per_liter">Kraftstoffpreis (pro L)</string>
+    <string name="label_consumption_l100km">Verbrauch (L/100 km)</string>
+    <string name="label_currency">Währung</string>
+    <string name="label_fuel_cost">Kraftstoffkosten</string>
+    <string name="action_edit_fuel">Kraftstoff bearbeiten</string>
+    <string name="action_edit_price">Preis bearbeiten</string>
+    <string name="error_invalid_number">Ungültige Zahl</string>
+    <string name="error_negative_number">Wert muss positiv sein</string>
 </resources>

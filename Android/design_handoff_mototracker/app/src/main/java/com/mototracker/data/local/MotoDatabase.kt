@@ -34,6 +34,8 @@ import com.mototracker.data.local.entity.WaveEntity
  * Version history:
  * - 1 → 2: Added correction columns + correction_queue table (A10 GPS-correction pipeline).
  * - 2 → 3: Moved pathJson/correctedPathJson out-of-row to route_trace_chunk; added thumbnailPathD (D11 CursorWindow fix).
+ * - 3 → 4: Added per-bike fuel model columns (tankCapacityL, fuelPricePerL, consumptionLper100km) to bikes;
+ *           added per-route fuel price override (fuelPricePerL) to routes (E3).
  */
 @Database(
     entities = [
@@ -45,7 +47,7 @@ import com.mototracker.data.local.entity.WaveEntity
         SyncQueueEntity::class,
         CorrectionQueueEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -71,7 +73,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
     }
 }
 
@@ -232,5 +234,21 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
                 arrayOf(routeId, kind, seq, chunkJson),
             )
         }
+    }
+}
+
+/**
+ * Schema migration from version 3 to 4 (E3 — per-bike fuel model).
+ *
+ * Adds three nullable fuel columns to `bikes` and one nullable fuel-price-override
+ * column to `routes`. All are REAL (nullable) with no NOT NULL/DEFAULT so existing
+ * rows remain valid and the new fields default to NULL (unknown until the user sets them).
+ */
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE bikes ADD COLUMN tankCapacityL REAL")
+        db.execSQL("ALTER TABLE bikes ADD COLUMN fuelPricePerL REAL")
+        db.execSQL("ALTER TABLE bikes ADD COLUMN consumptionLper100km REAL")
+        db.execSQL("ALTER TABLE routes ADD COLUMN fuelPricePerL REAL")
     }
 }

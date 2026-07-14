@@ -34,6 +34,8 @@ import androidx.room.PrimaryKey
  * @param thumbnailPathD     Precomputed SVG path `d` string built from a downsampled (~120 pts) raw trace; bounded length.
  * @param correctionStatus   Current GPS-correction pipeline state.
  * @param confidence         OSRM matching confidence score (0–1); null when not yet attempted.
+ * @param fuelPricePerL      Per-route fuel price override (user's currency/L); null → fall back to
+ *                           the assigned bike's [BikeEntity.fuelPricePerL].
  */
 @Entity(
     tableName = "routes",
@@ -65,4 +67,5 @@ data class RouteEntity(
     val thumbnailPathD: String? = null,
     val correctionStatus: CorrectionStatus = CorrectionStatus.NONE,
     val confidence: Double? = null,
+    val fuelPricePerL: Double? = null,
 )

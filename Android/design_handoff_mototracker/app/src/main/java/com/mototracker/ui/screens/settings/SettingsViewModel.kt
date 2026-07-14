@@ -125,6 +125,9 @@ class SettingsViewModel @Inject constructor(
                 isCurrent = bike.id == settings.currentBikeId,
                 year = bike.year,
                 plate = bike.plate,
+                tankCapacityL = bike.tankCapacityL,
+                fuelPricePerL = bike.fuelPricePerL,
+                consumptionLper100km = bike.consumptionLper100km,
             )
         }
 
@@ -176,6 +179,7 @@ class SettingsViewModel @Inject constructor(
             keepScreenOn = settings.keepScreenOn,
             debugLoggingEnabled = settings.debugLoggingEnabled,
             rideLogUsedBytes = rideLogUsedBytes,
+            currency = settings.currency,
         )
     }
 
@@ -189,21 +193,30 @@ class SettingsViewModel @Inject constructor(
     /**
      * Adds a new motorcycle with a generated UUID.
      *
-     * Input is validated via [BikeFormValidation.validate]; the call is a no-op on
-     * [BikeFormResult.NameBlank] or [BikeFormResult.YearInvalid].
+     * Input is validated via [BikeFormValidation.validate]; the call is a no-op when
+     * validation returns an error result.
      *
-     * @param name   Display name, e.g. "Yamaha MT-07".
-     * @param year   Model year (must be in 1900–2030).
-     * @param plate  Registration plate (may be blank).
-     * @param status Lifecycle status; defaults to [BikeStatus.ACTIVE].
+     * @param name                  Display name, e.g. "Yamaha MT-07".
+     * @param year                  Model year (must be in 1900–2030).
+     * @param plate                 Registration plate (may be blank).
+     * @param status                Lifecycle status; defaults to [BikeStatus.ACTIVE].
+     * @param tankCapacityLText     Tank capacity string; blank → null, non-blank must be a non-negative Double.
+     * @param fuelPricePerLText     Fuel price string; blank → null, non-blank must be a non-negative Double.
+     * @param consumptionLper100kmText Consumption string; blank → null, non-blank must be a non-negative Double.
      */
     fun addBike(
         name: String,
         year: Int,
         plate: String,
         status: BikeStatus = BikeStatus.ACTIVE,
+        tankCapacityLText: String = "",
+        fuelPricePerLText: String = "",
+        consumptionLper100kmText: String = "",
     ) {
-        val result = BikeFormValidation.validate(name, year.toString(), plate)
+        val result = BikeFormValidation.validate(
+            name, year.toString(), plate,
+            tankCapacityLText, fuelPricePerLText, consumptionLper100kmText,
+        )
         if (result !is BikeFormResult.Valid) return
         viewModelScope.launch {
             bikeRepository.addBike(
@@ -213,6 +226,9 @@ class SettingsViewModel @Inject constructor(
                     year = result.year,
                     plate = result.plate,
                     status = status,
+                    tankCapacityL = result.tankCapacityL,
+                    fuelPricePerL = result.fuelPricePerL,
+                    consumptionLper100km = result.consumptionLper100km,
                 )
             )
         }
@@ -221,14 +237,17 @@ class SettingsViewModel @Inject constructor(
     /**
      * Updates an existing motorcycle identified by [id], preserving its UUID (upsert).
      *
-     * Input is validated via [BikeFormValidation.validate]; the call is a no-op on
-     * [BikeFormResult.NameBlank] or [BikeFormResult.YearInvalid].
+     * Input is validated via [BikeFormValidation.validate]; the call is a no-op when
+     * validation returns an error result.
      *
-     * @param id     UUID of the bike to update.
-     * @param name   New display name.
-     * @param year   New model year (must be in 1900–2030).
-     * @param plate  New registration plate (may be blank).
-     * @param status New lifecycle status.
+     * @param id                    UUID of the bike to update.
+     * @param name                  New display name.
+     * @param year                  New model year (must be in 1900–2030).
+     * @param plate                 New registration plate (may be blank).
+     * @param status                New lifecycle status.
+     * @param tankCapacityLText     Tank capacity string; blank → null, non-blank must be a non-negative Double.
+     * @param fuelPricePerLText     Fuel price string; blank → null, non-blank must be a non-negative Double.
+     * @param consumptionLper100kmText Consumption string; blank → null, non-blank must be a non-negative Double.
      */
     fun updateBike(
         id: String,
@@ -236,8 +255,14 @@ class SettingsViewModel @Inject constructor(
         year: Int,
         plate: String,
         status: BikeStatus,
+        tankCapacityLText: String = "",
+        fuelPricePerLText: String = "",
+        consumptionLper100kmText: String = "",
     ) {
-        val result = BikeFormValidation.validate(name, year.toString(), plate)
+        val result = BikeFormValidation.validate(
+            name, year.toString(), plate,
+            tankCapacityLText, fuelPricePerLText, consumptionLper100kmText,
+        )
         if (result !is BikeFormResult.Valid) return
         viewModelScope.launch {
             bikeRepository.addBike(
@@ -247,9 +272,17 @@ class SettingsViewModel @Inject constructor(
                     year = result.year,
                     plate = result.plate,
                     status = status,
+                    tankCapacityL = result.tankCapacityL,
+                    fuelPricePerL = result.fuelPricePerL,
+                    consumptionLper100km = result.consumptionLper100km,
                 )
             )
         }
+    }
+
+    /** Persists the ISO 4217 currency code used for fuel cost display. */
+    fun setCurrency(currency: String) {
+        viewModelScope.launch { settingsStore.setCurrency(currency) }
     }
 
     /** Persists the visual theme key ("cockpit", "grid", or "light"). */

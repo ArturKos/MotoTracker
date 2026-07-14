@@ -49,6 +49,7 @@ object BackupSerializer {
     private const val R_CORRECTED_PATH = "correctedPathJson"
     private const val R_CORRECTION_STATUS = "correctionStatus"
     private const val R_CONFIDENCE = "confidence"
+    private const val R_FUEL_PRICE_PER_L = "fuelPricePerL"
 
     // Bike keys
     private const val B_ID = "id"
@@ -56,6 +57,9 @@ object BackupSerializer {
     private const val B_YEAR = "year"
     private const val B_PLATE = "plate"
     private const val B_STATUS = "status"
+    private const val B_TANK_CAPACITY_L = "tankCapacityL"
+    private const val B_FUEL_PRICE_PER_L = "fuelPricePerL"
+    private const val B_CONSUMPTION_L_PER_100KM = "consumptionLper100km"
 
     // Settings keys
     private const val S_OFFLINE = "offline"
@@ -77,6 +81,7 @@ object BackupSerializer {
     private const val S_BC_SOCIAL = "bcSocial"
     private const val S_DEBUG_LOGGING = "debugLoggingEnabled"
     private const val S_OSRM_BASE_URL = "osrmBaseUrl"
+    private const val S_CURRENCY = "currency"
 
     /**
      * Serialises [data] to a compact JSON string.
@@ -156,6 +161,7 @@ object BackupSerializer {
         o.put(R_CORRECTED_PATH, r.correctedPathJson ?: JSONObject.NULL)
         o.put(R_CORRECTION_STATUS, r.correctionStatus.name)
         o.put(R_CONFIDENCE, r.confidence ?: JSONObject.NULL)
+        o.put(R_FUEL_PRICE_PER_L, r.fuelPricePerL ?: JSONObject.NULL)
         return o
     }
 
@@ -188,6 +194,7 @@ object BackupSerializer {
             correctedPathJson = o.optStringOrNull(R_CORRECTED_PATH),
             correctionStatus = correctionStatus,
             confidence = if (o.isNull(R_CONFIDENCE) || !o.has(R_CONFIDENCE)) null else o.optDouble(R_CONFIDENCE),
+            fuelPricePerL = if (o.isNull(R_FUEL_PRICE_PER_L) || !o.has(R_FUEL_PRICE_PER_L)) null else o.optDouble(R_FUEL_PRICE_PER_L),
         )
     }
 
@@ -206,6 +213,9 @@ object BackupSerializer {
         o.put(B_YEAR, b.year)
         o.put(B_PLATE, b.plate)
         o.put(B_STATUS, b.status.name)
+        o.put(B_TANK_CAPACITY_L, b.tankCapacityL ?: JSONObject.NULL)
+        o.put(B_FUEL_PRICE_PER_L, b.fuelPricePerL ?: JSONObject.NULL)
+        o.put(B_CONSUMPTION_L_PER_100KM, b.consumptionLper100km ?: JSONObject.NULL)
         return o
     }
 
@@ -223,6 +233,9 @@ object BackupSerializer {
             year = o.optInt(B_YEAR, 0),
             plate = o.optString(B_PLATE, ""),
             status = status,
+            tankCapacityL = if (o.isNull(B_TANK_CAPACITY_L) || !o.has(B_TANK_CAPACITY_L)) null else o.optDouble(B_TANK_CAPACITY_L),
+            fuelPricePerL = if (o.isNull(B_FUEL_PRICE_PER_L) || !o.has(B_FUEL_PRICE_PER_L)) null else o.optDouble(B_FUEL_PRICE_PER_L),
+            consumptionLper100km = if (o.isNull(B_CONSUMPTION_L_PER_100KM) || !o.has(B_CONSUMPTION_L_PER_100KM)) null else o.optDouble(B_CONSUMPTION_L_PER_100KM),
         )
     }
 
@@ -250,6 +263,7 @@ object BackupSerializer {
         o.put(S_BC_SOCIAL, s.bcSocial)
         o.put(S_DEBUG_LOGGING, s.debugLoggingEnabled)
         o.put(S_OSRM_BASE_URL, s.osrmBaseUrl)
+        o.put(S_CURRENCY, s.currency)
         return o
     }
 
@@ -275,6 +289,7 @@ object BackupSerializer {
             bcSocial = o.optString(S_BC_SOCIAL, defaults.bcSocial),
             debugLoggingEnabled = o.optBoolean(S_DEBUG_LOGGING, defaults.debugLoggingEnabled),
             osrmBaseUrl = o.optString(S_OSRM_BASE_URL, defaults.osrmBaseUrl),
+            currency = o.optString(S_CURRENCY, defaults.currency),
         )
     }
 

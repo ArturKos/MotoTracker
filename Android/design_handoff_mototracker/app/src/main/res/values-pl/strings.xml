@@ -318,4 +318,15 @@
 
     <!-- Powiadomienie o wygaśnięciu sesji na ekranie logowania (B22) -->
     <string name="login_session_expired">Sesja wygasła — zaloguj się ponownie</string>
+
+    <!-- Model paliwa (E3) -->
+    <string name="label_tank_capacity">Pojemność zbiornika (L)</string>
+    <string name="label_fuel_price_per_liter">Cena paliwa (za L)</string>
+    <string name="label_consumption_l100km">Zużycie (L/100 km)</string>
+    <string name="label_currency">Waluta</string>
+    <string name="label_fuel_cost">Koszt paliwa</string>
+    <string name="action_edit_fuel">Edytuj paliwo</string>
+    <string name="action_edit_price">Edytuj cenę</string>
+    <string name="error_invalid_number">Nieprawidłowa liczba</string>
+    <string name="error_negative_number">Wartość musi być dodatnia</string>
 </resources>

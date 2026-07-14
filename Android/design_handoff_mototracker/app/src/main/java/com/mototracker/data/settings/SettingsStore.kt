@@ -72,4 +72,11 @@ interface SettingsStore : WritableSettingsSource {
      * the B13 Settings-screen UI wires it up.
      */
     suspend fun setOsrmBaseUrl(url: String) {}
+
+    /**
+     * Persists the ISO 4217 currency code used for fuel cost display, e.g. "PLN" or "EUR".
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     */
+    suspend fun setCurrency(currency: String) {}
 }

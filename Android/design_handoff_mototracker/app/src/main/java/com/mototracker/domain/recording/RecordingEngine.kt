@@ -10,12 +10,18 @@ import kotlin.math.sqrt
  * Pure accumulator for a recording session — no Android dependencies.
  *
  * Call [onLocation] for each GPS fix, [onLean] for each gravity-sensor reading,
- * and [tick] once per elapsed second. Call [reset] before starting a new session.
- * Retrieve live metrics via [snapshot] and the final persisted payload via [buildRoutePayload].
+ * and [tick] once per elapsed second. Call [reset] before starting a new session,
+ * optionally supplying the bike's per-session consumption. Retrieve live metrics via
+ * [snapshot] and the final persisted payload via [buildRoutePayload].
  *
- * @param fuelLper100km Consumption constant used to estimate fuel (default 5.0 L/100km).
+ * @param fuelLper100km Initial consumption constant (default 5.0 L/100km). Used before the
+ *                      first [reset] call and for engines that are created with a pre-known
+ *                      rate (e.g. in tests).
  */
-class RecordingEngine(private val fuelLper100km: Double = 5.0) {
+class RecordingEngine(fuelLper100km: Double = 5.0) {
+
+    /** Consumption constant for the current or most-recently-started session. */
+    private var sessionFuelLper100km: Double = fuelLper100km
 
     private var prevLat: Double? = null
     private var prevLng: Double? = null
@@ -91,7 +97,7 @@ class RecordingEngine(private val fuelLper100km: Double = 5.0) {
     /** Returns an immutable snapshot of the current [RecordingMetrics]. */
     fun snapshot(): RecordingMetrics {
         val avgSpeed = if (durationSec > 0) distanceKm / (durationSec / 3600.0) else 0.0
-        val fuel = distanceKm * fuelLper100km / 100.0
+        val fuel = distanceKm * sessionFuelLper100km / 100.0
         return RecordingMetrics(
             distanceKm = distanceKm,
             durationSec = durationSec,
@@ -120,9 +126,15 @@ class RecordingEngine(private val fuelLper100km: Double = 5.0) {
     )
 
     /**
-     * Resets all accumulated state. Call before starting a new recording session.
+     * Resets all accumulated state and sets the per-session consumption rate.
+     *
+     * Always call this before starting a new recording session.
+     *
+     * @param fuelLper100km Fuel consumption constant for the new session in L/100km.
+     *                      Defaults to 5.0 when no bike consumption is configured.
      */
-    fun reset() {
+    fun reset(fuelLper100km: Double = 5.0) {
+        sessionFuelLper100km = fuelLper100km
         prevLat = null; prevLng = null; prevAlt = null
         distanceKm = 0.0; durationSec = 0L
         currentSpeedKmh = 0.0; maxSpeedKmh = 0.0

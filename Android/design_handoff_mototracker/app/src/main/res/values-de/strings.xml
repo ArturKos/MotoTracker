@@ -319,6 +319,20 @@
     <!-- Hinweis auf abgelaufene Sitzung im Anmeldebildschirm (B22) -->
     <string name="login_session_expired">Sitzung abgelaufen — bitte erneut anmelden</string>
 
+    <!-- Motorrad-Detailbildschirm (E2) -->
+    <string name="nav_bike_detail">Motorrad</string>
+    <string name="screen_bike_detail">Motorrad-Details</string>
+    <string name="bike_detail_stat_rides">Fahrten</string>
+    <string name="bike_detail_stat_distance">Gesamtdistanz</string>
+    <string name="bike_detail_stat_time">Gesamtzeit</string>
+    <string name="bike_detail_stat_fuel">Gesamtkraftstoff</string>
+    <string name="bike_detail_stat_cost">Gesamtkosten</string>
+    <string name="bike_detail_stat_longest">Längste Fahrt</string>
+    <string name="bike_detail_stat_top_speed">Höchstgeschwindigkeit</string>
+    <string name="bike_detail_routes_header">Routen</string>
+    <string name="bike_detail_no_routes">Noch keine Routen für dieses Motorrad aufgezeichnet.</string>
+    <string name="bike_detail_open_detail">Motorrad-Details öffnen</string>
+
     <!-- Kraftstoffmodell (E3) -->
     <string name="label_tank_capacity">Tankinhalt (L)</string>
     <string name="label_fuel_price_per_liter">Kraftstoffpreis (pro L)</string>

@@ -319,6 +319,20 @@
     <!-- Powiadomienie o wygaśnięciu sesji na ekranie logowania (B22) -->
     <string name="login_session_expired">Sesja wygasła — zaloguj się ponownie</string>
 
+    <!-- Ekran szczegółów motocykla (E2) -->
+    <string name="nav_bike_detail">Motocykl</string>
+    <string name="screen_bike_detail">Szczegóły motocykla</string>
+    <string name="bike_detail_stat_rides">Przejazdy</string>
+    <string name="bike_detail_stat_distance">Łączny dystans</string>
+    <string name="bike_detail_stat_time">Łączny czas</string>
+    <string name="bike_detail_stat_fuel">Łączne paliwo</string>
+    <string name="bike_detail_stat_cost">Łączny koszt</string>
+    <string name="bike_detail_stat_longest">Najdłuższy przejazd</string>
+    <string name="bike_detail_stat_top_speed">Prędkość maks.</string>
+    <string name="bike_detail_routes_header">Trasy</string>
+    <string name="bike_detail_no_routes">Brak tras zarejestrowanych dla tego motocykla.</string>
+    <string name="bike_detail_open_detail">Otwórz szczegóły motocykla</string>
+
     <!-- Model paliwa (E3) -->
     <string name="label_tank_capacity">Pojemność zbiornika (L)</string>
     <string name="label_fuel_price_per_liter">Cena paliwa (za L)</string>

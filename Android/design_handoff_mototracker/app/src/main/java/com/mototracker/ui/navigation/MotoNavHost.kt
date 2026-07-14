@@ -22,6 +22,7 @@ import androidx.navigation.navArgument
 import com.mototracker.R
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
+import com.mototracker.ui.screens.bikedetail.BikeDetailScreen
 import com.mototracker.ui.screens.riders.RidersScreen
 import com.mototracker.ui.screens.settings.SettingsScreen
 import com.mototracker.ui.screens.stats.StatsScreen
@@ -171,6 +172,9 @@ fun MotoApp(
                             launchSingleTop = true
                         }
                     },
+                    onOpenBikeDetail = { bikeId ->
+                        navController.navigate("bike_detail/$bikeId")
+                    },
                 )
             }
             composable(
@@ -178,6 +182,16 @@ fun MotoApp(
                 arguments = listOf(navArgument("routeId") { type = NavType.StringType }),
             ) {
                 RouteDetailScreen(onToast = showToast)
+            }
+            composable(
+                route = MotoDestination.BIKE_DETAIL.route,
+                arguments = listOf(navArgument("bikeId") { type = NavType.StringType }),
+            ) {
+                BikeDetailScreen(
+                    onRouteClick = { routeId ->
+                        navController.navigate("route_detail/$routeId")
+                    },
+                )
             }
         }
     }

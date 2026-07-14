@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mototracker.R
@@ -57,6 +58,15 @@ sealed class MotoDestination(
      */
     object ROUTE_DETAIL : MotoDestination("route_detail/{routeId}", R.string.nav_route_detail, R.string.screen_route_detail, Icons.Filled.Map)
 
+    /**
+     * Bike detail screen (E2). Not in the bottom nav; reached from Settings → Motorcycles
+     * by tapping the detail icon on a bike row. Shows a back arrow in the top bar.
+     *
+     * The route pattern carries a `{bikeId}` nav argument; navigate via
+     * `"bike_detail/$bikeId"` and declare the argument with [NavType.StringType].
+     */
+    object BIKE_DETAIL : MotoDestination("bike_detail/{bikeId}", R.string.nav_bike_detail, R.string.screen_bike_detail, Icons.Filled.TwoWheeler)
+
     companion object {
         /**
          * Resolves a [MotoDestination] from a NavBackStackEntry route string.
@@ -68,14 +78,15 @@ sealed class MotoDestination(
          * fully initialized.
          */
         fun fromRoute(route: String?): MotoDestination = when {
-            route == "login"                       -> LOGIN
-            route == "record"                      -> RECORD
-            route == "routes"                      -> ROUTES
-            route == "riders"                      -> RIDERS
-            route == "stats"                       -> STATS
-            route == "settings"                    -> SETTINGS
+            route == "login"                          -> LOGIN
+            route == "record"                         -> RECORD
+            route == "routes"                         -> ROUTES
+            route == "riders"                         -> RIDERS
+            route == "stats"                          -> STATS
+            route == "settings"                       -> SETTINGS
             route?.startsWith("route_detail") == true -> ROUTE_DETAIL
-            else                                   -> RECORD
+            route?.startsWith("bike_detail") == true  -> BIKE_DETAIL
+            else                                      -> RECORD
         }
     }
 }
@@ -99,7 +110,9 @@ val bottomNavDestinations: List<MotoDestination> = listOf(
  * and on the route-detail screen.
  */
 fun showBottomBar(dest: MotoDestination): Boolean =
-    dest != MotoDestination.LOGIN && dest != MotoDestination.ROUTE_DETAIL
+    dest != MotoDestination.LOGIN &&
+        dest != MotoDestination.ROUTE_DETAIL &&
+        dest != MotoDestination.BIKE_DETAIL
 
 /**
  * Returns `true` when the top app bar should be visible for [dest].
@@ -116,7 +129,7 @@ fun showTopBar(dest: MotoDestination): Boolean =
  * Per spec: only [MotoDestination.ROUTE_DETAIL] uses a back arrow.
  */
 fun showBackArrow(dest: MotoDestination): Boolean =
-    dest == MotoDestination.ROUTE_DETAIL
+    dest == MotoDestination.ROUTE_DETAIL || dest == MotoDestination.BIKE_DETAIL
 
 /**
  * Returns `true` when navigation should be locked to the Record screen.

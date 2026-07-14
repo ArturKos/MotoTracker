@@ -349,6 +349,20 @@
     <!-- Session expired notice on Login screen (B22) -->
     <string name="login_session_expired">Session expired — please sign in again</string>
 
+    <!-- Bike detail screen (E2) -->
+    <string name="nav_bike_detail">Bike</string>
+    <string name="screen_bike_detail">Motorcycle details</string>
+    <string name="bike_detail_stat_rides">Rides</string>
+    <string name="bike_detail_stat_distance">Total distance</string>
+    <string name="bike_detail_stat_time">Total time</string>
+    <string name="bike_detail_stat_fuel">Total fuel</string>
+    <string name="bike_detail_stat_cost">Total cost</string>
+    <string name="bike_detail_stat_longest">Longest ride</string>
+    <string name="bike_detail_stat_top_speed">Top speed</string>
+    <string name="bike_detail_routes_header">Routes</string>
+    <string name="bike_detail_no_routes">No routes recorded on this motorcycle yet.</string>
+    <string name="bike_detail_open_detail">Open motorcycle details</string>
+
     <!-- Fuel model (E3) -->
     <string name="label_tank_capacity">Tank capacity (L)</string>
     <string name="label_fuel_price_per_liter">Fuel price (per L)</string>

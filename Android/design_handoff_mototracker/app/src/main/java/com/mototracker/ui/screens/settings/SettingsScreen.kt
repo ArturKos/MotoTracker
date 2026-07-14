@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -104,6 +105,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     appStateVm: AppStateViewModel = hiltViewModel(checkNotNull(LocalActivity.current) as ComponentActivity),
     onSignOut: () -> Unit = {},
+    onOpenBikeDetail: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appState by appStateVm.uiState.collectAsStateWithLifecycle()
@@ -188,6 +190,7 @@ fun SettingsScreen(
             onSignOut()
         },
         onSelectBike = viewModel::selectBike,
+        onOpenBikeDetail = onOpenBikeDetail,
         onAddBike = { name, year, plate, status ->
             viewModel.addBike(name, year, plate, status)
             Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
@@ -280,6 +283,7 @@ fun SettingsContent(
     authed: Boolean = false,
     onSignOut: () -> Unit = {},
     onSelectBike: (String) -> Unit = {},
+    onOpenBikeDetail: (String) -> Unit = {},
     onAddBike: (String, Int, String, BikeStatus) -> Unit = { _, _, _, _ -> },
     onUpdateBike: (String, String, Int, String, BikeStatus) -> Unit = { _, _, _, _, _ -> },
     onTheme: (String) -> Unit = {},
@@ -393,6 +397,7 @@ fun SettingsContent(
                                 editBikeId = bike.id
                                 showBikeDialog = true
                             },
+                            onOpenDetail = { onOpenBikeDetail(bike.id) },
                         )
                     }
                     item {
@@ -696,12 +701,14 @@ private fun AccountSection(
  *
  * Tapping the row marks it as the currently active bike ([onSelect]).
  * The pencil icon opens the edit dialog ([onEdit]).
+ * The info icon navigates to the bike detail screen ([onOpenDetail]).
  */
 @Composable
 private fun BikeRow(
     bike: BikeUi,
     onSelect: () -> Unit,
     onEdit: () -> Unit,
+    onOpenDetail: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -731,6 +738,14 @@ private fun BikeRow(
             Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = stringResource(R.string.dialog_title_edit_bike),
+                tint = MotoTracker.colors.dim,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        IconButton(onClick = onOpenDetail, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = stringResource(R.string.bike_detail_open_detail),
                 tint = MotoTracker.colors.dim,
                 modifier = Modifier.size(16.dp),
             )

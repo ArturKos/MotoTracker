@@ -9,6 +9,7 @@ import com.mototracker.core.format.TraceChunkCodec
 import com.mototracker.data.local.dao.BikeDao
 import com.mototracker.data.local.dao.CorrectionQueueDao
 import com.mototracker.data.local.dao.GroupDao
+import com.mototracker.data.local.dao.RefuelEventDao
 import com.mototracker.data.local.dao.RouteDao
 import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.dao.SyncQueueDao
@@ -16,6 +17,7 @@ import com.mototracker.data.local.dao.WaveDao
 import com.mototracker.data.local.entity.BikeEntity
 import com.mototracker.data.local.entity.CorrectionQueueEntity
 import com.mototracker.data.local.entity.GroupMemberEntity
+import com.mototracker.data.local.entity.RefuelEventEntity
 import com.mototracker.data.local.entity.RouteEntity
 import com.mototracker.data.local.entity.RouteTraceChunkEntity
 import com.mototracker.data.local.entity.SyncQueueEntity
@@ -37,6 +39,7 @@ import com.mototracker.data.local.entity.WaveEntity
  * - 3 → 4: Added per-bike fuel model columns (tankCapacityL, fuelPricePerL, consumptionLper100km) to bikes;
  *           added per-route fuel price override (fuelPricePerL) to routes (E3).
  * - 4 → 5: Added maxLeanLeftDeg and maxLeanRightDeg (NOT NULL DEFAULT 0) to routes (E7 separate L/R lean tracking).
+ * - 5 → 6: Added refuel_event table with per-route refuel ledger (G5).
  */
 @Database(
     entities = [
@@ -47,8 +50,9 @@ import com.mototracker.data.local.entity.WaveEntity
         WaveEntity::class,
         SyncQueueEntity::class,
         CorrectionQueueEntity::class,
+        RefuelEventEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -64,6 +68,9 @@ abstract class MotoDatabase : RoomDatabase() {
     /** Provides the DAO for the OSRM GPS-correction queue. */
     abstract fun correctionQueueDao(): CorrectionQueueDao
 
+    /** Provides the DAO for the per-route refuel event ledger (G5). */
+    abstract fun refuelEventDao(): RefuelEventDao
+
     companion object {
         /** File name used by Room when building the on-device database. */
         const val DATABASE_NAME = "moto_tracker.db"
@@ -74,7 +81,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
     }
 }
 
@@ -264,5 +271,31 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE routes ADD COLUMN maxLeanLeftDeg REAL NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE routes ADD COLUMN maxLeanRightDeg REAL NOT NULL DEFAULT 0")
+    }
+}
+
+/**
+ * Schema migration from version 5 to 6 (G5 — per-route refuel event ledger).
+ *
+ * Creates the `refuel_event` table with a CASCADE foreign key to `routes` and an
+ * index on `routeId` so per-route queries remain fast regardless of event count.
+ */
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS refuel_event (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                routeId TEXT NOT NULL,
+                epochMs INTEGER NOT NULL,
+                litres REAL NOT NULL,
+                pricePerL REAL NOT NULL,
+                FOREIGN KEY(routeId) REFERENCES routes(id) ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_refuel_event_routeId ON refuel_event (routeId)",
+        )
     }
 }

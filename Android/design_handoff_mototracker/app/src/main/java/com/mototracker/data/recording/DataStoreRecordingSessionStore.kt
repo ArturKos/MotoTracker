@@ -99,6 +99,16 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
         put("fuelRate", e.sessionFuelLper100km)
         if (e.tankCapacityL != null) put("tankCap", e.tankCapacityL) else put("tankCap", JSONObject.NULL)
         put("fillAnchorKm", e.fillAnchorKm)
+        put("refuels", JSONArray().also { arr ->
+            snapshot.pendingRefuels.forEach { r ->
+                arr.put(
+                    JSONObject()
+                        .put("ms", r.epochMs)
+                        .put("l", r.litres)
+                        .put("p", r.pricePerL),
+                )
+            }
+        })
     }.toString()
 }
 
@@ -147,11 +157,21 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         tankCapacityL = o.optDoubleOrNull("tankCap"),
         fillAnchorKm = o.optDouble("fillAnchorKm", 0.0),
     )
+    val pendingRefuels = if (o.has("refuels")) {
+        val arr = o.getJSONArray("refuels")
+        (0 until arr.length()).map { i ->
+            val r = arr.getJSONObject(i)
+            PendingRefuel(epochMs = r.getLong("ms"), litres = r.getDouble("l"), pricePerL = r.getDouble("p"))
+        }
+    } else {
+        emptyList()
+    }
     ActiveSessionSnapshot(
         engineState = engineState,
         recordingStartMs = o.getLong("startMs"),
         bikeId = if (o.has("bikeId") && !o.isNull("bikeId")) o.getString("bikeId") else null,
         paused = o.getBoolean("paused"),
+        pendingRefuels = pendingRefuels,
     )
 } catch (_: Exception) {
     null

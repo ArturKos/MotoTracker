@@ -14,10 +14,13 @@ import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
+import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.domain.fuel.RefuelEvent
 import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettings
@@ -156,6 +159,15 @@ private class FakeStringResolver : StringResolver {
         else -> "stub_string_$resId"
     }
     override fun getString(resId: Int, vararg args: Any): String = getString(resId)
+}
+
+private class FakeRefuelRepository : RefuelRepository {
+    val added = mutableListOf<RefuelEvent>()
+    override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {
+        added += RefuelEvent(id = (added.size + 1).toLong(), routeId = routeId, epochMs = epochMs, litres = litres, pricePerL = pricePerL)
+    }
+    override fun observeRefuels(routeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> = MutableStateFlow(emptyList())
+    override suspend fun deleteRefuel(id: Long) {}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -664,7 +676,7 @@ class RecordingViewModelTest {
     }
 
     @Test
-    fun `FillToFull event logs FUEL tag`() = runTest(testDispatcher) {
+    fun `ShowRefuelDialog event sets showRefuelDialog=true pre-filled with tank capacity`() = runTest(testDispatcher) {
         val bike = Bike(
             id = "bike-1",
             name = "Test Bike",
@@ -677,24 +689,91 @@ class RecordingViewModelTest {
         val vm = buildViewModel(
             settings = AppSettings(currentBikeId = "bike-1"),
             bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
-            rideDebugLogger = fakeLogger,
         )
         advanceTimeBy(200L)
         vm.onEvent(RecordingEvent.Start)
         advanceTimeBy(100L)
 
-        vm.onEvent(RecordingEvent.FillToFull)
+        vm.onEvent(RecordingEvent.ShowRefuelDialog)
         advanceTimeBy(100L)
 
-        assertTrue(
-            "FUEL log expected after FillToFull",
-            fakeLogger.logCalls.any { it.first == "FUEL" && it.second.contains("fill-to-full") },
-        )
+        assertTrue("showRefuelDialog should be true", vm.uiState.value.showRefuelDialog)
+        assertEquals(17.0, vm.uiState.value.refuelDialogLitres, 0.001)
         vm.onEvent(RecordingEvent.Pause)
     }
 
     @Test
-    fun `FillToFull event resets distanceSinceFullKm and updates metrics`() = runTest(testDispatcher) {
+    fun `ShowRefuelDialog is no-op when bike has no tank capacity`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = null,
+            consumptionLper100km = 5.0,
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+        )
+        advanceTimeBy(200L)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+
+        vm.onEvent(RecordingEvent.ShowRefuelDialog)
+        advanceTimeBy(100L)
+
+        assertFalse("showRefuelDialog should remain false when tank capacity not set", vm.uiState.value.showRefuelDialog)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `ConfirmRefuel logs FUEL tag and buffers PendingRefuel`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = 17.0,
+            consumptionLper100km = 5.0,
+        )
+        val store = FakeRecordingSessionStore()
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            rideDebugLogger = fakeLogger,
+            sessionStore = store,
+            fixedTimeMs = 42_000L,
+        )
+        advanceTimeBy(200L)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+        val savesBefore = store.saveCalls.size
+
+        vm.onEvent(RecordingEvent.ConfirmRefuel(litres = 15.0, pricePerL = 7.50))
+        advanceTimeBy(100L)
+
+        // FUEL tag logged
+        assertTrue(
+            "FUEL log expected after ConfirmRefuel",
+            fakeLogger.logCalls.any { it.first == "FUEL" && it.second.contains("refuel") },
+        )
+        // dialog dismissed
+        assertFalse("showRefuelDialog should be false after confirm", vm.uiState.value.showRefuelDialog)
+        // snapshot persisted with pending refuels
+        assertTrue("ConfirmRefuel should persist snapshot", store.saveCalls.size > savesBefore)
+        val latestSnap = store.saveCalls.last()
+        assertEquals(1, latestSnap.pendingRefuels.size)
+        assertEquals(15.0, latestSnap.pendingRefuels[0].litres, 0.001)
+        assertEquals(7.50, latestSnap.pendingRefuels[0].pricePerL, 0.001)
+        assertEquals(42_000L, latestSnap.pendingRefuels[0].epochMs)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `ConfirmRefuel resets distanceSinceFullKm via engine fillToFull`() = runTest(testDispatcher) {
         val bike = Bike(
             id = "bike-1",
             name = "Test Bike",
@@ -717,11 +796,10 @@ class RecordingViewModelTest {
         vm.onEvent(RecordingEvent.Start)
         advanceTimeBy(300L)
 
-        // After driving ~111 km, distance since full should be > 0
         val distanceBeforeFill = vm.uiState.value.metrics.distanceSinceFullKm
         assertTrue("distanceSinceFullKm should be > 0 after driving", distanceBeforeFill > 0.0)
 
-        vm.onEvent(RecordingEvent.FillToFull)
+        vm.onEvent(RecordingEvent.ConfirmRefuel(litres = 17.0, pricePerL = 7.0))
         advanceTimeBy(100L)
 
         assertEquals(0.0, vm.uiState.value.metrics.distanceSinceFullKm, 0.001)
@@ -729,7 +807,7 @@ class RecordingViewModelTest {
     }
 
     @Test
-    fun `FillToFull event persists snapshot to session store`() = runTest(testDispatcher) {
+    fun `on Finish buffered ConfirmRefuel events are persisted to RefuelRepository`() = runTest(testDispatcher) {
         val bike = Bike(
             id = "bike-1",
             name = "Test Bike",
@@ -739,21 +817,59 @@ class RecordingViewModelTest {
             tankCapacityL = 17.0,
             consumptionLper100km = 5.0,
         )
-        val store = FakeRecordingSessionStore()
+        val fakeRefuelRepo = FakeRefuelRepository()
         val vm = buildViewModel(
             settings = AppSettings(currentBikeId = "bike-1"),
             bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
-            sessionStore = store,
+            refuelRepository = fakeRefuelRepo,
+            fixedTimeMs = 99_000L,
         )
         advanceTimeBy(200L)
         vm.onEvent(RecordingEvent.Start)
         advanceTimeBy(100L)
-        val savesBefore = store.saveCalls.size
 
-        vm.onEvent(RecordingEvent.FillToFull)
+        vm.onEvent(RecordingEvent.ConfirmRefuel(litres = 12.0, pricePerL = 6.80))
+        vm.onEvent(RecordingEvent.ConfirmRefuel(litres = 15.5, pricePerL = 6.90))
         advanceTimeBy(100L)
 
-        assertTrue("FillToFull should persist session snapshot", store.saveCalls.size > savesBefore)
+        vm.onEvent(RecordingEvent.Finish)
+        advanceTimeBy(500L)
+
+        assertEquals(2, fakeRefuelRepo.added.size)
+        assertEquals(12.0, fakeRefuelRepo.added[0].litres, 0.001)
+        assertEquals(15.5, fakeRefuelRepo.added[1].litres, 0.001)
+        // Both events share the saved route id
+        val routeId = routeRepo.saved.firstOrNull()?.id
+        assertNotNull("route should have been saved", routeId)
+        fakeRefuelRepo.added.forEach { assertEquals(routeId, it.routeId) }
+    }
+
+    @Test
+    fun `DismissRefuelDialog sets showRefuelDialog=false`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = 17.0,
+            consumptionLper100km = 5.0,
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+        )
+        advanceTimeBy(200L)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+
+        vm.onEvent(RecordingEvent.ShowRefuelDialog)
+        advanceTimeBy(50L)
+        assertTrue(vm.uiState.value.showRefuelDialog)
+
+        vm.onEvent(RecordingEvent.DismissRefuelDialog)
+        advanceTimeBy(50L)
+        assertFalse("showRefuelDialog should be false after dismiss", vm.uiState.value.showRefuelDialog)
         vm.onEvent(RecordingEvent.Pause)
     }
 
@@ -922,6 +1038,7 @@ class RecordingViewModelTest {
         stringResolver: StringResolver = FakeStringResolver(),
         sessionStore: RecordingSessionStore = FakeRecordingSessionStore(),
         bikeRepository: BikeRepository = FakeBikeRepository(),
+        refuelRepository: RefuelRepository = FakeRefuelRepository(),
     ) = RecordingViewModel(
         locationClient = locationClient,
         leanSensorSource = leanSensorSource,
@@ -937,5 +1054,6 @@ class RecordingViewModelTest {
         reverseGeocoder = reverseGeocoder,
         stringResolver = stringResolver,
         sessionStore = sessionStore,
+        refuelRepository = refuelRepository,
     )
 }

@@ -47,4 +47,10 @@ sealed interface RouteDetailEvent {
      * since the detail screen no longer has a subject to display.
      */
     data object RouteDeleted : RouteDetailEvent
+
+    /** A refuel event was added successfully (G5). The Composable may show a brief toast. */
+    data object RefuelAdded : RouteDetailEvent
+
+    /** A refuel event was deleted (G5). The Composable may show a brief toast. */
+    data object RefuelDeleted : RouteDetailEvent
 }

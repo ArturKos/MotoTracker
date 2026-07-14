@@ -12,8 +12,10 @@ import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.model.Route
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
+import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.HeadingSensorSource
@@ -80,6 +82,7 @@ import javax.inject.Inject
  *                          Only called when the device is online.
  * @param stringResolver    Resolves localized string resources for the composed route name.
  * @param sessionStore      Durable storage for the in-progress recording session snapshot (B20).
+ * @param refuelRepository  Persistence for per-route refuel events (G5).
  */
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
@@ -97,6 +100,7 @@ class RecordingViewModel @Inject constructor(
     private val reverseGeocoder: ReverseGeocoder,
     private val stringResolver: StringResolver,
     private val sessionStore: RecordingSessionStore,
+    private val refuelRepository: RefuelRepository,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -129,6 +133,9 @@ class RecordingViewModel @Inject constructor(
      * during the ride can reference the route before it is persisted at Finish.
      */
     private var pendingRouteId: String? = null
+
+    /** In-memory buffer of refuel events logged before the route row exists (G5). */
+    private val pendingRefuels = mutableListOf<PendingRefuel>()
 
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
@@ -208,7 +215,9 @@ class RecordingViewModel @Inject constructor(
             is RecordingEvent.Finish -> doFinish()
             is RecordingEvent.ResumeSession -> doResumeSession()
             is RecordingEvent.DiscardSession -> doDiscardSession()
-            is RecordingEvent.FillToFull -> doFillToFull()
+            is RecordingEvent.ShowRefuelDialog -> doShowRefuelDialog()
+            is RecordingEvent.ConfirmRefuel -> doConfirmRefuel(event.litres, event.pricePerL)
+            is RecordingEvent.DismissRefuelDialog -> _uiState.update { it.copy(showRefuelDialog = false) }
         }
     }
 
@@ -245,6 +254,7 @@ class RecordingViewModel @Inject constructor(
                     recordingStartMs = recordingStartMs,
                     bikeId = currentBikeId,
                     paused = true,
+                    pendingRefuels = pendingRefuels.toList(),
                 ),
             )
         }
@@ -262,6 +272,7 @@ class RecordingViewModel @Inject constructor(
                     recordingStartMs = recordingStartMs,
                     bikeId = currentBikeId,
                     paused = false,
+                    pendingRefuels = pendingRefuels.toList(),
                 ),
             )
         }
@@ -335,6 +346,18 @@ class RecordingViewModel @Inject constructor(
             routeRepository.save(route)
             syncRepository.enqueue(route.id)
 
+            // G5: Persist any buffered refuel events now that the route row exists.
+            val refuelsToSave = pendingRefuels.toList()
+            pendingRefuels.clear()
+            refuelsToSave.forEach { r ->
+                refuelRepository.addRefuel(
+                    routeId = route.id,
+                    epochMs = r.epochMs,
+                    litres = r.litres,
+                    pricePerL = r.pricePerL,
+                )
+            }
+
             // B20: Clear snapshot AFTER the route is durably saved.
             sessionStore.clear()
 
@@ -356,6 +379,9 @@ class RecordingViewModel @Inject constructor(
         val snap = _uiState.value.resumableSession ?: return
         engine.restore(snap.engineState)
         recordingStartMs = snap.recordingStartMs
+        // G5: Restore the pending refuel buffer from the snapshot so events are not lost.
+        pendingRefuels.clear()
+        pendingRefuels.addAll(snap.pendingRefuels)
         val trackPoints = snap.engineState.pathPoints.map { (lat, lng) -> GeoCoord(lat, lng) }
         _uiState.update {
             it.copy(
@@ -378,17 +404,43 @@ class RecordingViewModel @Inject constructor(
     }
 
     /**
-     * Re-anchors the fill point to the current odometer, resetting the fuel-remaining estimate (E4).
+     * Shows the refuel input dialog pre-filled with the current bike's tank capacity and price (G5).
      *
-     * Only meaningful when the current bike has a tank capacity configured; the engine method
-     * is safe to call regardless (it simply moves the fill anchor). The session snapshot is
-     * persisted so that a process-death resume preserves the fill event.
+     * Replaces the old instant fill-to-full so the rider can confirm or adjust the values
+     * before the event is persisted. Only meaningful when the current bike has a tank
+     * capacity configured; the dialog will not appear if none is set (same guard as E4).
      */
-    private fun doFillToFull() {
+    private fun doShowRefuelDialog() {
+        val tankCap = currentBikeTankCapacity ?: return
+        _uiState.update {
+            it.copy(
+                showRefuelDialog = true,
+                refuelDialogLitres = tankCap,
+                refuelDialogPricePerL = it.fuelPricePerL,
+            )
+        }
+    }
+
+    /**
+     * Confirms a refuel event from the dialog (G5).
+     *
+     * Calls [RecordingEngine.fillToFull] to re-anchor the live fuel estimate AND buffers
+     * a [PendingRefuel] in-memory (and in the durable snapshot) for persistence on Finish.
+     *
+     * @param litres    Volume of fuel added in litres as entered by the rider.
+     * @param pricePerL Price per litre at the time of the event.
+     */
+    private fun doConfirmRefuel(litres: Double, pricePerL: Double) {
         engine.fillToFull()
         val km = engine.snapshot().distanceKm
-        rideDebugLogger.log("FUEL", "fill-to-full km=$km")
-        _uiState.update { it.copy(metrics = engine.snapshot()) }
+        rideDebugLogger.log("FUEL", "refuel litres=$litres price=$pricePerL km=$km")
+        val pending = PendingRefuel(
+            epochMs = timeProvider.nowEpochMs(),
+            litres = litres,
+            pricePerL = pricePerL,
+        )
+        pendingRefuels.add(pending)
+        _uiState.update { it.copy(metrics = engine.snapshot(), showRefuelDialog = false) }
         viewModelScope.launch {
             sessionStore.save(
                 ActiveSessionSnapshot(
@@ -396,6 +448,7 @@ class RecordingViewModel @Inject constructor(
                     recordingStartMs = recordingStartMs,
                     bikeId = currentBikeId,
                     paused = _uiState.value.phase == RecordingPhase.Paused,
+                    pendingRefuels = pendingRefuels.toList(),
                 ),
             )
         }
@@ -435,6 +488,7 @@ class RecordingViewModel @Inject constructor(
                                 recordingStartMs = recordingStartMs,
                                 bikeId = currentBikeId,
                                 paused = false,
+                                pendingRefuels = pendingRefuels.toList(),
                             ),
                         )
                     }

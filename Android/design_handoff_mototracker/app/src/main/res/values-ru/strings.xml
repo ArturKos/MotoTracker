@@ -383,4 +383,16 @@
     <string name="dialog_delete_route_message">Этот маршрут будет безвозвратно удалён.</string>
     <string name="action_delete">Удалить</string>
     <string name="toast_route_deleted">Маршрут удалён</string>
+
+    <!-- Журнал заправок (G5) -->
+    <string name="label_refuels">Заправки</string>
+    <string name="label_add_refuel">Добавить заправку</string>
+    <string name="label_refuel_litres">Добавлено литров</string>
+    <string name="label_refuel_price_per_l">Цена за литр</string>
+    <string name="label_refuel_total">Итого</string>
+    <string name="action_delete_refuel">Удалить заправку</string>
+    <string name="dialog_refuel_title">Записать заправку</string>
+    <string name="dialog_refuel_confirm">Сохранить</string>
+    <string name="toast_refuel_added">Заправка сохранена</string>
+    <string name="toast_refuel_deleted">Заправка удалена</string>
 </resources>

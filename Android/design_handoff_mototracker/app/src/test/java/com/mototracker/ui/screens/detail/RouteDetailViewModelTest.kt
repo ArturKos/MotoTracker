@@ -9,13 +9,16 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.Wave
 import com.mototracker.data.model.mapper.toRouteSummaryModel
+import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.GpsCorrectionRepository
+import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.domain.fuel.RefuelEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -147,6 +150,32 @@ private class FakeGpsCorrectionRepository : GpsCorrectionRepository {
     override fun start(scope: CoroutineScope) { /* no-op */ }
 }
 
+private class FakeRefuelRepository(initialRefuels: List<RefuelEvent> = emptyList()) : RefuelRepository {
+    val added = mutableListOf<RefuelEvent>()
+    val deleted = mutableListOf<Long>()
+    private val _flow = MutableStateFlow(initialRefuels)
+
+    fun emit(events: List<RefuelEvent>) { _flow.value = events }
+
+    override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {
+        val e = RefuelEvent(id = (added.size + 1).toLong(), routeId = routeId, epochMs = epochMs, litres = litres, pricePerL = pricePerL)
+        added += e
+        _flow.value = _flow.value + e
+    }
+
+    override fun observeRefuels(routeId: String): Flow<List<RefuelEvent>> =
+        _flow.map { list -> list.filter { it.routeId == routeId } }
+
+    override suspend fun deleteRefuel(id: Long) {
+        deleted += id
+        _flow.value = _flow.value.filter { it.id != id }
+    }
+}
+
+private class FakeTimeProvider(private val nowMs: Long = 9_000_000L) : TimeProvider {
+    override fun nowEpochMs(): Long = nowMs
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -223,6 +252,8 @@ class RouteDetailViewModelTest {
         syncRepo: FakeSyncRepository = fakeSyncRepo,
         correctionRepo: FakeGpsCorrectionRepository = FakeGpsCorrectionRepository(),
         fakeRouteRepo: FakeRouteRepository? = null,
+        refuelRepo: FakeRefuelRepository = FakeRefuelRepository(),
+        timeProvider: TimeProvider = FakeTimeProvider(),
     ): RouteDetailViewModel {
         val routeRepo = fakeRouteRepo ?: FakeRouteRepository(stored = route)
         return RouteDetailViewModel(
@@ -233,6 +264,8 @@ class RouteDetailViewModelTest {
             settingsSource = FakeSettingsSource(settings),
             syncRepository = syncRepo,
             gpsCorrectionRepository = correctionRepo,
+            refuelRepository = refuelRepo,
+            timeProvider = timeProvider,
         )
     }
 
@@ -933,6 +966,8 @@ class RouteDetailViewModelTest {
             settingsSource = FakeSettingsSource(),
             syncRepository = fakeSyncRepo,
             gpsCorrectionRepository = FakeGpsCorrectionRepository(),
+            refuelRepository = FakeRefuelRepository(),
+            timeProvider = FakeTimeProvider(),
         )
         vmNoRoute.uiState.test {
             val s = awaitItem(); if (s.loading) awaitItem()
@@ -1188,6 +1223,8 @@ class RouteDetailViewModelTest {
             settingsSource = FakeSettingsSource(),
             syncRepository = fakeSyncRepo,
             gpsCorrectionRepository = FakeGpsCorrectionRepository(),
+            refuelRepository = FakeRefuelRepository(),
+            timeProvider = FakeTimeProvider(),
         )
         vmNoRoute.uiState.test {
             val s = awaitItem(); if (s.loading) awaitItem()
@@ -1198,6 +1235,114 @@ class RouteDetailViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             expectNoEvents()
             assertTrue("no-op: deleteRoute must not call repo when route not loaded", fakeRepo.deleteRouteCallArgs.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── refuel ledger (G5) ────────────────────────────────────────────────────
+
+    @Test
+    fun `refuels in uiState reflects events from repository`() = runTest {
+        val fakeRefuelRepo = FakeRefuelRepository(
+            initialRefuels = listOf(
+                RefuelEvent(id = 1, routeId = "route-1", epochMs = 1_700_000_000_000L, litres = 18.5, pricePerL = 7.50),
+            ),
+        )
+        val vm = buildVm(refuelRepo = fakeRefuelRepo, settings = AppSettings(currency = "PLN"))
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertEquals(1, state.refuels.size)
+            val row = state.refuels[0]
+            assertEquals(1L, row.id)
+            assertEquals("18.5 L", row.litresDisplay)
+            assertEquals("7.50 PLN/L", row.pricePerLDisplay)
+            assertEquals("138.75 PLN", row.costDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `refuelTotalLitresDisplay and refuelTotalCostDisplay aggregate all events`() = runTest {
+        val fakeRefuelRepo = FakeRefuelRepository(
+            initialRefuels = listOf(
+                RefuelEvent(id = 1, routeId = "route-1", epochMs = 1_000L, litres = 10.0, pricePerL = 5.0),
+                RefuelEvent(id = 2, routeId = "route-1", epochMs = 2_000L, litres = 20.0, pricePerL = 6.0),
+            ),
+        )
+        val vm = buildVm(refuelRepo = fakeRefuelRepo, settings = AppSettings(currency = "EUR"))
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertEquals("30.0 L", state.refuelTotalLitresDisplay)
+            assertEquals("170.00 EUR", state.refuelTotalCostDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `refuelTotalLitresDisplay is empty when no refuels exist`() = runTest {
+        val vm = buildVm()
+        vm.uiState.test {
+            val state = skipToLoaded()
+            assertEquals("", state.refuelTotalLitresDisplay)
+            assertEquals("", state.refuelTotalCostDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `addRefuel enqueues to repository and emits RefuelAdded event`() = runTest {
+        val fakeRefuelRepo = FakeRefuelRepository()
+        val vm = buildVm(refuelRepo = fakeRefuelRepo, timeProvider = FakeTimeProvider(nowMs = 5_000L))
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.addRefuel(litres = 15.0, pricePerL = 7.25)
+            val event = awaitItem()
+            assertTrue("Event must be RefuelAdded", event is RouteDetailEvent.RefuelAdded)
+            assertEquals(1, fakeRefuelRepo.added.size)
+            assertEquals(15.0, fakeRefuelRepo.added[0].litres, 0.001)
+            assertEquals(7.25, fakeRefuelRepo.added[0].pricePerL, 0.001)
+            assertEquals(5_000L, fakeRefuelRepo.added[0].epochMs)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `deleteRefuel removes event from repository and emits RefuelDeleted event`() = runTest {
+        val fakeRefuelRepo = FakeRefuelRepository(
+            initialRefuels = listOf(
+                RefuelEvent(id = 42L, routeId = "route-1", epochMs = 1_000L, litres = 10.0, pricePerL = 5.0),
+            ),
+        )
+        val vm = buildVm(refuelRepo = fakeRefuelRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.deleteRefuel(42L)
+            val event = awaitItem()
+            assertTrue("Event must be RefuelDeleted", event is RouteDetailEvent.RefuelDeleted)
+            assertTrue(fakeRefuelRepo.deleted.contains(42L))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `uiState refuels updates reactively after deleteRefuel`() = runTest {
+        val fakeRefuelRepo = FakeRefuelRepository(
+            initialRefuels = listOf(
+                RefuelEvent(id = 1L, routeId = "route-1", epochMs = 1_000L, litres = 10.0, pricePerL = 5.0),
+            ),
+        )
+        val vm = buildVm(refuelRepo = fakeRefuelRepo)
+        vm.uiState.test {
+            skipToLoaded()
+            vm.deleteRefuel(1L)
+            val updated = awaitItem()
+            assertTrue("refuels should be empty after delete", updated.refuels.isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }

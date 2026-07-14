@@ -383,4 +383,16 @@
     <string name="dialog_delete_route_message">Trasa zostanie trwale usunięta i nie będzie można jej odzyskać.</string>
     <string name="action_delete">Usuń</string>
     <string name="toast_route_deleted">Trasa usunięta</string>
+
+    <!-- Ewidencja tankowania (G5) -->
+    <string name="label_refuels">Tankowania</string>
+    <string name="label_add_refuel">Dodaj tankowanie</string>
+    <string name="label_refuel_litres">Dodane litry</string>
+    <string name="label_refuel_price_per_l">Cena za litr</string>
+    <string name="label_refuel_total">Łącznie</string>
+    <string name="action_delete_refuel">Usuń tankowanie</string>
+    <string name="dialog_refuel_title">Zapisz tankowanie</string>
+    <string name="dialog_refuel_confirm">Zapisz</string>
+    <string name="toast_refuel_added">Tankowanie zapisane</string>
+    <string name="toast_refuel_deleted">Tankowanie usunięte</string>
 </resources>

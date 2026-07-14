@@ -21,11 +21,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.Upload
@@ -108,6 +110,8 @@ fun RouteDetailScreen(
     val serverSentMsg = stringResource(R.string.toast_server_sent)
     val correctionQueuedMsg = stringResource(R.string.toast_correction_queued)
     val routeDeletedMsg = stringResource(R.string.toast_route_deleted)
+    val refuelAddedMsg = stringResource(R.string.toast_refuel_added)
+    val refuelDeletedMsg = stringResource(R.string.toast_refuel_deleted)
 
     // SAF launcher: presents the system file-picker so the user chooses where to save the GPX.
     // No storage permission is needed on any API level (CreateDocument uses SAF).
@@ -141,6 +145,8 @@ fun RouteDetailScreen(
                     onToast(routeDeletedMsg)
                     onDeleted()
                 }
+                is RouteDetailEvent.RefuelAdded -> onToast(refuelAddedMsg)
+                is RouteDetailEvent.RefuelDeleted -> onToast(refuelDeletedMsg)
             }
         }
     }
@@ -156,6 +162,8 @@ fun RouteDetailScreen(
         onRename = { viewModel.rename(it) },
         onChangeBike = { viewModel.setBike(it) },
         onDeleteRoute = { viewModel.deleteRoute() },
+        onAddRefuel = { litres, pricePerL -> viewModel.addRefuel(litres, pricePerL) },
+        onDeleteRefuel = { id -> viewModel.deleteRefuel(id) },
         mapFullscreen = mapFullscreen,
         onToggleMapFullscreen = { mapFullscreen = !mapFullscreen },
         mapSlot = {
@@ -202,6 +210,8 @@ fun RouteDetailScreen(
  * @param onChangeBike           Called with the selected bike UUID (or `null` to clear) when the
  *                               user confirms the bike-picker dialog.
  * @param onDeleteRoute          Called when the user confirms the delete-route dialog.
+ * @param onAddRefuel            Called with (litres, pricePerL) when a refuel event is confirmed (G5).
+ * @param onDeleteRefuel         Called with the refuel event id when the user confirms deletion (G5).
  * @param mapSlot                Composable rendered in the inline map slot; in production this is
  *                               [OsmTrackMap], in Roborazzi tests a static placeholder Box is used.
  * @param fullscreenMapSlot      Composable rendered inside the fullscreen Dialog overlay; in
@@ -222,6 +232,8 @@ fun RouteDetailContent(
     onRename: (String) -> Unit = {},
     onChangeBike: (String?) -> Unit = {},
     onDeleteRoute: () -> Unit = {},
+    onAddRefuel: (litres: Double, pricePerL: Double) -> Unit = { _, _ -> },
+    onDeleteRefuel: (id: Long) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     fullscreenMapSlot: @Composable () -> Unit = {},
     mapFullscreen: Boolean = false,
@@ -242,6 +254,8 @@ fun RouteDetailContent(
             onRename = onRename,
             onChangeBike = onChangeBike,
             onDeleteRoute = onDeleteRoute,
+            onAddRefuel = onAddRefuel,
+            onDeleteRefuel = onDeleteRefuel,
             mapSlot = mapSlot,
             fullscreenMapSlot = fullscreenMapSlot,
             mapFullscreen = mapFullscreen,
@@ -286,6 +300,8 @@ private fun NotFoundPane(modifier: Modifier = Modifier) {
  * @param onChangeBike           Called with the selected bike UUID (or `null`) when the user
  *                               confirms the bike-picker dialog.
  * @param onDeleteRoute          Called when the user confirms the delete-route dialog.
+ * @param onAddRefuel            Called with (litres, pricePerL) when the add-refuel dialog is confirmed (G5).
+ * @param onDeleteRefuel         Called with the refuel event id when deletion is confirmed (G5).
  * @param mapSlot                Composable for the inline map tile (200 dp tall).
  * @param fullscreenMapSlot      Composable for the fullscreen Dialog overlay map.
  * @param mapFullscreen          `true` when the fullscreen Dialog overlay is visible.
@@ -303,6 +319,8 @@ private fun DetailContent(
     onRename: (String) -> Unit,
     onChangeBike: (String?) -> Unit = {},
     onDeleteRoute: () -> Unit = {},
+    onAddRefuel: (litres: Double, pricePerL: Double) -> Unit = { _, _ -> },
+    onDeleteRefuel: (id: Long) -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     fullscreenMapSlot: @Composable () -> Unit = {},
     mapFullscreen: Boolean = false,
@@ -311,6 +329,8 @@ private fun DetailContent(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBikePickerDialog by remember { mutableStateOf(false) }
     var showDeleteRouteDialog by remember { mutableStateOf(false) }
+    var showAddRefuelDialog by remember { mutableStateOf(false) }
+    var deleteRefuelId by remember { mutableStateOf<Long?>(null) }
 
     if (showRenameDialog) {
         RenameDialog(
@@ -342,6 +362,28 @@ private fun DetailContent(
                 onDeleteRoute()
             },
             onDismiss = { showDeleteRouteDialog = false },
+        )
+    }
+
+    if (showAddRefuelDialog) {
+        AddRefuelDialog(
+            defaultLitres = state.effectiveFuelPricePerL?.let { 0.0 } ?: 0.0,
+            defaultPricePerL = state.effectiveFuelPricePerL,
+            onConfirm = { litres, pricePerL ->
+                showAddRefuelDialog = false
+                onAddRefuel(litres, pricePerL)
+            },
+            onDismiss = { showAddRefuelDialog = false },
+        )
+    }
+
+    deleteRefuelId?.let { idToDelete ->
+        DeleteRefuelDialog(
+            onConfirm = {
+                deleteRefuelId = null
+                onDeleteRefuel(idToDelete)
+            },
+            onDismiss = { deleteRefuelId = null },
         )
     }
 
@@ -459,6 +501,16 @@ private fun DetailContent(
             MeetupsCard(
                 meetings = state.meetings,
                 meetingsNone = state.meetingsNone,
+            )
+        }
+
+        item {
+            RefuelsCard(
+                refuels = state.refuels,
+                totalLitresDisplay = state.refuelTotalLitresDisplay,
+                totalCostDisplay = state.refuelTotalCostDisplay,
+                onAddRefuel = { showAddRefuelDialog = true },
+                onDeleteRefuel = { id -> deleteRefuelId = id },
             )
         }
 
@@ -1187,6 +1239,280 @@ private fun BikePickerDialog(
             }
         },
         confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+// ── Refuels card (G5) ─────────────────────────────────────────────────────────
+
+/**
+ * Card listing all refuel events logged for the current route, with per-row delete affordances
+ * and an "Add refuel" button that opens [AddRefuelDialog].
+ *
+ * When no events have been logged the card shows a brief placeholder and keeps the add button.
+ * Totals row is shown only when events exist. On-device rendering is 🔬.
+ *
+ * @param refuels             Pre-formatted refuel rows from [RouteDetailUiState.refuels].
+ * @param totalLitresDisplay  Pre-formatted total litres string, or empty when no events.
+ * @param totalCostDisplay    Pre-formatted total cost string, or empty when no events.
+ * @param onAddRefuel         Called when the user taps the "Add refuel" button.
+ * @param onDeleteRefuel      Called with the row id when the user taps the delete icon.
+ * @param modifier            Standard Compose modifier.
+ */
+@Composable
+private fun RefuelsCard(
+    refuels: List<RefuelRowUi>,
+    totalLitresDisplay: String,
+    totalCostDisplay: String,
+    onAddRefuel: () -> Unit,
+    onDeleteRefuel: (id: Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MotoTracker.colors.panel)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.label_refuels).uppercase(),
+                style = MotoTracker.typography.label,
+                color = MotoTracker.colors.dim,
+            )
+            TextButton(
+                onClick = onAddRefuel,
+                colors = ButtonDefaults.textButtonColors(contentColor = MotoTracker.colors.accent),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.label_add_refuel),
+                    style = MotoTracker.typography.label,
+                )
+            }
+        }
+
+        if (refuels.isEmpty()) {
+            Text(
+                text = "—",
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.dim,
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                refuels.forEach { row -> RefuelRow(row = row, onDelete = { onDeleteRefuel(row.id) }) }
+            }
+
+            if (totalLitresDisplay.isNotEmpty() || totalCostDisplay.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MotoTracker.colors.panel2)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.label_refuel_total).uppercase(),
+                        style = MotoTracker.typography.label,
+                        color = MotoTracker.colors.dim,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (totalLitresDisplay.isNotEmpty()) {
+                            Text(
+                                text = totalLitresDisplay,
+                                style = MotoTracker.typography.label,
+                                color = MotoTracker.colors.text,
+                            )
+                        }
+                        if (totalCostDisplay.isNotEmpty()) {
+                            Text(
+                                text = totalCostDisplay,
+                                style = MotoTracker.typography.label,
+                                color = MotoTracker.colors.accent,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One row in the refuel ledger: date/time, litres, price/L, cost, and a delete icon.
+ *
+ * @param row      Pre-formatted [RefuelRowUi] data.
+ * @param onDelete Called when the user taps the delete icon.
+ */
+@Composable
+private fun RefuelRow(row: RefuelRowUi, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.LocalGasStation,
+            contentDescription = null,
+            tint = MotoTracker.colors.accent,
+            modifier = Modifier.size(16.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = row.dateTimeDisplay,
+                style = MotoTracker.typography.bodySmall,
+                color = MotoTracker.colors.dim,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = row.litresDisplay,
+                    style = MotoTracker.typography.label,
+                    color = MotoTracker.colors.text,
+                )
+                Text(
+                    text = row.pricePerLDisplay,
+                    style = MotoTracker.typography.label,
+                    color = MotoTracker.colors.dim,
+                )
+                Text(
+                    text = row.costDisplay,
+                    style = MotoTracker.typography.label,
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.action_delete_refuel),
+                tint = MotoTracker.colors.dim,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+// ── Add/delete refuel dialogs ─────────────────────────────────────────────────
+
+/**
+ * AlertDialog for adding a refuel event on the route-detail screen (G5).
+ *
+ * Pre-fills [defaultLitres] and [defaultPricePerL]; both fields are editable.
+ * Validates that litres is positive before calling [onConfirm]. On-device rendering is 🔬.
+ *
+ * @param defaultLitres    Pre-filled litres value (bike tank capacity or 0).
+ * @param defaultPricePerL Pre-filled price per litre; null shows empty field.
+ * @param onConfirm        Called with (litres, pricePerL) on confirm.
+ * @param onDismiss        Called on cancel or outside-dismiss.
+ */
+@Composable
+private fun AddRefuelDialog(
+    defaultLitres: Double,
+    defaultPricePerL: Double?,
+    onConfirm: (litres: Double, pricePerL: Double) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var litresText by remember { mutableStateOf(if (defaultLitres > 0.0) "%.1f".format(defaultLitres) else "") }
+    var priceText by remember { mutableStateOf(defaultPricePerL?.let { "%.2f".format(it) } ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_refuel_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = litresText,
+                    onValueChange = { litresText = it },
+                    label = { Text(stringResource(R.string.label_refuel_litres)) },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    label = { Text(stringResource(R.string.label_refuel_price_per_l)) },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val litres = litresText.toDoubleOrNull() ?: return@TextButton
+                    val price = priceText.toDoubleOrNull() ?: 0.0
+                    if (litres > 0.0) onConfirm(litres, price)
+                },
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_refuel_confirm),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+/**
+ * AlertDialog that confirms deletion of a single refuel event (G5).
+ *
+ * @param onConfirm Called when the user taps the destructive confirm button.
+ * @param onDismiss Called on Cancel or outside-dismiss.
+ */
+@Composable
+private fun DeleteRefuelDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.action_delete_refuel),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(R.string.action_delete),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(

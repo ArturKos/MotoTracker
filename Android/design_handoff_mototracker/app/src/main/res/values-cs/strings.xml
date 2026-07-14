@@ -383,4 +383,16 @@
     <string name="dialog_delete_route_message">Tato trasa bude trvale smazána a nelze ji obnovit.</string>
     <string name="action_delete">Smazat</string>
     <string name="toast_route_deleted">Trasa smazána</string>
+
+    <!-- Evidence tankování (G5) -->
+    <string name="label_refuels">Tankování</string>
+    <string name="label_add_refuel">Přidat tankování</string>
+    <string name="label_refuel_litres">Přidané litry</string>
+    <string name="label_refuel_price_per_l">Cena za litr</string>
+    <string name="label_refuel_total">Celkem</string>
+    <string name="action_delete_refuel">Smazat tankování</string>
+    <string name="dialog_refuel_title">Zaznamenat tankování</string>
+    <string name="dialog_refuel_confirm">Uložit</string>
+    <string name="toast_refuel_added">Tankování uloženo</string>
+    <string name="toast_refuel_deleted">Tankování smazáno</string>
 </resources>

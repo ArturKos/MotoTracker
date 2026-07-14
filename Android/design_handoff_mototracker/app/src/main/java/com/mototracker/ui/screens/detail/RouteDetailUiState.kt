@@ -25,6 +25,23 @@ data class StatTileUi(val value: String, val unit: String)
 data class BikePickerItemUi(val id: String, val name: String, val sold: Boolean)
 
 /**
+ * One row in the refuel event ledger on the route-detail screen (G5).
+ *
+ * @param id               Primary key from the database; used to identify the row for deletion.
+ * @param dateTimeDisplay  Formatted date + time of the refuel, e.g. `"Jul 10 · 14:32"`.
+ * @param litresDisplay    Formatted litres string, e.g. `"18.5 L"`.
+ * @param pricePerLDisplay Formatted price per litre, e.g. `"7.50 PLN/L"`.
+ * @param costDisplay      Formatted total cost for this event, e.g. `"138.75 PLN"`.
+ */
+data class RefuelRowUi(
+    val id: Long,
+    val dateTimeDisplay: String,
+    val litresDisplay: String,
+    val pricePerLDisplay: String,
+    val costDisplay: String,
+)
+
+/**
  * One Bluetooth "wave" meetup entry on the route-detail screen.
  *
  * @param initials  First two letters of [who] in uppercase, used for the avatar circle.
@@ -100,6 +117,11 @@ data class MeetingUi(
  *                                 override rather than the bike default.
  * @param maxLeanLeftDeg           Non-negative magnitude of the peak leftward lean on this route, in degrees (E7).
  * @param maxLeanRightDeg          Non-negative magnitude of the peak rightward lean on this route, in degrees (E7).
+ * @param refuels                  Ordered list of refuel events logged for this route (G5).
+ * @param refuelTotalLitresDisplay Formatted total litres across all refuel events, e.g. `"36.0 L"`.
+ *                                 Empty when [refuels] is empty.
+ * @param refuelTotalCostDisplay   Formatted total cost across all refuel events, e.g. `"277.50 PLN"`.
+ *                                 Empty when [refuels] is empty or no price is available.
  */
 data class RouteDetailUiState(
     val loading: Boolean = true,
@@ -139,4 +161,7 @@ data class RouteDetailUiState(
     val isFuelPriceRouteOverride: Boolean = false,
     val maxLeanLeftDeg: Double = 0.0,
     val maxLeanRightDeg: Double = 0.0,
+    val refuels: List<RefuelRowUi> = emptyList(),
+    val refuelTotalLitresDisplay: String = "",
+    val refuelTotalCostDisplay: String = "",
 )

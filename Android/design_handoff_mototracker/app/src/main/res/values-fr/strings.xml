@@ -383,4 +383,16 @@
     <string name="dialog_delete_route_message">Cet itinéraire sera définitivement supprimé et ne pourra pas être récupéré.</string>
     <string name="action_delete">Supprimer</string>
     <string name="toast_route_deleted">Itinéraire supprimé</string>
+
+    <!-- Journal de ravitaillement (G5) -->
+    <string name="label_refuels">Ravitaillements</string>
+    <string name="label_add_refuel">Ajouter un ravitaillement</string>
+    <string name="label_refuel_litres">Litres ajoutés</string>
+    <string name="label_refuel_price_per_l">Prix par litre</string>
+    <string name="label_refuel_total">Total</string>
+    <string name="action_delete_refuel">Supprimer le ravitaillement</string>
+    <string name="dialog_refuel_title">Enregistrer le ravitaillement</string>
+    <string name="dialog_refuel_confirm">Enregistrer</string>
+    <string name="toast_refuel_added">Ravitaillement enregistré</string>
+    <string name="toast_refuel_deleted">Ravitaillement supprimé</string>
 </resources>

@@ -172,4 +172,92 @@ class MigrationTest {
 
         db.close()
     }
+
+    /**
+     * Verifies [MIGRATION_5_6]: the `refuel_event` table and its `routeId` index are created,
+     * existing `routes` rows survive, and a new refuel event can be inserted and retrieved.
+     */
+    @Test
+    fun migrate5To6_createsRefuelEventTableAndIndex() {
+        val db = SQLiteDatabase.openOrCreateDatabase(":memory:", null)
+
+        // ── Build version-5 schema (routes only, no refuel_event table) ────────
+        db.execSQL(
+            """CREATE TABLE routes (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                dateEpochMs INTEGER NOT NULL,
+                bikeId TEXT,
+                km REAL NOT NULL,
+                durSec INTEGER NOT NULL,
+                avg REAL NOT NULL,
+                max REAL NOT NULL,
+                lean REAL NOT NULL,
+                elev REAL NOT NULL,
+                fuel REAL NOT NULL,
+                synced INTEGER NOT NULL DEFAULT 0,
+                correctionStatus TEXT NOT NULL DEFAULT 'NONE',
+                confidence REAL,
+                wxJson TEXT,
+                speedJson TEXT,
+                elevProfileJson TEXT,
+                notes TEXT,
+                thumbnailPathD TEXT,
+                fuelPricePerL REAL,
+                maxLeanLeftDeg REAL NOT NULL DEFAULT 0,
+                maxLeanRightDeg REAL NOT NULL DEFAULT 0
+            )""",
+        )
+
+        // ── Insert a pre-existing route row ───────────────────────────────────
+        db.execSQL(
+            """INSERT INTO routes (id, name, dateEpochMs, bikeId, km, durSec, avg, max, lean, elev, fuel, synced, correctionStatus)
+               VALUES ('route-g5', 'G5 Test Ride', 1700002000000, NULL, 55.0, 2700, 73.3, 145.0, 22.0, 80.0, 2.8, 0, 'NONE')""",
+        )
+
+        // ── Run MIGRATION_5_6 SQL (mirrors the private val in MotoDatabase) ───
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS refuel_event (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                routeId TEXT NOT NULL,
+                epochMs INTEGER NOT NULL,
+                litres REAL NOT NULL,
+                pricePerL REAL NOT NULL,
+                FOREIGN KEY(routeId) REFERENCES routes(id) ON DELETE CASCADE
+            )""",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_refuel_event_routeId ON refuel_event (routeId)",
+        )
+
+        // ── Verify existing routes row survived ───────────────────────────────
+        db.rawQuery("SELECT id, km FROM routes WHERE id = 'route-g5'", null).use { cursor ->
+            assertEquals(1, cursor.count)
+            assertTrue(cursor.moveToFirst())
+            assertEquals("route-g5", cursor.getString(cursor.getColumnIndexOrThrow("id")))
+            assertEquals(55.0, cursor.getDouble(cursor.getColumnIndexOrThrow("km")), 0.001)
+        }
+
+        // ── Verify refuel_event table exists and can insert a row ─────────────
+        db.execSQL(
+            "INSERT INTO refuel_event (routeId, epochMs, litres, pricePerL) VALUES ('route-g5', 1700002500000, 18.5, 7.45)",
+        )
+        db.rawQuery("SELECT routeId, litres, pricePerL FROM refuel_event WHERE routeId = 'route-g5'", null).use { cursor ->
+            assertEquals(1, cursor.count)
+            assertTrue(cursor.moveToFirst())
+            assertEquals("route-g5", cursor.getString(cursor.getColumnIndexOrThrow("routeId")))
+            assertEquals(18.5, cursor.getDouble(cursor.getColumnIndexOrThrow("litres")), 0.001)
+            assertEquals(7.45, cursor.getDouble(cursor.getColumnIndexOrThrow("pricePerL")), 0.001)
+        }
+
+        // ── Verify the routeId index exists ──────────────────────────────────
+        db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'index_refuel_event_routeId'",
+            null,
+        ).use { cursor ->
+            assertEquals("index_refuel_event_routeId should exist", 1, cursor.count)
+        }
+
+        db.close()
+    }
 }

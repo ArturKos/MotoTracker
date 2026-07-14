@@ -47,11 +47,14 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  *                          regardless of recording phase.  Null until the first reading.
  *                          Used to animate the lean bar in Idle so the rider can orient the
  *                          phone before starting (F2).
- * @param fuelPricePerL     Fuel price per litre from the current bike's configuration; null when
- *                          the bike has no price set.  Used to compute the running fuel cost
- *                          displayed in the fuel readout (G2).
- * @param currency          ISO 4217 currency code for fuel cost display (e.g. "PLN", "EUR").
- *                          Sourced from [com.mototracker.data.settings.AppSettings.currency].
+ * @param fuelPricePerL        Fuel price per litre from the current bike's configuration; null when
+ *                             the bike has no price set.  Used to compute the running fuel cost
+ *                             displayed in the fuel readout (G2).
+ * @param currency             ISO 4217 currency code for fuel cost display (e.g. "PLN", "EUR").
+ *                             Sourced from [com.mototracker.data.settings.AppSettings.currency].
+ * @param showRefuelDialog     `true` when the refuel-input dialog should be visible (G5).
+ * @param refuelDialogLitres   Pre-filled litres value for the refuel dialog (bike tank capacity or 0).
+ * @param refuelDialogPricePerL Pre-filled price/L for the refuel dialog (bike default or null).
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -67,6 +70,9 @@ data class RecordingUiState(
     val liveLeanDeg: Double? = null,
     val fuelPricePerL: Double? = null,
     val currency: String = "PLN",
+    val showRefuelDialog: Boolean = false,
+    val refuelDialogLitres: Double = 0.0,
+    val refuelDialogPricePerL: Double? = null,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */
@@ -84,13 +90,24 @@ sealed class RecordingEvent {
     /** User chose to discard an interrupted session detected on startup (B20). */
     data object DiscardSession : RecordingEvent()
     /**
-     * User tapped the fuel-pump quick action to log a refuel-to-full event (E4).
+     * User tapped the fuel-pump quick action; opens the refuel input dialog (G5).
      *
-     * Re-anchors the fill point to the current odometer reading so that remaining
-     * fuel and range are computed relative to a full tank from this moment onward.
-     * Ignored when the current bike has no tank capacity configured.
+     * Supersedes the old instant fill-to-full — the dialog lets the user confirm
+     * litres and price before the event is recorded. Ignored when the current bike
+     * has no tank capacity configured (same guard as E4).
      */
-    data object FillToFull : RecordingEvent()
+    data object ShowRefuelDialog : RecordingEvent()
+
+    /**
+     * User confirmed a refuel event from the dialog (G5).
+     *
+     * @param litres    Volume of fuel added in litres.
+     * @param pricePerL Price per litre at the time of the event.
+     */
+    data class ConfirmRefuel(val litres: Double, val pricePerL: Double) : RecordingEvent()
+
+    /** User dismissed the refuel dialog without confirming (G5). */
+    data object DismissRefuelDialog : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

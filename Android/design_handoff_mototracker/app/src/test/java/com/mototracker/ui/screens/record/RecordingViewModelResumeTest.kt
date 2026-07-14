@@ -16,8 +16,10 @@ import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.domain.fuel.RefuelEvent
 import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettings
@@ -136,6 +138,13 @@ private class FakeResumeStringResolver : StringResolver {
     override fun getString(resId: Int, vararg args: Any): String = getString(resId)
 }
 
+private class FakeResumeRefuelRepository : RefuelRepository {
+    override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {}
+    override fun observeRefuels(routeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> =
+        kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+    override suspend fun deleteRefuel(id: Long) {}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +197,7 @@ class RecordingViewModelResumeTest {
         reverseGeocoder = FakeResumeGeocoder(),
         stringResolver = FakeResumeStringResolver(),
         sessionStore = store,
+        refuelRepository = FakeResumeRefuelRepository(),
     )
 
     // ── Startup detection ────────────────────────────────────────────────────

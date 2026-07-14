@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -47,7 +48,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -200,6 +203,16 @@ fun RecordingContent(
         ResumeSessionDialog(
             onResume = { onEvent(RecordingEvent.ResumeSession) },
             onDiscard = { onEvent(RecordingEvent.DiscardSession) },
+        )
+    }
+
+    // G5: Refuel input dialog shown when the fuel-pump icon is tapped.
+    if (state.showRefuelDialog) {
+        RefuelDialog(
+            initialLitres = state.refuelDialogLitres,
+            initialPricePerL = state.refuelDialogPricePerL,
+            onConfirm = { litres, pricePerL -> onEvent(RecordingEvent.ConfirmRefuel(litres, pricePerL)) },
+            onDismiss = { onEvent(RecordingEvent.DismissRefuelDialog) },
         )
     }
 
@@ -861,7 +874,7 @@ private fun RecordingControlRow(
                     )
                 }
                 RecordingControl.FILL_TO_FULL -> OutlinedIconButton(
-                    onClick = { onEvent(RecordingEvent.FillToFull) },
+                    onClick = { onEvent(RecordingEvent.ShowRefuelDialog) },
                     modifier = Modifier.size(52.dp),
                 ) {
                     Icon(
@@ -911,6 +924,82 @@ private fun ResumeSessionDialog(
         dismissButton = {
             TextButton(onClick = onDiscard) {
                 Text(stringResource(R.string.btn_session_discard))
+            }
+        },
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Refuel input dialog (G5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * AlertDialog for logging a refuel event during an active ride.
+ *
+ * Pre-fills [initialLitres] (from the bike's tank capacity) and [initialPricePerL] (from the bike
+ * default). Both fields are editable; the dialog validates that litres is a positive number before
+ * calling [onConfirm]. On-device rendering is 🔬.
+ *
+ * @param initialLitres     Pre-filled litres field value (bike tank capacity or 0).
+ * @param initialPricePerL  Pre-filled price/L field value; null shows an empty field.
+ * @param onConfirm         Called with the confirmed litres and price/L values.
+ * @param onDismiss         Called when the user cancels or dismisses without confirming.
+ */
+@Composable
+private fun RefuelDialog(
+    initialLitres: Double,
+    initialPricePerL: Double?,
+    onConfirm: (litres: Double, pricePerL: Double) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var litresText by remember { mutableStateOf(if (initialLitres > 0.0) "%.1f".format(initialLitres) else "") }
+    var priceText by remember { mutableStateOf(initialPricePerL?.let { "%.2f".format(it) } ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_refuel_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = litresText,
+                    onValueChange = { litresText = it },
+                    label = { Text(stringResource(R.string.label_refuel_litres)) },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    label = { Text(stringResource(R.string.label_refuel_price_per_l)) },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val litres = litresText.toDoubleOrNull() ?: return@TextButton
+                    val price = priceText.toDoubleOrNull() ?: 0.0
+                    if (litres > 0.0) onConfirm(litres, price)
+                },
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_refuel_confirm),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
             }
         },
     )

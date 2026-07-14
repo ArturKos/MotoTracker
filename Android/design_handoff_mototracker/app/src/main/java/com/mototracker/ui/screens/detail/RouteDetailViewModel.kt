@@ -10,6 +10,7 @@ import com.mototracker.core.format.MoneyFormatter
 import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.core.format.RouteWeather
 import com.mototracker.core.format.UnitFormatter
+import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
@@ -17,12 +18,15 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.model.Wave
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.GpsCorrectionRepository
+import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.fuel.FuelCostCalculator
+import com.mototracker.domain.fuel.RefuelEvent
+import com.mototracker.domain.fuel.RefuelLedger
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,6 +40,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
@@ -63,6 +68,8 @@ import kotlin.math.roundToInt
  * @param settingsSource           Provides measurement units preference.
  * @param syncRepository           Manages the outbound sync queue for server upload.
  * @param gpsCorrectionRepository  Manages the OSRM GPS road-correction queue.
+ * @param refuelRepository         Source and sink for per-route refuel event ledger (G5).
+ * @param timeProvider             Wall-clock source for new refuel event timestamps.
  */
 @HiltViewModel
 class RouteDetailViewModel @Inject constructor(
@@ -73,6 +80,8 @@ class RouteDetailViewModel @Inject constructor(
     private val settingsSource: AppSettingsSource,
     private val syncRepository: SyncRepository,
     private val gpsCorrectionRepository: GpsCorrectionRepository,
+    private val refuelRepository: RefuelRepository,
+    private val timeProvider: TimeProvider,
 ) : ViewModel() {
 
     private val routeId: String = savedStateHandle["routeId"] ?: ""
@@ -93,14 +102,19 @@ class RouteDetailViewModel @Inject constructor(
 
     /** Live UI state exposed to [RouteDetailScreen]. */
     val uiState: StateFlow<RouteDetailUiState> = combine(
-        routeRepository.observeById(routeId),
-        bikeRepository.observeAll(),
-        waveRepository.observeForRoute(routeId),
-        settingsSource.settings,
-        _selectedTrackView,
-    ) { route, bikes, waves, settings, selectedView ->
+        combine(
+            routeRepository.observeById(routeId),
+            bikeRepository.observeAll(),
+            waveRepository.observeForRoute(routeId),
+        ) { route, bikes, waves -> Triple(route, bikes, waves) },
+        combine(
+            settingsSource.settings,
+            _selectedTrackView,
+            refuelRepository.observeRefuels(routeId),
+        ) { settings, selectedView, refuels -> Triple(settings, selectedView, refuels) },
+    ) { (route, bikes, waves), (settings, selectedView, refuels) ->
         currentRoute = route
-        buildUiState(route, bikes, waves, settings, selectedView)
+        buildUiState(route, bikes, waves, settings, selectedView, refuels)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -280,6 +294,42 @@ class RouteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Persists a new refuel event for this route and emits [RouteDetailEvent.RefuelAdded] (G5).
+     *
+     * Uses the current wall-clock time as the event timestamp.
+     *
+     * @param litres    Volume of fuel added in litres.
+     * @param pricePerL Price per litre at the time of the event.
+     */
+    fun addRefuel(litres: Double, pricePerL: Double) {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            refuelRepository.addRefuel(
+                routeId = route.id,
+                epochMs = timeProvider.nowEpochMs(),
+                litres = litres,
+                pricePerL = pricePerL,
+            )
+            _events.send(RouteDetailEvent.RefuelAdded)
+        }
+    }
+
+    /**
+     * Permanently deletes the refuel event with [id] and emits [RouteDetailEvent.RefuelDeleted] (G5).
+     *
+     * The live [refuelRepository.observeRefuels] stream re-emits after deletion so [uiState]
+     * updates automatically.
+     *
+     * @param id Primary key of the refuel event to remove.
+     */
+    fun deleteRefuel(id: Long) {
+        viewModelScope.launch {
+            refuelRepository.deleteRefuel(id)
+            _events.send(RouteDetailEvent.RefuelDeleted)
+        }
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(
@@ -288,6 +338,7 @@ class RouteDetailViewModel @Inject constructor(
         waves: List<Wave>,
         settings: AppSettings,
         selectedView: TrackView?,
+        refuels: List<RefuelEvent> = emptyList(),
     ): RouteDetailUiState {
         if (route == null) return RouteDetailUiState(loading = false, routeNotFound = true)
 
@@ -355,6 +406,26 @@ class RouteDetailViewModel @Inject constructor(
             ""
         }
 
+        val refuelRows = refuels.map { e ->
+            RefuelRowUi(
+                id = e.id,
+                dateTimeDisplay = formatDateTime(e.epochMs),
+                litresDisplay = String.format(Locale.US, "%.1f L", e.litres),
+                pricePerLDisplay = String.format(Locale.US, "%.2f %s/L", e.pricePerL, settings.currency),
+                costDisplay = MoneyFormatter.format(RefuelLedger.costOf(e), settings.currency),
+            )
+        }
+        val refuelTotalLitresDisplay = if (refuels.isNotEmpty()) {
+            String.format(Locale.US, "%.1f L", RefuelLedger.totalLitres(refuels))
+        } else {
+            ""
+        }
+        val refuelTotalCostDisplay = if (refuels.isNotEmpty()) {
+            MoneyFormatter.format(RefuelLedger.totalCost(refuels), settings.currency)
+        } else {
+            ""
+        }
+
         return RouteDetailUiState(
             loading = false,
             routeNotFound = false,
@@ -411,11 +482,20 @@ class RouteDetailViewModel @Inject constructor(
             isFuelPriceRouteOverride = route.fuelPricePerL != null,
             maxLeanLeftDeg = route.maxLeanLeftDeg,
             maxLeanRightDeg = route.maxLeanRightDeg,
+            refuels = refuelRows,
+            refuelTotalLitresDisplay = refuelTotalLitresDisplay,
+            refuelTotalCostDisplay = refuelTotalCostDisplay,
         )
     }
 
     private fun formatDate(epochMs: Long): String =
         DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.getDefault()).format(Date(epochMs))
+
+    private fun formatDateTime(epochMs: Long): String {
+        val dateFmt = DateFormat.getDateInstance(DateFormat.SHORT, Locale.getDefault())
+        val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+        return "${dateFmt.format(Date(epochMs))} · ${timeFmt.format(Date(epochMs))}"
+    }
 
     private fun formatDistanceValue(km: Double, units: Units): String {
         val value = if (units == Units.IMPERIAL) km * 0.621371 else km

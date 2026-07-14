@@ -383,4 +383,16 @@
     <string name="dialog_delete_route_message">Die Route wird dauerhaft gelöscht und kann nicht wiederhergestellt werden.</string>
     <string name="action_delete">Löschen</string>
     <string name="toast_route_deleted">Route gelöscht</string>
+
+    <!-- Tankprotokoll (G5) -->
+    <string name="label_refuels">Tankstopps</string>
+    <string name="label_add_refuel">Tankstopp hinzufügen</string>
+    <string name="label_refuel_litres">Getankte Liter</string>
+    <string name="label_refuel_price_per_l">Preis pro Liter</string>
+    <string name="label_refuel_total">Gesamt</string>
+    <string name="action_delete_refuel">Tankstopp löschen</string>
+    <string name="dialog_refuel_title">Tankstopp erfassen</string>
+    <string name="dialog_refuel_confirm">Speichern</string>
+    <string name="toast_refuel_added">Tankstopp gespeichert</string>
+    <string name="toast_refuel_deleted">Tankstopp gelöscht</string>
 </resources>

@@ -11,6 +11,7 @@ package com.mototracker.domain.recording
  * @param prevAlt               Altitude of the previous GPS fix, or null before the first fix.
  * @param distanceKm            Accumulated distance in kilometres.
  * @param durationSec           Elapsed recording time in seconds.
+ * @param movingSec             Elapsed time in motion in seconds; defaults to 0 for backward-compat with older snapshots.
  * @param currentSpeedKmh       Current speed in km/h at the last GPS fix.
  * @param maxSpeedKmh           Maximum speed in km/h reached during the session.
  * @param currentLeanDeg        Most-recent lean angle in degrees from the gravity sensor.
@@ -31,6 +32,7 @@ data class RecordingEngineState(
     val prevAlt: Double?,
     val distanceKm: Double,
     val durationSec: Long,
+    val movingSec: Long = 0L,
     val currentSpeedKmh: Double,
     val maxSpeedKmh: Double,
     val currentLeanDeg: Double,

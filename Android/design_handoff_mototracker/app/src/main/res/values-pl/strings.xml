@@ -349,4 +349,7 @@
     <string name="label_fuel_remaining">Zostało</string>
     <string name="label_fuel_range">Zasięg</string>
     <string name="warn_low_fuel">⚠ Mało paliwa</string>
+
+    <!-- Licznik czasu w ruchu (E5) -->
+    <string name="tile_moving_time">Czas w ruchu</string>
 </resources>

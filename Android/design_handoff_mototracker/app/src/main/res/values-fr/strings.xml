@@ -349,4 +349,7 @@
     <string name="label_fuel_remaining">Restant</string>
     <string name="label_fuel_range">Autonomie</string>
     <string name="warn_low_fuel">⚠ Carburant faible</string>
+
+    <!-- Minuterie de temps en mouvement (E5) -->
+    <string name="tile_moving_time">Temps en mouvement</string>
 </resources>

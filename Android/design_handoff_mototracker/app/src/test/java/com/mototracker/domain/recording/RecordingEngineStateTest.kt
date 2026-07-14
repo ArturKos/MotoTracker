@@ -3,6 +3,7 @@ package com.mototracker.domain.recording
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.decode
 import com.mototracker.data.recording.encode
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -238,5 +239,71 @@ class RecordingEngineStateTest {
         assertNull(decode("not json"))
         assertNull(decode("{\"broken\":"))
         assertNull(decode(""))
+    }
+
+    // ── movingSec round-trip (E5) ────────────────────────────────────────────
+
+    @Test
+    fun `exportState captures movingSec`() {
+        val engine = RecordingEngine()
+        engine.onLocation(LocationSample(52.0, 21.0, 10.0, 100.0, 0f, 1000L)) // 36 km/h → moving
+        engine.tick(45L)
+        val state = engine.exportState()
+        assertEquals(45L, state.movingSec)
+    }
+
+    @Test
+    fun `restore preserves movingSec`() {
+        val original = RecordingEngine()
+        original.onLocation(LocationSample(52.0, 21.0, 10.0, 100.0, 0f, 1000L))
+        original.tick(30L)
+        val state = original.exportState()
+
+        val restored = RecordingEngine()
+        restored.restore(state)
+        assertEquals(state.movingSec, restored.snapshot().movingSec)
+    }
+
+    @Test
+    fun `encode and decode round-trip preserves movingSec`() {
+        val engineState = RecordingEngineState(
+            prevLat = null, prevLng = null, prevAlt = null,
+            distanceKm = 0.0, durationSec = 100L, movingSec = 75L,
+            currentSpeedKmh = 0.0, maxSpeedKmh = 0.0,
+            currentLeanDeg = 0.0, maxLeanDeg = 0.0,
+            altitudeM = 0.0, elevGainM = 0.0, headingDeg = 0f,
+            pathPoints = emptyList(), speedOverTime = emptyList(), elevOverDist = emptyList(),
+        )
+        val original = ActiveSessionSnapshot(engineState, 0L, null, false)
+
+        val decoded = decode(encode(original))
+
+        assertNotNull(decoded)
+        assertEquals(75L, decoded!!.engineState.movingSec)
+    }
+
+    @Test
+    fun `decode defaults movingSec to zero when key is absent (backward compat)`() {
+        // Simulate a legacy JSON string that has no movingSec field
+        val legacyJson = encode(
+            ActiveSessionSnapshot(
+                RecordingEngineState(
+                    prevLat = null, prevLng = null, prevAlt = null,
+                    distanceKm = 5.0, durationSec = 120L,
+                    currentSpeedKmh = 0.0, maxSpeedKmh = 60.0,
+                    currentLeanDeg = 0.0, maxLeanDeg = 20.0,
+                    altitudeM = 100.0, elevGainM = 10.0, headingDeg = 0f,
+                    pathPoints = emptyList(), speedOverTime = emptyList(), elevOverDist = emptyList(),
+                ),
+                0L, null, false,
+            ),
+        ).let { json ->
+            // Remove movingSec key to simulate old format
+            org.json.JSONObject(json).apply { remove("movingSec") }.toString()
+        }
+
+        val decoded = decode(legacyJson)
+        assertNotNull(decoded)
+        assertEquals(0L, decoded!!.engineState.movingSec)
     }
 }

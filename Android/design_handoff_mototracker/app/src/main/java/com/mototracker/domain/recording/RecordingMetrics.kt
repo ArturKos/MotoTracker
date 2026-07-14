@@ -7,6 +7,7 @@ package com.mototracker.domain.recording
  *
  * @param distanceKm          Total distance travelled in kilometres.
  * @param durationSec         Elapsed recording time in seconds (excludes paused intervals).
+ * @param movingSec           Elapsed time in motion, in seconds — total time above the moving threshold.
  * @param currentSpeedKmh     Speed at the most recent GPS fix, in km/h.
  * @param avgSpeedKmh         Average speed over the entire recording (distance / time).
  * @param maxSpeedKmh         Peak speed recorded during the session.
@@ -25,6 +26,7 @@ package com.mototracker.domain.recording
 data class RecordingMetrics(
     val distanceKm: Double = 0.0,
     val durationSec: Long = 0L,
+    val movingSec: Long = 0L,
     val currentSpeedKmh: Double = 0.0,
     val avgSpeedKmh: Double = 0.0,
     val maxSpeedKmh: Double = 0.0,

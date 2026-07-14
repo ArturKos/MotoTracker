@@ -379,4 +379,7 @@
     <string name="label_fuel_remaining">Remaining</string>
     <string name="label_fuel_range">Range</string>
     <string name="warn_low_fuel">⚠ Low fuel</string>
+
+    <!-- Moving-time timer (E5) -->
+    <string name="tile_moving_time">Moving time</string>
 </resources>

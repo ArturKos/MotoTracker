@@ -352,12 +352,109 @@ class RecordingEngineTest {
         assertEquals(originalSnap.remainingRangeKm!!, restoredSnap.remainingRangeKm!!, 0.001)
     }
 
+    // ── Moving-time accumulation (E5) ────────────────────────────────────────
+
+    @Test
+    fun `movingSec accumulates only while speed is at or above threshold`() {
+        // 3 km/h → above threshold
+        engine.onLocation(sample(speedMps = 3.0 / 3.6))
+        engine.tick(10L)
+        assertEquals(10L, engine.snapshot().movingSec)
+    }
+
+    @Test
+    fun `movingSec stays flat when speed is below threshold`() {
+        // 1 km/h → below threshold
+        engine.onLocation(sample(speedMps = 1.0 / 3.6))
+        engine.tick(10L)
+        assertEquals(0L, engine.snapshot().movingSec)
+    }
+
+    @Test
+    fun `movingSec boundary at exactly 2 kmh counts as moving`() {
+        engine.onLocation(sample(speedMps = RecordingEngine.MOVING_THRESHOLD_KMH / 3.6))
+        engine.tick(5L)
+        assertEquals(5L, engine.snapshot().movingSec)
+    }
+
+    @Test
+    fun `durationSec advances regardless of speed`() {
+        engine.onLocation(sample(speedMps = 0.0))
+        engine.tick(7L)
+        assertEquals(7L, engine.snapshot().durationSec)
+        assertEquals(0L, engine.snapshot().movingSec)
+    }
+
+    @Test
+    fun `onLocation below threshold appends no points and adds no distance`() {
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = 0.5 / 3.6)) // 0.5 km/h
+        val before = engine.buildRoutePayload()
+        // Second stationary fix
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, speedMps = 0.3 / 3.6))
+        val after = engine.buildRoutePayload()
+        assertEquals("[]", before.pathJson)
+        assertEquals("[]", after.pathJson)
+        assertEquals(0.0, engine.snapshot().distanceKm, 0.0001)
+    }
+
+    @Test
+    fun `onLocation at threshold appends point and accumulates distance`() {
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = RecordingEngine.MOVING_THRESHOLD_KMH / 3.6))
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, speedMps = RecordingEngine.MOVING_THRESHOLD_KMH / 3.6))
+        val result = engine.buildRoutePayload()
+        assertTrue("pathJson should contain two points", result.pathJson != "[]")
+        assertTrue(engine.snapshot().distanceKm > 0.0)
+    }
+
+    @Test
+    fun `stationary fixes do not advance prevLat so distance gap is not counted later`() {
+        // One moving fix to set a prevLat anchor
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = 10.0))
+        val distAfterFirst = engine.snapshot().distanceKm
+
+        // Several stationary fixes — should not update prevLat
+        repeat(5) {
+            engine.onLocation(sample(lat = 53.0, lng = 21.0, speedMps = 0.0))
+        }
+        // A moving fix after a stop — prev* should still be at 52.0, so distance is measured from there
+        engine.onLocation(sample(lat = 52.5, lng = 21.0, speedMps = 10.0))
+        val distAfterResume = engine.snapshot().distanceKm
+
+        // Distance from 52.0 to 52.5 ≈ 55.6 km, NOT from 53.0 (jitter)
+        assertTrue("distance should have increased after moving fix", distAfterResume > distAfterFirst)
+        assertEquals(55.6, distAfterResume, 1.0)
+    }
+
+    @Test
+    fun `reset zeroes movingSec`() {
+        engine.onLocation(sample(speedMps = 10.0))
+        engine.tick(30L)
+        assertTrue("movingSec should be > 0 before reset", engine.snapshot().movingSec > 0)
+        engine.reset()
+        assertEquals(0L, engine.snapshot().movingSec)
+    }
+
+    @Test
+    fun `exportState and restore round-trip preserves movingSec`() {
+        engine.onLocation(sample(speedMps = 10.0))
+        engine.tick(60L)
+        val originalMoving = engine.snapshot().movingSec
+        assertTrue(originalMoving > 0)
+
+        val state = engine.exportState()
+        assertEquals(originalMoving, state.movingSec)
+
+        val restored = RecordingEngine()
+        restored.restore(state)
+        assertEquals(originalMoving, restored.snapshot().movingSec)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun sample(
         lat: Double = 0.0,
         lng: Double = 0.0,
-        speedMps: Double = 0.0,
+        speedMps: Double = 10.0,
         altitudeM: Double = 0.0,
         bearingDeg: Float = 0f,
     ) = LocationSample(

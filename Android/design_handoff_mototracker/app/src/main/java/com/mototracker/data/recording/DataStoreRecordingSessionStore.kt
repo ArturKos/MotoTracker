@@ -73,6 +73,7 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
         if (e.prevAlt != null) put("prevAlt", e.prevAlt)
         put("distKm", e.distanceKm)
         put("durSec", e.durationSec)
+        put("movingSec", e.movingSec)
         put("spdKmh", e.currentSpeedKmh)
         put("maxSpdKmh", e.maxSpeedKmh)
         put("leanDeg", e.currentLeanDeg)
@@ -122,6 +123,7 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         prevAlt = o.optDoubleOrNull("prevAlt"),
         distanceKm = o.getDouble("distKm"),
         durationSec = o.getLong("durSec"),
+        movingSec = o.optLong("movingSec", 0L),
         currentSpeedKmh = o.getDouble("spdKmh"),
         maxSpeedKmh = o.getDouble("maxSpdKmh"),
         currentLeanDeg = o.getDouble("leanDeg"),

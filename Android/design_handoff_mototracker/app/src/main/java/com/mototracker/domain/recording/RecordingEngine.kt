@@ -33,9 +33,17 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     /** Accumulated distance in km at the last 'fill to full' event; 0.0 at session start. */
     private var fillAnchorKm: Double = 0.0
 
-    private companion object {
+    companion object {
         /** Remaining-fuel fraction below which the low-fuel warning is raised (15 %). */
         const val LOW_FUEL_FRACTION = 0.15
+
+        /**
+         * Minimum speed in km/h above which a GPS fix counts as motion.
+         *
+         * Fixes below this threshold are ignored for distance/track accumulation to
+         * prevent parked-bike GPS jitter from polluting the recorded path and odometer.
+         */
+        const val MOVING_THRESHOLD_KMH = 2.0
     }
 
     private var prevLat: Double? = null
@@ -44,6 +52,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
 
     private var distanceKm: Double = 0.0
     private var durationSec: Long = 0L
+    private var movingSec: Long = 0L
     private var currentSpeedKmh: Double = 0.0
     private var maxSpeedKmh: Double = 0.0
     private var currentLeanDeg: Double = 0.0
@@ -58,6 +67,11 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
 
     /**
      * Integrates a new GPS [sample] into the session state and returns the updated [RecordingMetrics].
+     *
+     * Live display values (speed, max speed, altitude, heading) are updated on every fix.
+     * Track accumulation (distance, elevation gain, path points, chart series, and prev* anchors)
+     * is gated on [MOVING_THRESHOLD_KMH]: fixes below the threshold are silently dropped from the
+     * persisted track so that a parked bike does not accumulate jitter distance or ghost points.
      */
     fun onLocation(sample: LocationSample): RecordingMetrics {
         val speedKmh = sample.speedMps * 3.6
@@ -67,24 +81,26 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         altitudeM = sample.altitudeM
         headingDeg = sample.bearingDeg
 
-        val pLat = prevLat
-        val pLng = prevLng
-        if (pLat != null && pLng != null) {
-            distanceKm += haversine(pLat, pLng, sample.lat, sample.lng)
+        if (speedKmh >= MOVING_THRESHOLD_KMH) {
+            val pLat = prevLat
+            val pLng = prevLng
+            if (pLat != null && pLng != null) {
+                distanceKm += haversine(pLat, pLng, sample.lat, sample.lng)
+            }
+
+            val pAlt = prevAlt
+            if (pAlt != null && sample.altitudeM > pAlt) {
+                elevGainM += sample.altitudeM - pAlt
+            }
+
+            prevLat = sample.lat
+            prevLng = sample.lng
+            prevAlt = sample.altitudeM
+
+            pathPoints += sample.lat to sample.lng
+            speedOverTime += durationSec to speedKmh
+            elevOverDist += distanceKm to sample.altitudeM
         }
-
-        val pAlt = prevAlt
-        if (pAlt != null && sample.altitudeM > pAlt) {
-            elevGainM += sample.altitudeM - pAlt
-        }
-
-        prevLat = sample.lat
-        prevLng = sample.lng
-        prevAlt = sample.altitudeM
-
-        pathPoints += sample.lat to sample.lng
-        speedOverTime += durationSec to speedKmh
-        elevOverDist += distanceKm to sample.altitudeM
 
         return snapshot()
     }
@@ -103,10 +119,13 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     /**
      * Advances elapsed recording time by [elapsedSec] seconds.
      *
+     * Also advances [movingSec] by the same amount when the current speed is at or above
+     * [MOVING_THRESHOLD_KMH], so the moving-time counter only ticks while the bike is in motion.
      * Should be called once per second while recording (not while paused).
      */
     fun tick(elapsedSec: Long) {
         durationSec += elapsedSec
+        if (currentSpeedKmh >= MOVING_THRESHOLD_KMH) movingSec += elapsedSec
     }
 
     /** Returns an immutable snapshot of the current [RecordingMetrics]. */
@@ -132,6 +151,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         return RecordingMetrics(
             distanceKm = distanceKm,
             durationSec = durationSec,
+            movingSec = movingSec,
             currentSpeedKmh = currentSpeedKmh,
             avgSpeedKmh = avgSpeed,
             maxSpeedKmh = maxSpeedKmh,
@@ -177,7 +197,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         this.tankCapacityL = tankCapacityL
         fillAnchorKm = 0.0
         prevLat = null; prevLng = null; prevAlt = null
-        distanceKm = 0.0; durationSec = 0L
+        distanceKm = 0.0; durationSec = 0L; movingSec = 0L
         currentSpeedKmh = 0.0; maxSpeedKmh = 0.0
         currentLeanDeg = 0.0; maxLeanDeg = 0.0
         altitudeM = 0.0; elevGainM = 0.0; headingDeg = 0f
@@ -210,6 +230,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         prevAlt = prevAlt,
         distanceKm = distanceKm,
         durationSec = durationSec,
+        movingSec = movingSec,
         currentSpeedKmh = currentSpeedKmh,
         maxSpeedKmh = maxSpeedKmh,
         currentLeanDeg = currentLeanDeg,
@@ -241,6 +262,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         prevAlt = state.prevAlt
         distanceKm = state.distanceKm
         durationSec = state.durationSec
+        movingSec = state.movingSec
         currentSpeedKmh = state.currentSpeedKmh
         maxSpeedKmh = state.maxSpeedKmh
         currentLeanDeg = state.currentLeanDeg

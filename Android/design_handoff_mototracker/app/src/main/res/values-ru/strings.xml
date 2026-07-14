@@ -349,4 +349,7 @@
     <string name="label_fuel_remaining">Остаток</string>
     <string name="label_fuel_range">Запас хода</string>
     <string name="warn_low_fuel">⚠ Мало топлива</string>
+
+    <!-- Таймер времени в движении (E5) -->
+    <string name="tile_moving_time">Время в движении</string>
 </resources>

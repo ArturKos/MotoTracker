@@ -349,4 +349,7 @@
     <string name="label_fuel_remaining">Zbývá</string>
     <string name="label_fuel_range">Dojezd</string>
     <string name="warn_low_fuel">⚠ Málo paliva</string>
+
+    <!-- Časovač pohybu (E5) -->
+    <string name="tile_moving_time">Čas v pohybu</string>
 </resources>

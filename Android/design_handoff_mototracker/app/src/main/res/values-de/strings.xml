@@ -349,4 +349,7 @@
     <string name="label_fuel_remaining">Restmenge</string>
     <string name="label_fuel_range">Reichweite</string>
     <string name="warn_low_fuel">⚠ Wenig Kraftstoff</string>
+
+    <!-- Fahrzeitanzeige (E5) -->
+    <string name="tile_moving_time">Fahrzeit</string>
 </resources>

@@ -239,6 +239,8 @@ fun RecordingContent(
                 FuelTankRow(state = state, onEvent = onEvent)
                 Spacer(Modifier.height(6.dp))
                 LeanCompassRow(state)
+                Spacer(Modifier.height(6.dp))
+                TimersRow(state)
                 Spacer(Modifier.height(12.dp))
                 if (locationPermDenied && state.phase == RecordingPhase.Idle) {
                     PermissionDeniedBanner(
@@ -381,13 +383,7 @@ private fun WindRose(headingDeg: Float, modifier: Modifier = Modifier) {
 
 @Composable
 private fun SpeedAndTimeRow(state: RecordingUiState) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.weight(1.5f))
-        TimeTile(durationSec = state.metrics.durationSec, modifier = Modifier.weight(1f))
-    }
+    SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.fillMaxWidth())
 }
 
 @Composable
@@ -419,13 +415,16 @@ private fun SpeedTile(speedKmh: Double, modifier: Modifier = Modifier) {
     }
 }
 
+/** Formats [sec] as HH:MM:SS. */
+private fun formatHms(sec: Long): String {
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+    return String.format(Locale.US, "%02d:%02d:%02d", h, m, s)
+}
+
 @Composable
 private fun TimeTile(durationSec: Long, modifier: Modifier = Modifier) {
-    val h = durationSec / 3600
-    val m = (durationSec % 3600) / 60
-    val s = durationSec % 60
-    val timeText = String.format(Locale.US, "%02d:%02d:%02d", h, m, s)
-
     MetricTile(modifier = modifier) {
         Text(
             text = stringResource(R.string.tile_ride_time),
@@ -433,10 +432,48 @@ private fun TimeTile(durationSec: Long, modifier: Modifier = Modifier) {
             color = MotoTracker.colors.dim,
         )
         Text(
-            text = timeText,
+            text = formatHms(durationSec),
             style = MotoTracker.typography.timer,
             color = MotoTracker.colors.text,
         )
+    }
+}
+
+/**
+ * Row placed near the bottom of the tile column showing total ride time and moving time side by side.
+ *
+ * @param state Current recording UI state; reads [RecordingMetrics.durationSec] and [RecordingMetrics.movingSec].
+ */
+@Composable
+private fun TimersRow(state: RecordingUiState) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        MetricTile(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.tile_ride_time),
+                style = MotoTracker.typography.label,
+                color = MotoTracker.colors.dim,
+            )
+            Text(
+                text = formatHms(state.metrics.durationSec),
+                style = MotoTracker.typography.timer,
+                color = MotoTracker.colors.text,
+            )
+        }
+        MetricTile(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.tile_moving_time),
+                style = MotoTracker.typography.label,
+                color = MotoTracker.colors.dim,
+            )
+            Text(
+                text = formatHms(state.metrics.movingSec),
+                style = MotoTracker.typography.timer,
+                color = MotoTracker.colors.text,
+            )
+        }
     }
 }
 

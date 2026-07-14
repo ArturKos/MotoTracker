@@ -69,7 +69,6 @@ import com.mototracker.service.RecordingService
 import com.mototracker.ui.permissions.AppFeaturePermission
 import com.mototracker.ui.permissions.PermissionDeniedBanner
 import com.mototracker.ui.permissions.rememberFeaturePermission
-import com.mototracker.ui.map.OsmTrackMap
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
 import kotlin.math.cos
@@ -164,27 +163,18 @@ fun RecordingScreen(
         onEvent = ::dispatchEvent,
         locationPermDenied = locationPerm.denied,
         snackbarHostState = snackbarHostState,
-        mapSlot = {
-            OsmTrackMap(
-                points = state.trackPoints,
-                modifier = Modifier.fillMaxSize(),
-                followLatest = true,
-            )
-        },
         modifier = modifier,
     )
 }
 
 /**
- * Pure renderer for the Recording screen: map slot, metric tiles, and control strip.
- * Extracted for Paparazzi screenshot testing — no ViewModels, services, or permissions.
+ * Pure renderer for the Recording screen: compact chip row, metric tiles, and control strip.
+ * Extracted for Roborazzi screenshot testing — no ViewModels, services, or permissions.
  *
  * @param state               Pre-computed recording UI state.
  * @param onEvent             Dispatches [RecordingEvent]s upward.
  * @param locationPermDenied  When `true` the permission-denied banner is shown instead of the Start button.
  * @param snackbarHostState   Snackbar host; defaults to a fresh instance for standalone use.
- * @param mapSlot             Composable rendered in the map area; in production this is [OsmTrackMap],
- *                            in Paparazzi tests a static placeholder Box is used instead.
  * @param modifier            Standard Compose modifier.
  */
 @Composable
@@ -193,7 +183,6 @@ fun RecordingContent(
     onEvent: (RecordingEvent) -> Unit = {},
     locationPermDenied: Boolean = false,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    mapSlot: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // F2: Resolve display heading — GPS bearing during Recording, magnetometer otherwise.
@@ -215,38 +204,6 @@ fun RecordingContent(
 
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // ── Map area — capped at 220 dp so the tile column is never clipped ──
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .background(MotoTracker.colors.panel),
-            ) {
-                mapSlot()
-
-                GpsChip(
-                    satCount = state.gpsSatCount,
-                    onRoad = state.gpsOnRoad,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
-                )
-
-                WeatherChip(
-                    weather = state.weather,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                )
-
-                WindRose(
-                    headingDeg = displayHeadingDeg,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
-                )
-            }
-
             // ── Tiles — fills remaining space; scrollable fallback so nothing clips ─
             Column(
                 Modifier
@@ -256,6 +213,19 @@ fun RecordingContent(
                     .background(MotoTracker.colors.bg)
                     .padding(horizontal = 8.dp),
             ) {
+                // ── Compact chip row: GPS sat-count · weather · wind rose ──────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
+                    Spacer(Modifier.weight(1f))
+                    WeatherChip(weather = state.weather)
+                    Spacer(Modifier.width(8.dp))
+                    WindRose(headingDeg = displayHeadingDeg)
+                }
                 Spacer(Modifier.height(8.dp))
                 SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg)
                 Spacer(Modifier.height(6.dp))

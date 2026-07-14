@@ -45,8 +45,8 @@ import org.robolectric.annotation.GraphicsMode
  * Baselines live in `app/src/test/snapshots/`. Record with `./gradlew recordRoborazziDebug`;
  * verify with `./gradlew verifyRoborazziDebug`.
  *
- * Map slots ([RecordingContent.mapSlot] and [RouteDetailContent.mapSlot]) are left as empty
- * lambdas — map tile rendering is on-device only and out of headless scope.
+ * The [RouteDetailContent.mapSlot] is left as an empty lambda — map tile rendering is
+ * on-device only and out of headless scope.
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

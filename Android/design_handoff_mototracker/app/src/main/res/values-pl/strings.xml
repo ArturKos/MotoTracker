@@ -343,4 +343,10 @@
     <string name="action_edit_price">Edytuj cenę</string>
     <string name="error_invalid_number">Nieprawidłowa liczba</string>
     <string name="error_negative_number">Wartość musi być dodatnia</string>
+
+    <!-- Akcja tankowania do pełna (E4) -->
+    <string name="action_fill_to_full">Zatankuj do pełna</string>
+    <string name="label_fuel_remaining">Zostało</string>
+    <string name="label_fuel_range">Zasięg</string>
+    <string name="warn_low_fuel">⚠ Mało paliwa</string>
 </resources>

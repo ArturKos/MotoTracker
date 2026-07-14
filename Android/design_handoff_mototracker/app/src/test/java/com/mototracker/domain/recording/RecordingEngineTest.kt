@@ -1,6 +1,8 @@
 package com.mototracker.domain.recording
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -221,6 +223,133 @@ class RecordingEngineTest {
         val m = e.snapshot()
         // Expect approximately 8.0 L for 100 km at 8 L/100km
         assertEquals(8.0, m.fuelL, 1.0)
+    }
+
+    // ── Fill-to-full (E4) ────────────────────────────────────────────────────
+
+    @Test
+    fun `fillToFull resets distanceSinceFullKm to zero`() {
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = 17.0)
+        // Drive ~111 km
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0))
+        assertTrue("distance should be > 0 before fill", engine.snapshot().distanceSinceFullKm > 0.0)
+
+        engine.fillToFull()
+
+        assertEquals(0.0, engine.snapshot().distanceSinceFullKm, 0.0001)
+    }
+
+    @Test
+    fun `fuelSinceFull equals consumption times distanceSinceFull divided by 100`() {
+        val consumption = 6.0
+        engine.reset(fuelLper100km = consumption, tankCapacityL = 20.0)
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0)) // ~111 km
+        engine.fillToFull()
+        engine.onLocation(sample(lat = 2.0, lng = 0.0)) // another ~111 km after fill
+
+        val snap = engine.snapshot()
+        val expectedFuelSinceFull = snap.distanceSinceFullKm * consumption / 100.0
+        val expectedRemaining = (20.0 - expectedFuelSinceFull).coerceAtLeast(0.0)
+        assertEquals(expectedRemaining, snap.remainingFuelL!!, 0.01)
+    }
+
+    @Test
+    fun `remainingFuelL decreases as distance accumulates after fill`() {
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = 17.0)
+        engine.fillToFull()
+        val before = engine.snapshot().remainingFuelL!!
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0)) // drive ~111 km
+        val after = engine.snapshot().remainingFuelL!!
+        assertTrue("remaining fuel should decrease after driving", after < before)
+    }
+
+    @Test
+    fun `remainingRangeKm math matches consumption formula`() {
+        val consumption = 5.0
+        val tank = 17.0
+        engine.reset(fuelLper100km = consumption, tankCapacityL = tank)
+        engine.fillToFull()
+        // Drive half the tank's equivalent distance
+        val halfRangeKm = (tank / 2.0) / consumption * 100.0
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = halfRangeKm / 111.0, lng = 0.0))
+
+        val snap = engine.snapshot()
+        val expectedRange = snap.remainingFuelL!! / consumption * 100.0
+        assertEquals(expectedRange, snap.remainingRangeKm!!, 1.0)
+    }
+
+    @Test
+    fun `lowFuel is false when remaining fuel is above 15 percent`() {
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = 17.0)
+        engine.fillToFull()
+        // Only drive a short distance — well above 15 %
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 0.01, lng = 0.0))
+        assertFalse("lowFuel should be false when far from empty", engine.snapshot().lowFuel)
+    }
+
+    @Test
+    fun `lowFuel is true when remaining fuel is at or below 15 percent of capacity`() {
+        val tank = 17.0
+        val consumption = 5.0
+        engine.reset(fuelLper100km = consumption, tankCapacityL = tank)
+        engine.fillToFull()
+        // Drain to just below 15 %: consume 85 % of tank → drive 85 % of range
+        val drainKm = tank * 0.86 / consumption * 100.0
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = drainKm / 111.0, lng = 0.0))
+
+        assertTrue("lowFuel should be true when remaining ≤ 15 %", engine.snapshot().lowFuel)
+    }
+
+    @Test
+    fun `null tank capacity leaves remaining and range null and lowFuel false`() {
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = null)
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0))
+        val snap = engine.snapshot()
+        assertNull(snap.remainingFuelL)
+        assertNull(snap.remainingRangeKm)
+        assertFalse(snap.lowFuel)
+    }
+
+    @Test
+    fun `zero consumption with tank capacity yields null remainingRangeKm`() {
+        engine.reset(fuelLper100km = 0.0, tankCapacityL = 17.0)
+        engine.fillToFull()
+        val snap = engine.snapshot()
+        assertNull("remainingRangeKm should be null when consumption is 0 to avoid divide-by-zero", snap.remainingRangeKm)
+        // remainingFuelL should still equal tank capacity (no fuel consumed)
+        assertEquals(17.0, snap.remainingFuelL!!, 0.001)
+    }
+
+    @Test
+    fun `exportState and restore round-trip preserves fillAnchorKm and tankCapacityL`() {
+        engine.reset(fuelLper100km = 6.0, tankCapacityL = 20.0)
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0)) // ~111 km
+        engine.fillToFull()
+        // Drive a bit more
+        engine.onLocation(sample(lat = 1.1, lng = 0.0))
+
+        val exportedState = engine.exportState()
+        assertEquals(6.0, exportedState.sessionFuelLper100km, 0.0)
+        assertEquals(20.0, exportedState.tankCapacityL!!, 0.0)
+        // fillAnchorKm should be ~111 km (distance when fillToFull was called)
+        assertTrue("fillAnchorKm should be > 0 after fill", exportedState.fillAnchorKm > 0.0)
+
+        val restored = RecordingEngine()
+        restored.restore(exportedState)
+        val restoredSnap = restored.snapshot()
+        val originalSnap = engine.snapshot()
+
+        assertEquals(originalSnap.distanceSinceFullKm, restoredSnap.distanceSinceFullKm, 0.001)
+        assertEquals(originalSnap.remainingFuelL!!, restoredSnap.remainingFuelL!!, 0.001)
+        assertEquals(originalSnap.remainingRangeKm!!, restoredSnap.remainingRangeKm!!, 0.001)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

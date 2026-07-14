@@ -343,4 +343,10 @@
     <string name="action_edit_price">Modifier le prix</string>
     <string name="error_invalid_number">Nombre invalide</string>
     <string name="error_negative_number">La valeur doit être positive</string>
+
+    <!-- Action plein d\'essence (E4) -->
+    <string name="action_fill_to_full">Faire le plein</string>
+    <string name="label_fuel_remaining">Restant</string>
+    <string name="label_fuel_range">Autonomie</string>
+    <string name="warn_low_fuel">⚠ Carburant faible</string>
 </resources>

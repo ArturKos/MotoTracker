@@ -118,6 +118,9 @@ class RecordingViewModel @Inject constructor(
     /** Per-session fuel consumption resolved from the current bike; defaults to 5.0 L/100km. */
     private var currentBikeConsumption: Double = 5.0
 
+    /** Tank capacity of the current bike in litres; null when not configured (E4: fill-to-full inert). */
+    private var currentBikeTankCapacity: Double? = null
+
     /**
      * Route UUID pre-assigned when recording starts so BLE wave rows discovered
      * during the ride can reference the route before it is persisted at Finish.
@@ -142,11 +145,13 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             carBridge.commands.collect { event -> onEvent(event) }
         }
-        // Track the current bike's fuel consumption so doStart() passes the right rate to the engine.
+        // Track the current bike's fuel properties so doStart() passes the right values to the engine.
         combine(settingsSource.settings, bikeRepository.observeAll()) { s, bikes ->
-            bikes.find { it.id == s.currentBikeId }?.consumptionLper100km ?: 5.0
-        }.onEach { consumption ->
+            val bike = bikes.find { it.id == s.currentBikeId }
+            Pair(bike?.consumptionLper100km ?: 5.0, bike?.tankCapacityL)
+        }.onEach { (consumption, tankCap) ->
             currentBikeConsumption = consumption
+            currentBikeTankCapacity = tankCap
         }.launchIn(viewModelScope)
 
         // B20: Detect an unfinished session from a previous process lifetime.
@@ -169,19 +174,21 @@ class RecordingViewModel @Inject constructor(
             is RecordingEvent.Finish -> doFinish()
             is RecordingEvent.ResumeSession -> doResumeSession()
             is RecordingEvent.DiscardSession -> doDiscardSession()
+            is RecordingEvent.FillToFull -> doFillToFull()
         }
     }
 
     // ── State machine ────────────────────────────────────────────────────────
 
     private fun doStart() {
-        engine.reset(fuelLper100km = currentBikeConsumption)
+        engine.reset(fuelLper100km = currentBikeConsumption, tankCapacityL = currentBikeTankCapacity)
         rideDebugLogger.beginRide()
         recordingStartMs = timeProvider.nowEpochMs()
         pendingRouteId = UUID.randomUUID().toString()
         _uiState.update {
             it.copy(
                 phase = RecordingPhase.Recording,
+                metrics = engine.snapshot(),
                 trackPoints = emptyList(),
                 resumableSession = null,
                 activeRouteId = pendingRouteId,
@@ -335,6 +342,30 @@ class RecordingViewModel @Inject constructor(
         pendingRouteId = null
         _uiState.update { it.copy(resumableSession = null, activeRouteId = null) }
         viewModelScope.launch { sessionStore.clear() }
+    }
+
+    /**
+     * Re-anchors the fill point to the current odometer, resetting the fuel-remaining estimate (E4).
+     *
+     * Only meaningful when the current bike has a tank capacity configured; the engine method
+     * is safe to call regardless (it simply moves the fill anchor). The session snapshot is
+     * persisted so that a process-death resume preserves the fill event.
+     */
+    private fun doFillToFull() {
+        engine.fillToFull()
+        val km = engine.snapshot().distanceKm
+        rideDebugLogger.log("FUEL", "fill-to-full km=$km")
+        _uiState.update { it.copy(metrics = engine.snapshot()) }
+        viewModelScope.launch {
+            sessionStore.save(
+                ActiveSessionSnapshot(
+                    engineState = engine.exportState(),
+                    recordingStartMs = recordingStartMs,
+                    bikeId = currentBikeId,
+                    paused = _uiState.value.phase == RecordingPhase.Paused,
+                ),
+            )
+        }
     }
 
     // ── Background workers ───────────────────────────────────────────────────

@@ -11,8 +11,12 @@ import kotlin.math.sqrt
  *
  * Call [onLocation] for each GPS fix, [onLean] for each gravity-sensor reading,
  * and [tick] once per elapsed second. Call [reset] before starting a new session,
- * optionally supplying the bike's per-session consumption. Retrieve live metrics via
- * [snapshot] and the final persisted payload via [buildRoutePayload].
+ * optionally supplying the bike's per-session consumption and tank capacity. Retrieve
+ * live metrics via [snapshot] and the final persisted payload via [buildRoutePayload].
+ *
+ * The "fill to full" feature anchors the tank to full at a specific odometer reading;
+ * call [fillToFull] when the rider refuels. Remaining fuel and range are computed
+ * relative to the most-recent fill event (or session start when no fill has occurred).
  *
  * @param fuelLper100km Initial consumption constant (default 5.0 L/100km). Used before the
  *                      first [reset] call and for engines that are created with a pre-known
@@ -22,6 +26,17 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
 
     /** Consumption constant for the current or most-recently-started session. */
     private var sessionFuelLper100km: Double = fuelLper100km
+
+    /** Configured tank capacity in litres; null when the current bike has no capacity set. */
+    private var tankCapacityL: Double? = null
+
+    /** Accumulated distance in km at the last 'fill to full' event; 0.0 at session start. */
+    private var fillAnchorKm: Double = 0.0
+
+    private companion object {
+        /** Remaining-fuel fraction below which the low-fuel warning is raised (15 %). */
+        const val LOW_FUEL_FRACTION = 0.15
+    }
 
     private var prevLat: Double? = null
     private var prevLng: Double? = null
@@ -98,6 +113,22 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     fun snapshot(): RecordingMetrics {
         val avgSpeed = if (durationSec > 0) distanceKm / (durationSec / 3600.0) else 0.0
         val fuel = distanceKm * sessionFuelLper100km / 100.0
+        val distanceSinceFullKm = distanceKm - fillAnchorKm
+        val fuelSinceFullL = distanceSinceFullKm * sessionFuelLper100km / 100.0
+        val cap = tankCapacityL
+        val remainingFuelL: Double?
+        val remainingRangeKm: Double?
+        val lowFuel: Boolean
+        if (cap != null) {
+            val remaining = (cap - fuelSinceFullL).coerceAtLeast(0.0)
+            remainingFuelL = remaining
+            remainingRangeKm = if (sessionFuelLper100km > 0.0) remaining / sessionFuelLper100km * 100.0 else null
+            lowFuel = remaining <= LOW_FUEL_FRACTION * cap
+        } else {
+            remainingFuelL = null
+            remainingRangeKm = null
+            lowFuel = false
+        }
         return RecordingMetrics(
             distanceKm = distanceKm,
             durationSec = durationSec,
@@ -110,6 +141,11 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
             elevGainM = elevGainM,
             fuelL = fuel,
             headingDeg = headingDeg,
+            distanceSinceFullKm = distanceSinceFullKm,
+            tankCapacityL = cap,
+            remainingFuelL = remainingFuelL,
+            remainingRangeKm = remainingRangeKm,
+            lowFuel = lowFuel,
         )
     }
 
@@ -126,15 +162,20 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     )
 
     /**
-     * Resets all accumulated state and sets the per-session consumption rate.
+     * Resets all accumulated state and sets the per-session consumption rate and tank capacity.
      *
-     * Always call this before starting a new recording session.
+     * Always call this before starting a new recording session. Session start implicitly
+     * anchors the tank to full (i.e. [fillAnchorKm] is set to 0.0).
      *
      * @param fuelLper100km Fuel consumption constant for the new session in L/100km.
      *                      Defaults to 5.0 when no bike consumption is configured.
+     * @param tankCapacityL Configured tank capacity of the current bike in litres; null when
+     *                      the bike has no capacity set (fill-to-full feature inert).
      */
-    fun reset(fuelLper100km: Double = 5.0) {
+    fun reset(fuelLper100km: Double = 5.0, tankCapacityL: Double? = null) {
         sessionFuelLper100km = fuelLper100km
+        this.tankCapacityL = tankCapacityL
+        fillAnchorKm = 0.0
         prevLat = null; prevLng = null; prevAlt = null
         distanceKm = 0.0; durationSec = 0L
         currentSpeedKmh = 0.0; maxSpeedKmh = 0.0
@@ -144,10 +185,24 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     }
 
     /**
+     * Anchors the tank to full at the current odometer reading.
+     *
+     * After this call [snapshot] will report [RecordingMetrics.distanceSinceFullKm] as 0.0
+     * and [RecordingMetrics.remainingFuelL] as the full tank capacity (when configured).
+     * No-op when the engine is in an idle / never-started state.
+     */
+    fun fillToFull() {
+        fillAnchorKm = distanceKm
+    }
+
+    /**
      * Exports a full snapshot of all accumulator state as an immutable [RecordingEngineState].
      *
      * Safe to call at any point during a session; the returned object is independent of
-     * the engine's mutable lists (copies are taken).
+     * the engine's mutable lists (copies are taken). The fuel-model fields
+     * ([RecordingEngineState.sessionFuelLper100km], [RecordingEngineState.tankCapacityL],
+     * [RecordingEngineState.fillAnchorKm]) are included so that a B20-resumed ride keeps
+     * its fill-to-full anchor.
      */
     fun exportState(): RecordingEngineState = RecordingEngineState(
         prevLat = prevLat,
@@ -165,12 +220,17 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         pathPoints = pathPoints.toList(),
         speedOverTime = speedOverTime.toList(),
         elevOverDist = elevOverDist.toList(),
+        sessionFuelLper100km = sessionFuelLper100km,
+        tankCapacityL = tankCapacityL,
+        fillAnchorKm = fillAnchorKm,
     )
 
     /**
      * Overwrites all accumulator state from [state], resuming a previously exported session.
      *
-     * Replaces the mutable lists in-place and restores all scalar fields exactly.
+     * Replaces the mutable lists in-place and restores all scalar fields exactly, including
+     * the fuel-model fields ([sessionFuelLper100km], [tankCapacityL], [fillAnchorKm]) so
+     * that a B20-resumed ride continues with the correct fill-to-full anchor.
      * After calling this, [snapshot] and [buildRoutePayload] reflect the restored values.
      *
      * @param state Previously exported [RecordingEngineState].
@@ -188,6 +248,9 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         altitudeM = state.altitudeM
         elevGainM = state.elevGainM
         headingDeg = state.headingDeg
+        sessionFuelLper100km = state.sessionFuelLper100km
+        tankCapacityL = state.tankCapacityL
+        fillAnchorKm = state.fillAnchorKm
         pathPoints.clear(); pathPoints.addAll(state.pathPoints)
         speedOverTime.clear(); speedOverTime.addAll(state.speedOverTime)
         elevOverDist.clear(); elevOverDist.addAll(state.elevOverDist)

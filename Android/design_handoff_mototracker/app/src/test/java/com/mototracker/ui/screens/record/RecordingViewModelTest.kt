@@ -7,6 +7,7 @@ import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
@@ -621,6 +622,132 @@ class RecordingViewModelTest {
         val name = repo.saved.firstOrNull()?.name ?: ""
         assertTrue("throwing-geocoder route name should be non-blank", name.isNotBlank())
         assertFalse("throwing-geocoder route name should not contain en-dash separator", name.contains("–"))
+    }
+
+    // ── Fill-to-full (E4) ────────────────────────────────────────────────────
+
+    @Test
+    fun `doStart threads current bike tankCapacityL into engine`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = 17.0,
+            consumptionLper100km = 5.0,
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+        )
+        // Advance time to allow init-block coroutines (combine flow) to run.
+        advanceTimeBy(200L)
+
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(200L)
+
+        // Tank capacity should be present in metrics because the bike has it configured.
+        assertNotNull(
+            "tankCapacityL should be non-null when bike has it configured",
+            vm.uiState.value.metrics.tankCapacityL,
+        )
+        assertEquals(17.0, vm.uiState.value.metrics.tankCapacityL!!, 0.001)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `FillToFull event logs FUEL tag`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = 17.0,
+            consumptionLper100km = 5.0,
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            rideDebugLogger = fakeLogger,
+        )
+        advanceTimeBy(200L)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+
+        vm.onEvent(RecordingEvent.FillToFull)
+        advanceTimeBy(100L)
+
+        assertTrue(
+            "FUEL log expected after FillToFull",
+            fakeLogger.logCalls.any { it.first == "FUEL" && it.second.contains("fill-to-full") },
+        )
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `FillToFull event resets distanceSinceFullKm and updates metrics`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = 17.0,
+            consumptionLper100km = 5.0,
+        )
+        val locationFlow = kotlinx.coroutines.flow.flowOf(
+            LocationSample(lat = 0.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 1000L),
+            LocationSample(lat = 1.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 2000L),
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            locationClient = FakeLocationClient(locationFlow),
+        )
+        advanceTimeBy(200L)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(300L)
+
+        // After driving ~111 km, distance since full should be > 0
+        val distanceBeforeFill = vm.uiState.value.metrics.distanceSinceFullKm
+        assertTrue("distanceSinceFullKm should be > 0 after driving", distanceBeforeFill > 0.0)
+
+        vm.onEvent(RecordingEvent.FillToFull)
+        advanceTimeBy(100L)
+
+        assertEquals(0.0, vm.uiState.value.metrics.distanceSinceFullKm, 0.001)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `FillToFull event persists snapshot to session store`() = runTest(testDispatcher) {
+        val bike = Bike(
+            id = "bike-1",
+            name = "Test Bike",
+            year = 2020,
+            plate = "AB1234",
+            status = BikeStatus.ACTIVE,
+            tankCapacityL = 17.0,
+            consumptionLper100km = 5.0,
+        )
+        val store = FakeRecordingSessionStore()
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = "bike-1"),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            sessionStore = store,
+        )
+        advanceTimeBy(200L)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+        val savesBefore = store.saveCalls.size
+
+        vm.onEvent(RecordingEvent.FillToFull)
+        advanceTimeBy(100L)
+
+        assertTrue("FillToFull should persist session snapshot", store.saveCalls.size > savesBefore)
+        vm.onEvent(RecordingEvent.Pause)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

@@ -373,4 +373,10 @@
     <string name="action_edit_price">Edit price</string>
     <string name="error_invalid_number">Invalid number</string>
     <string name="error_negative_number">Value must be positive</string>
+
+    <!-- Fill-to-full quick action (E4) -->
+    <string name="action_fill_to_full">Fill to full</string>
+    <string name="label_fuel_remaining">Remaining</string>
+    <string name="label_fuel_range">Range</string>
+    <string name="warn_low_fuel">⚠ Low fuel</string>
 </resources>

@@ -343,4 +343,10 @@
     <string name="action_edit_price">Upravit cenu</string>
     <string name="error_invalid_number">Neplatné číslo</string>
     <string name="error_negative_number">Hodnota musí být kladná</string>
+
+    <!-- Akce plné nádrže (E4) -->
+    <string name="action_fill_to_full">Natankovat plnou nádrž</string>
+    <string name="label_fuel_remaining">Zbývá</string>
+    <string name="label_fuel_range">Dojezd</string>
+    <string name="warn_low_fuel">⚠ Málo paliva</string>
 </resources>

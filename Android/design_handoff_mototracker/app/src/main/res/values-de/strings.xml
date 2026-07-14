@@ -343,4 +343,10 @@
     <string name="action_edit_price">Preis bearbeiten</string>
     <string name="error_invalid_number">Ungültige Zahl</string>
     <string name="error_negative_number">Wert muss positiv sein</string>
+
+    <!-- Tanken-Aktion (E4) -->
+    <string name="action_fill_to_full">Volltanken</string>
+    <string name="label_fuel_remaining">Restmenge</string>
+    <string name="label_fuel_range">Reichweite</string>
+    <string name="warn_low_fuel">⚠ Wenig Kraftstoff</string>
 </resources>

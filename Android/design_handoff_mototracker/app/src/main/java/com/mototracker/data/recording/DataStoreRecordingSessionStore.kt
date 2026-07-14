@@ -95,6 +95,9 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
                 arr.put(JSONObject().put("d", d).put("a", a))
             }
         })
+        put("fuelRate", e.sessionFuelLper100km)
+        if (e.tankCapacityL != null) put("tankCap", e.tankCapacityL) else put("tankCap", JSONObject.NULL)
+        put("fillAnchorKm", e.fillAnchorKm)
     }.toString()
 }
 
@@ -138,6 +141,9 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
             val p = elevArr.getJSONObject(i)
             p.getDouble("d") to p.getDouble("a")
         },
+        sessionFuelLper100km = o.optDouble("fuelRate", 5.0),
+        tankCapacityL = o.optDoubleOrNull("tankCap"),
+        fillAnchorKm = o.optDouble("fillAnchorKm", 0.0),
     )
     ActiveSessionSnapshot(
         engineState = engineState,

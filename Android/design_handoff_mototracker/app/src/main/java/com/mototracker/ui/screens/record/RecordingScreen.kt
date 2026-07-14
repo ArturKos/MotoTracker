@@ -236,6 +236,7 @@ fun RecordingContent(
                 SpeedAndTimeRow(state)
                 Spacer(Modifier.height(6.dp))
                 DistanceAltitudeFuelRow(state)
+                FuelTankRow(state = state, onEvent = onEvent)
                 Spacer(Modifier.height(6.dp))
                 LeanCompassRow(state)
                 Spacer(Modifier.height(12.dp))
@@ -435,6 +436,75 @@ private fun TimeTile(durationSec: Long, modifier: Modifier = Modifier) {
             text = timeText,
             style = MotoTracker.typography.timer,
             color = MotoTracker.colors.text,
+        )
+    }
+}
+
+/**
+ * Fuel-tank row shown below the distance/altitude/fuel row when the current bike has a
+ * tank capacity configured. Displays remaining fuel, remaining range, an optional low-fuel
+ * warning, and a "fill to full" quick-action button.
+ *
+ * Hidden entirely when [RecordingUiState.metrics.tankCapacityL] is null (bike not configured).
+ *
+ * @param state   Current recording UI state.
+ * @param onEvent Callback for dispatching [RecordingEvent.FillToFull].
+ */
+@Composable
+private fun FuelTankRow(state: RecordingUiState, onEvent: (RecordingEvent) -> Unit) {
+    val metrics = state.metrics
+    if (metrics.tankCapacityL == null) return
+
+    val isActive = state.phase == RecordingPhase.Recording || state.phase == RecordingPhase.Paused
+    Spacer(Modifier.height(4.dp))
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Remaining fuel tile
+        metrics.remainingFuelL?.let { remaining ->
+            SmallMetricTile(
+                label = stringResource(R.string.label_fuel_remaining),
+                value = String.format(Locale.US, "%.1f", remaining),
+                unit = stringResource(R.string.unit_fuel_short),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // Remaining range tile
+        metrics.remainingRangeKm?.let { range ->
+            SmallMetricTile(
+                label = stringResource(R.string.label_fuel_range),
+                value = String.format(Locale.US, "%.0f", range),
+                unit = stringResource(R.string.unit_km),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // Fill-to-full button
+        OutlinedButton(
+            onClick = { onEvent(RecordingEvent.FillToFull) },
+            enabled = isActive,
+            modifier = Modifier.height(48.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MotoTracker.colors.accent,
+            ),
+        ) {
+            Text(
+                text = stringResource(R.string.action_fill_to_full),
+                style = MotoTracker.typography.label,
+            )
+        }
+    }
+    // Low-fuel warning
+    if (metrics.lowFuel) {
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.warn_low_fuel),
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.accent2,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
         )
     }
 }

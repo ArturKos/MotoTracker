@@ -65,6 +65,14 @@ sealed class RecordingEvent {
     data object ResumeSession : RecordingEvent()
     /** User chose to discard an interrupted session detected on startup (B20). */
     data object DiscardSession : RecordingEvent()
+    /**
+     * User tapped the fuel-pump quick action to log a refuel-to-full event (E4).
+     *
+     * Re-anchors the fill point to the current odometer reading so that remaining
+     * fuel and range are computed relative to a full tank from this moment onward.
+     * Ignored when the current bike has no tank capacity configured.
+     */
+    data object FillToFull : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

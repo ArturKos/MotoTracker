@@ -343,4 +343,10 @@
     <string name="action_edit_price">Изменить цену</string>
     <string name="error_invalid_number">Неверное число</string>
     <string name="error_negative_number">Значение должно быть положительным</string>
+
+    <!-- Действие полного бака (E4) -->
+    <string name="action_fill_to_full">Заправить полный бак</string>
+    <string name="label_fuel_remaining">Остаток</string>
+    <string name="label_fuel_range">Запас хода</string>
+    <string name="warn_low_fuel">⚠ Мало топлива</string>
 </resources>

@@ -362,4 +362,11 @@
     <string name="compass_sw">ЮЗ</string>
     <string name="compass_w">З</string>
     <string name="compass_nw">СЗ</string>
+
+    <!-- Полоса крена — раздельный макс. Л/П (E7) -->
+    <string name="label_lean_tilt">Крен</string>
+    <string name="label_lean_left_marker">Л</string>
+    <string name="label_lean_right_marker">П</string>
+    <string name="label_lean_max_left">Макс. Л</string>
+    <string name="label_lean_max_right">Макс. П</string>
 </resources>

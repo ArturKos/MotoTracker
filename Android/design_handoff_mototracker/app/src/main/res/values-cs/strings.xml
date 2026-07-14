@@ -362,4 +362,11 @@
     <string name="compass_sw">JZ</string>
     <string name="compass_w">Z</string>
     <string name="compass_nw">SZ</string>
+
+    <!-- Lišta náklonu — oddělené max. L/P (E7) -->
+    <string name="label_lean_tilt">Náklon</string>
+    <string name="label_lean_left_marker">L</string>
+    <string name="label_lean_right_marker">P</string>
+    <string name="label_lean_max_left">Max L</string>
+    <string name="label_lean_max_right">Max P</string>
 </resources>

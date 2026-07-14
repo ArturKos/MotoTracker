@@ -48,12 +48,15 @@ class MapperTest {
             lean = 42.0, elev = 1200.0, fuel = 12.3, synced = false,
             wxJson = """{"temp":20}""", speedJson = "[]",
             elevProfileJson = "[]", notes = "Great roads",
+            maxLeanLeftDeg = 31.5, maxLeanRightDeg = 42.0,
         )
         val domain = entity.toDomain()
         assertEquals(entity.id, domain.id)
         assertEquals(entity.km, domain.km, 0.001)
         assertEquals(entity.wxJson, domain.wxJson)
         assertEquals(entity.notes, domain.notes)
+        assertEquals(entity.maxLeanLeftDeg, domain.maxLeanLeftDeg, 0.001)
+        assertEquals(entity.maxLeanRightDeg, domain.maxLeanRightDeg, 0.001)
     }
 
     @Test
@@ -63,8 +66,22 @@ class MapperTest {
             km = 0.0, durSec = 0L, avg = 0.0, max = 0.0, lean = 0.0,
             elev = 0.0, fuel = 0.0, synced = true,
             wxJson = null, speedJson = null, elevProfileJson = null, notes = null,
+            maxLeanLeftDeg = 18.0, maxLeanRightDeg = 22.5,
         )
         assertEquals(entity, entity.toDomain().toEntity())
+    }
+
+    @Test
+    fun `RouteEntity toDomain defaults maxLeanLeftDeg and maxLeanRightDeg to zero`() {
+        val entity = RouteEntity(
+            id = "r9", name = "Old Ride", dateEpochMs = 0L, bikeId = null,
+            km = 10.0, durSec = 600L, avg = 60.0, max = 80.0, lean = 5.0,
+            elev = 0.0, fuel = 0.5, synced = true,
+            wxJson = null, speedJson = null, elevProfileJson = null, notes = null,
+        )
+        val domain = entity.toDomain()
+        assertEquals(0.0, domain.maxLeanLeftDeg, 0.0)
+        assertEquals(0.0, domain.maxLeanRightDeg, 0.0)
     }
 
     // ── GroupMember ─────────────────────────────────────────────────────────

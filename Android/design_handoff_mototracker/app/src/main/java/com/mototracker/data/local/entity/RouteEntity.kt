@@ -1,5 +1,6 @@
 package com.mototracker.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -36,6 +37,8 @@ import androidx.room.PrimaryKey
  * @param confidence         OSRM matching confidence score (0–1); null when not yet attempted.
  * @param fuelPricePerL      Per-route fuel price override (user's currency/L); null → fall back to
  *                           the assigned bike's [BikeEntity.fuelPricePerL].
+ * @param maxLeanLeftDeg     Non-negative magnitude of the peak leftward lean recorded on this route, in degrees (E7).
+ * @param maxLeanRightDeg    Non-negative magnitude of the peak rightward lean recorded on this route, in degrees (E7).
  */
 @Entity(
     tableName = "routes",
@@ -68,4 +71,8 @@ data class RouteEntity(
     val correctionStatus: CorrectionStatus = CorrectionStatus.NONE,
     val confidence: Double? = null,
     val fuelPricePerL: Double? = null,
+    @ColumnInfo(defaultValue = "0")
+    val maxLeanLeftDeg: Double = 0.0,
+    @ColumnInfo(defaultValue = "0")
+    val maxLeanRightDeg: Double = 0.0,
 )

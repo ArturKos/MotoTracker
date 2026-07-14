@@ -57,6 +57,10 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     private var maxSpeedKmh: Double = 0.0
     private var currentLeanDeg: Double = 0.0
     private var maxLeanDeg: Double = 0.0
+    /** Non-negative magnitude of the peak leftward lean this session (positive deg = right). */
+    private var maxLeanLeftDeg: Double = 0.0
+    /** Non-negative magnitude of the peak rightward lean this session. */
+    private var maxLeanRightDeg: Double = 0.0
     private var altitudeM: Double = 0.0
     private var elevGainM: Double = 0.0
     private var headingDeg: Float = 0f
@@ -108,12 +112,15 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     /**
      * Updates the lean-angle state with [deg] degrees from [LeanAngleCalculator].
      *
-     * Tracks the session maximum absolute lean.
+     * Tracks the session maximum absolute lean, and separately the maximum left and right lean
+     * magnitudes. Positive [deg] means lean right; negative means lean left.
      */
     fun onLean(deg: Double) {
         currentLeanDeg = deg
         val abs = kotlin.math.abs(deg)
         if (abs > maxLeanDeg) maxLeanDeg = abs
+        if (deg < 0) { val mag = -deg; if (mag > maxLeanLeftDeg) maxLeanLeftDeg = mag }
+        if (deg > 0) { if (deg > maxLeanRightDeg) maxLeanRightDeg = deg }
     }
 
     /**
@@ -157,6 +164,8 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
             maxSpeedKmh = maxSpeedKmh,
             currentLeanDeg = currentLeanDeg,
             maxLeanDeg = maxLeanDeg,
+            maxLeanLeftDeg = maxLeanLeftDeg,
+            maxLeanRightDeg = maxLeanRightDeg,
             altitudeM = altitudeM,
             elevGainM = elevGainM,
             fuelL = fuel,
@@ -200,6 +209,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         distanceKm = 0.0; durationSec = 0L; movingSec = 0L
         currentSpeedKmh = 0.0; maxSpeedKmh = 0.0
         currentLeanDeg = 0.0; maxLeanDeg = 0.0
+        maxLeanLeftDeg = 0.0; maxLeanRightDeg = 0.0
         altitudeM = 0.0; elevGainM = 0.0; headingDeg = 0f
         pathPoints.clear(); speedOverTime.clear(); elevOverDist.clear()
     }
@@ -235,6 +245,8 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         maxSpeedKmh = maxSpeedKmh,
         currentLeanDeg = currentLeanDeg,
         maxLeanDeg = maxLeanDeg,
+        maxLeanLeftDeg = maxLeanLeftDeg,
+        maxLeanRightDeg = maxLeanRightDeg,
         altitudeM = altitudeM,
         elevGainM = elevGainM,
         headingDeg = headingDeg,
@@ -267,6 +279,8 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         maxSpeedKmh = state.maxSpeedKmh
         currentLeanDeg = state.currentLeanDeg
         maxLeanDeg = state.maxLeanDeg
+        maxLeanLeftDeg = state.maxLeanLeftDeg
+        maxLeanRightDeg = state.maxLeanRightDeg
         altitudeM = state.altitudeM
         elevGainM = state.elevGainM
         headingDeg = state.headingDeg

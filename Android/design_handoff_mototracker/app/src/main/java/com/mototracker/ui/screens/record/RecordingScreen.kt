@@ -60,7 +60,6 @@ import com.mototracker.ui.permissions.rememberFeaturePermission
 import com.mototracker.ui.map.OsmTrackMap
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -583,44 +582,12 @@ private fun DistanceAltitudeFuelRow(state: RecordingUiState) {
 
 @Composable
 private fun LeanRow(state: RecordingUiState) {
-    LeanTile(leanDeg = state.metrics.currentLeanDeg, modifier = Modifier.fillMaxWidth())
-}
-
-@Composable
-private fun LeanTile(leanDeg: Double, modifier: Modifier = Modifier) {
-    MetricTile(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.tile_lean),
-            style = MotoTracker.typography.label,
-            color = MotoTracker.colors.dim,
-        )
-        Box(
-            Modifier.size(48.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            // Bike silhouette rotated by lean angle
-            Canvas(
-                Modifier
-                    .size(40.dp)
-                    .rotate(leanDeg.toFloat()),
-            ) {
-                val cx = size.width / 2
-                val cy = size.height / 2
-                drawLine(
-                    color = Color.White,
-                    start = Offset(cx, cy - size.height * 0.4f),
-                    end = Offset(cx, cy + size.height * 0.4f),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round,
-                )
-            }
-        }
-        Text(
-            text = String.format(Locale.US, "%.1f°", abs(leanDeg)),
-            style = MotoTracker.typography.bigCardNumber,
-            color = MotoTracker.colors.text,
-        )
-    }
+    LeanTiltBar(
+        currentLeanDeg = state.metrics.currentLeanDeg,
+        maxLeanLeftDeg = state.metrics.maxLeanLeftDeg,
+        maxLeanRightDeg = state.metrics.maxLeanRightDeg,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /**

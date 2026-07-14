@@ -36,6 +36,7 @@ import com.mototracker.data.local.entity.WaveEntity
  * - 2 → 3: Moved pathJson/correctedPathJson out-of-row to route_trace_chunk; added thumbnailPathD (D11 CursorWindow fix).
  * - 3 → 4: Added per-bike fuel model columns (tankCapacityL, fuelPricePerL, consumptionLper100km) to bikes;
  *           added per-route fuel price override (fuelPricePerL) to routes (E3).
+ * - 4 → 5: Added maxLeanLeftDeg and maxLeanRightDeg (NOT NULL DEFAULT 0) to routes (E7 separate L/R lean tracking).
  */
 @Database(
     entities = [
@@ -47,7 +48,7 @@ import com.mototracker.data.local.entity.WaveEntity
         SyncQueueEntity::class,
         CorrectionQueueEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -73,7 +74,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
     }
 }
 
@@ -250,5 +251,18 @@ private val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("ALTER TABLE bikes ADD COLUMN fuelPricePerL REAL")
         db.execSQL("ALTER TABLE bikes ADD COLUMN consumptionLper100km REAL")
         db.execSQL("ALTER TABLE routes ADD COLUMN fuelPricePerL REAL")
+    }
+}
+
+/**
+ * Schema migration from version 4 to 5 (E7 — separate max-left/right lean tracking).
+ *
+ * Adds two NOT NULL REAL columns with DEFAULT 0 to `routes` so that existing rows
+ * have a well-defined zero value for rides recorded before E7.
+ */
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE routes ADD COLUMN maxLeanLeftDeg REAL NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE routes ADD COLUMN maxLeanRightDeg REAL NOT NULL DEFAULT 0")
     }
 }

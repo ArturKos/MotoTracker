@@ -98,6 +98,8 @@ data class MeetingUi(
  *                                 null when neither a route override nor a bike price is configured.
  * @param isFuelPriceRouteOverride `true` when [effectiveFuelPricePerL] comes from a per-route
  *                                 override rather than the bike default.
+ * @param maxLeanLeftDeg           Non-negative magnitude of the peak leftward lean on this route, in degrees (E7).
+ * @param maxLeanRightDeg          Non-negative magnitude of the peak rightward lean on this route, in degrees (E7).
  */
 data class RouteDetailUiState(
     val loading: Boolean = true,
@@ -135,4 +137,6 @@ data class RouteDetailUiState(
     val fuelCostDisplay: String = "",
     val effectiveFuelPricePerL: Double? = null,
     val isFuelPriceRouteOverride: Boolean = false,
+    val maxLeanLeftDeg: Double = 0.0,
+    val maxLeanRightDeg: Double = 0.0,
 )

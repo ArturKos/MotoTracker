@@ -16,6 +16,8 @@ package com.mototracker.domain.recording
  * @param maxSpeedKmh           Maximum speed in km/h reached during the session.
  * @param currentLeanDeg        Most-recent lean angle in degrees from the gravity sensor.
  * @param maxLeanDeg            Maximum absolute lean angle in degrees during the session.
+ * @param maxLeanLeftDeg        Non-negative magnitude of the peak leftward lean; defaults to 0 for backward-compat with older snapshots.
+ * @param maxLeanRightDeg       Non-negative magnitude of the peak rightward lean; defaults to 0 for backward-compat with older snapshots.
  * @param altitudeM             Current altitude in metres from the last GPS fix.
  * @param elevGainM             Accumulated elevation gain in metres.
  * @param headingDeg            Current GPS bearing in degrees (0–360, 0 = North).
@@ -37,6 +39,8 @@ data class RecordingEngineState(
     val maxSpeedKmh: Double,
     val currentLeanDeg: Double,
     val maxLeanDeg: Double,
+    val maxLeanLeftDeg: Double = 0.0,
+    val maxLeanRightDeg: Double = 0.0,
     val altitudeM: Double,
     val elevGainM: Double,
     val headingDeg: Float,

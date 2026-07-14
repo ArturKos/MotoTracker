@@ -36,6 +36,8 @@ fun RouteEntity.toDomain(pathJson: String? = null, correctedPathJson: String? = 
     correctionStatus = correctionStatus,
     confidence = confidence,
     fuelPricePerL = fuelPricePerL,
+    maxLeanLeftDeg = maxLeanLeftDeg,
+    maxLeanRightDeg = maxLeanRightDeg,
 )
 
 /**
@@ -67,6 +69,8 @@ fun Route.toEntity(): RouteEntity = RouteEntity(
     correctionStatus = correctionStatus,
     confidence = confidence,
     fuelPricePerL = fuelPricePerL,
+    maxLeanLeftDeg = maxLeanLeftDeg,
+    maxLeanRightDeg = maxLeanRightDeg,
 )
 
 /**

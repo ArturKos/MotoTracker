@@ -64,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.core.format.WeatherUi
 import com.mototracker.ui.map.OsmTrackMap
+import com.mototracker.ui.screens.record.FrozenLeanTiltBar
 import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.flow.collectLatest
@@ -445,6 +446,13 @@ private fun StatGrid(state: RouteDetailUiState) {
                     color = MotoTracker.colors.text,
                 )
             }
+        }
+        if (state.maxLeanLeftDeg > 0.0 || state.maxLeanRightDeg > 0.0) {
+            FrozenLeanTiltBar(
+                maxLeanLeftDeg = state.maxLeanLeftDeg,
+                maxLeanRightDeg = state.maxLeanRightDeg,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

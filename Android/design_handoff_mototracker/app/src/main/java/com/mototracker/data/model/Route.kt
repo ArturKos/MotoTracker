@@ -30,6 +30,8 @@ import com.mototracker.data.local.entity.CorrectionStatus
  * @param confidence         OSRM matching confidence score (0–1); null when not yet attempted.
  * @param fuelPricePerL      Per-route fuel price override (user's currency/L); null → fall back to
  *                           the assigned bike's price.
+ * @param maxLeanLeftDeg     Non-negative magnitude of the peak leftward lean, in degrees (E7).
+ * @param maxLeanRightDeg    Non-negative magnitude of the peak rightward lean, in degrees (E7).
  */
 data class Route(
     val id: String,
@@ -53,4 +55,6 @@ data class Route(
     val correctionStatus: CorrectionStatus = CorrectionStatus.NONE,
     val confidence: Double? = null,
     val fuelPricePerL: Double? = null,
+    val maxLeanLeftDeg: Double = 0.0,
+    val maxLeanRightDeg: Double = 0.0,
 )

@@ -297,6 +297,8 @@ class RecordingViewModel @Inject constructor(
                 speedJson = result.speedJson,
                 elevProfileJson = result.elevProfileJson,
                 notes = null,
+                maxLeanLeftDeg = result.metrics.maxLeanLeftDeg,
+                maxLeanRightDeg = result.metrics.maxLeanRightDeg,
             )
 
             routeRepository.save(route)

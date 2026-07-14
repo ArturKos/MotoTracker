@@ -362,4 +362,11 @@
     <string name="compass_sw">SO</string>
     <string name="compass_w">O</string>
     <string name="compass_nw">NO</string>
+
+    <!-- Barre d\'inclinaison — suivi max G/D séparé (E7) -->
+    <string name="label_lean_tilt">Inclinaison</string>
+    <string name="label_lean_left_marker">G</string>
+    <string name="label_lean_right_marker">D</string>
+    <string name="label_lean_max_left">Max G</string>
+    <string name="label_lean_max_right">Max D</string>
 </resources>

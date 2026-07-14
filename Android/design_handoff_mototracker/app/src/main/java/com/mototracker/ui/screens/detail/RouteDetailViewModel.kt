@@ -395,6 +395,8 @@ class RouteDetailViewModel @Inject constructor(
             fuelCostDisplay = fuelCostDisplay,
             effectiveFuelPricePerL = effectivePricePerL,
             isFuelPriceRouteOverride = route.fuelPricePerL != null,
+            maxLeanLeftDeg = route.maxLeanLeftDeg,
+            maxLeanRightDeg = route.maxLeanRightDeg,
         )
     }
 

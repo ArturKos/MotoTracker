@@ -637,6 +637,11 @@ private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
     }
     val cardinalLabel = stringResource(cardinalRes)
 
+    val compassNLabel = stringResource(R.string.compass_n)
+    val compassELabel = stringResource(R.string.compass_e)
+    val compassSLabel = stringResource(R.string.compass_s)
+    val compassWLabel = stringResource(R.string.compass_w)
+
     val accent = MotoTracker.colors.accent
     val ringColor = Color.White.copy(alpha = 0.25f)
     val tickDim = Color.White.copy(alpha = 0.55f)
@@ -708,25 +713,25 @@ private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
                 }
                 // N/E/S/W cardinal text labels at the 4 compass points — rotate with the rose.
                 Text(
-                    text = "N",
+                    text = compassNLabel,
                     style = MotoTracker.typography.label,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
                 Text(
-                    text = "E",
+                    text = compassELabel,
                     style = MotoTracker.typography.label,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.align(Alignment.CenterEnd),
                 )
                 Text(
-                    text = "S",
+                    text = compassSLabel,
                     style = MotoTracker.typography.label,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
                 Text(
-                    text = "W",
+                    text = compassWLabel,
                     style = MotoTracker.typography.label,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.align(Alignment.CenterStart),

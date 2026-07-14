@@ -43,7 +43,7 @@ class SyncQueueDaoTest {
         id = id, name = "Route", dateEpochMs = 0L, bikeId = null,
         km = 0.0, durSec = 0L, avg = 0.0, max = 0.0, lean = 0.0,
         elev = 0.0, fuel = 0.0, synced = false,
-        wxJson = null, pathJson = null, speedJson = null, elevProfileJson = null, notes = null,
+        wxJson = null, speedJson = null, elevProfileJson = null, notes = null,
     )
 
     private fun queueEntry(routeId: String, state: SyncQueueState, retryMs: Long? = null) =

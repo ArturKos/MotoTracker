@@ -7,6 +7,7 @@ import com.mototracker.data.local.entity.RouteEntity
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,6 +17,10 @@ import org.robolectric.annotation.Config
 /**
  * DAO round-trip tests for [com.mototracker.data.local.dao.RouteDao] using an
  * in-memory Room database on the Robolectric JVM runtime.
+ *
+ * The list query is [com.mototracker.data.local.dao.RouteDao.observeSummaries], which projects
+ * only scalar columns into [com.mototracker.data.model.RouteSummaryModel] (no trace blobs), so
+ * assertions here inspect summary fields rather than the full [RouteEntity].
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -50,46 +55,41 @@ class RouteDaoTest {
         fuel = 5.0,
         synced = false,
         wxJson = null,
-        pathJson = null,
         speedJson = null,
         elevProfileJson = null,
         notes = null,
     )
 
     @Test
-    fun `upsert inserts a route and getAll emits it`() = runTest {
-        val r = route("r1", dateEpochMs = 1000L)
+    fun `upsert inserts a route and observeSummaries emits it`() = runTest {
+        db.routeDao().upsert(route("r1", dateEpochMs = 1000L))
 
-        db.routeDao().upsert(r)
-
-        db.routeDao().getAll().test {
-            assertEquals(listOf(r), awaitItem())
+        db.routeDao().observeSummaries().test {
+            val list = awaitItem()
+            assertEquals(1, list.size)
+            assertEquals("r1", list[0].id)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `getAll returns routes ordered by date descending`() = runTest {
-        val older = route("r1", dateEpochMs = 1000L)
-        val newer = route("r2", dateEpochMs = 2000L)
+    fun `observeSummaries returns routes ordered by date descending`() = runTest {
+        db.routeDao().upsert(route("r1", dateEpochMs = 1000L))
+        db.routeDao().upsert(route("r2", dateEpochMs = 2000L))
 
-        db.routeDao().upsert(older)
-        db.routeDao().upsert(newer)
-
-        db.routeDao().getAll().test {
-            val list = awaitItem()
-            assertEquals(listOf(newer, older), list)
+        db.routeDao().observeSummaries().test {
+            val ids = awaitItem().map { it.id }
+            assertEquals(listOf("r2", "r1"), ids)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
     fun `setSynced updates the synced flag`() = runTest {
-        val r = route("r1")
-        db.routeDao().upsert(r)
+        db.routeDao().upsert(route("r1"))
         db.routeDao().setSynced("r1", true)
 
-        db.routeDao().getAll().test {
+        db.routeDao().observeSummaries().test {
             val list = awaitItem()
             assertEquals(true, list[0].synced)
             cancelAndIgnoreRemainingEvents()
@@ -102,8 +102,8 @@ class RouteDaoTest {
         db.routeDao().upsert(r)
         db.routeDao().delete(r)
 
-        db.routeDao().getAll().test {
-            assertEquals(emptyList<RouteEntity>(), awaitItem())
+        db.routeDao().observeSummaries().test {
+            assertTrue(awaitItem().isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }

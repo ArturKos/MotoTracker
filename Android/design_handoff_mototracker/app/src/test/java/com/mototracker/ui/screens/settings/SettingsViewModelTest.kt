@@ -6,6 +6,8 @@ import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
+import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.repository.BackupRepository
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
@@ -19,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -102,7 +105,8 @@ private class FakeRouteRepository : RouteRepository {
 
     fun emit(routes: List<Route>) { _flow.value = routes }
     override suspend fun save(route: Route) { _flow.value = _flow.value + route }
-    override fun observeAll(): Flow<List<Route>> = _flow
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> =
+        _flow.map { list -> list.map { it.toRouteSummaryModel() } }
     override suspend fun getById(id: String): Route? = _flow.value.find { it.id == id }
     override fun observeById(id: String): Flow<Route?> = MutableStateFlow(_flow.value.find { it.id == id })
     override suspend fun clearCorrectedTrace(id: String) { /* stub */ }

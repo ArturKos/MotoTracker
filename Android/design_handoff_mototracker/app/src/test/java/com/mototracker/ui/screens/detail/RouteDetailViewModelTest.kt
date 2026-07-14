@@ -6,7 +6,9 @@ import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.Wave
+import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.GpsCorrectionRepository
 import com.mototracker.data.repository.RouteRepository
@@ -46,7 +48,8 @@ private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     fun emit(route: Route?) { _flow.value = route }
 
     override suspend fun save(route: Route) { _flow.value = route }
-    override fun observeAll(): Flow<List<Route>> = _flow.map { listOfNotNull(it) }
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> =
+        _flow.map { r -> listOfNotNull(r).map { it.toRouteSummaryModel() } }
     override suspend fun getById(id: String): Route? = _flow.value?.takeIf { it.id == id }
 
     /** Live stream — re-emits whenever [emit] changes the stored route. */

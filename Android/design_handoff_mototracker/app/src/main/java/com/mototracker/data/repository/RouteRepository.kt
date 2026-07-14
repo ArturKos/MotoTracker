@@ -1,10 +1,15 @@
 package com.mototracker.data.repository
 
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import kotlinx.coroutines.flow.Flow
 
 /**
  * Persistence contract for recorded routes.
+ *
+ * List views should use [observeSummaries] (scalar columns only — no trace blobs) to avoid
+ * CursorWindow overflow on long rides. Detail views and exports should call [getById] or
+ * [observeById] which reassemble the full GPS trace from out-of-row chunks.
  *
  * All writes are suspend functions; reads return [Flow] so the UI reacts to new routes
  * saved during or after recording.
@@ -14,17 +19,27 @@ interface RouteRepository {
     /**
      * Persists [route] to local storage, inserting or replacing any row with the same [Route.id].
      *
+     * Splits [Route.pathJson] and [Route.correctedPathJson] into chunks stored in
+     * [com.mototracker.data.local.entity.RouteTraceChunkEntity] and computes a bounded
+     * [com.mototracker.data.local.entity.RouteEntity.thumbnailPathD] from the downsampled raw trace.
+     *
      * @param route The route to save.
      */
     suspend fun save(route: Route)
 
     /**
-     * Returns a live stream of all routes ordered by [Route.dateEpochMs] descending.
+     * Returns a live stream of lightweight route summaries ordered by [RouteSummaryModel.dateEpochMs] descending.
+     *
+     * Only scalar columns and the precomputed thumbnail path are included — no GPS trace blobs.
+     * This stream is safe to collect on screens that display a list of potentially hundreds of routes.
      */
-    fun observeAll(): Flow<List<Route>>
+    fun observeSummaries(): Flow<List<RouteSummaryModel>>
 
     /**
      * Returns the route with the given [id], or `null` if no such route exists.
+     *
+     * The full GPS trace ([Route.pathJson] and [Route.correctedPathJson]) is reassembled
+     * from chunk rows and included in the result.
      *
      * @param id The route UUID to look up.
      */
@@ -33,7 +48,9 @@ interface RouteRepository {
     /**
      * Returns a live [kotlinx.coroutines.flow.Flow] of the route with [id], emitting `null`
      * when no such route exists. Re-emits whenever the underlying row changes (e.g. after
-     * GPS correction updates [Route.correctedPathJson] or [Route.correctionStatus]).
+     * GPS correction updates [Route.correctionStatus] or [Route.confidence]).
+     *
+     * The full GPS trace is reassembled from chunk rows on each emission.
      *
      * @param id The route UUID to observe.
      */

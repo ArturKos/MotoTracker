@@ -5,13 +5,19 @@ import androidx.room.Delete
 import androidx.room.Query
 import androidx.room.Upsert
 import com.mototracker.data.local.entity.RouteEntity
+import com.mototracker.data.model.RouteSummaryModel
 import kotlinx.coroutines.flow.Flow
 
 /**
  * Data Access Object for [RouteEntity] rows.
  *
- * All mutations are suspend functions; queries return [Flow] so the UI
- * reacts to new routes saved during or after recording.
+ * All mutations are suspend functions; queries that drive UI return [Flow] so screens
+ * react immediately to new routes saved during or after recording.
+ *
+ * GPS trace data (pathJson / correctedPathJson) has been moved out-of-row into
+ * [com.mototracker.data.local.entity.RouteTraceChunkEntity]. List queries therefore
+ * return lightweight projections via [observeSummaries]; full-trace reads are assembled
+ * in the repository layer by joining chunk rows.
  */
 @Dao
 interface RouteDao {
@@ -27,7 +33,8 @@ interface RouteDao {
     /**
      * Removes the given route from the database.
      *
-     * Cascades to any associated [com.mototracker.data.local.entity.SyncQueueEntity] entries.
+     * Cascades to any associated [com.mototracker.data.local.entity.SyncQueueEntity] and
+     * [com.mototracker.data.local.entity.RouteTraceChunkEntity] entries.
      *
      * @param entity The route to remove (matched by primary key).
      */
@@ -35,13 +42,22 @@ interface RouteDao {
     suspend fun delete(entity: RouteEntity)
 
     /**
-     * Returns a live stream of all routes ordered by recording date descending.
+     * Returns a live stream of lightweight route summaries ordered by recording date descending.
+     *
+     * Only scalar columns and the precomputed [RouteSummaryModel.thumbnailPathD] are
+     * selected — no large JSON blobs — so this query is safe regardless of ride length.
      */
-    @Query("SELECT * FROM routes ORDER BY dateEpochMs DESC")
-    fun getAll(): Flow<List<RouteEntity>>
+    @Query(
+        """SELECT id, name, dateEpochMs, bikeId, km, durSec, avg, max, lean, elev, fuel,
+                  synced, thumbnailPathD, correctionStatus, confidence
+           FROM routes ORDER BY dateEpochMs DESC""",
+    )
+    fun observeSummaries(): Flow<List<RouteSummaryModel>>
 
     /**
      * Returns the route with the given [id], or `null` if not found.
+     *
+     * GPS trace fields are NOT included here; the repository assembles them from chunk rows.
      *
      * @param id The primary key to look up.
      */
@@ -68,20 +84,18 @@ interface RouteDao {
     fun observeById(id: String): Flow<RouteEntity?>
 
     /**
-     * Clears the road-corrected trace for route [id], resetting [RouteEntity.correctionStatus]
-     * to `'NONE'` and nulling out [RouteEntity.correctedPathJson] and [RouteEntity.confidence].
+     * Resets the correction status and confidence for route [id] to their default values.
      *
-     * The raw [RouteEntity.pathJson] is **never** modified — it is the permanent source of truth.
+     * Does NOT touch trace data; the caller ([com.mototracker.data.repository.RouteRepositoryImpl])
+     * is responsible for deleting CORRECTED chunks separately via [RouteTraceChunkDao].
      *
      * @param id Route primary key.
      */
-    @Query("UPDATE routes SET correctedPathJson = NULL, correctionStatus = 'NONE', confidence = NULL WHERE id = :id")
+    @Query("UPDATE routes SET correctionStatus = 'NONE', confidence = NULL WHERE id = :id")
     suspend fun clearCorrection(id: String)
 
     /**
      * Updates the display name for the route with [id].
-     *
-     * Called by [com.mototracker.data.repository.RouteRepositoryImpl.rename].
      *
      * @param id   Route primary key.
      * @param name New display name (already trimmed by the caller).
@@ -91,13 +105,6 @@ interface RouteDao {
 
     /**
      * Assigns [bikeId] to the route with [id] via a targeted SQL UPDATE.
-     *
-     * [bikeId] is nullable — passing `null` clears the bike association without
-     * touching any other column (raw trace, correctionStatus, etc.).
-     * No Room migration is required because the [com.mototracker.data.local.entity.RouteEntity.bikeId]
-     * column already exists.
-     *
-     * Called by [com.mototracker.data.repository.RouteRepositoryImpl.setBike].
      *
      * @param id     Route primary key.
      * @param bikeId UUID of the motorcycle to assign, or `null` to clear.
@@ -114,4 +121,15 @@ interface RouteDao {
      */
     @Query("DELETE FROM routes")
     suspend fun deleteAll()
+
+    /**
+     * Updates [thumbnailPathD] for a single route row.
+     *
+     * Called during migration after computing the downsampled path from existing trace data.
+     *
+     * @param id             Route primary key.
+     * @param thumbnailPathD Precomputed SVG path `d` string.
+     */
+    @Query("UPDATE routes SET thumbnailPathD = :thumbnailPathD WHERE id = :id")
+    suspend fun setThumbnailPathD(id: String, thumbnailPathD: String?)
 }

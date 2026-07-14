@@ -8,6 +8,7 @@ import com.mototracker.data.local.entity.RouteEntity
 import com.mototracker.data.local.entity.SyncQueueEntity
 import com.mototracker.data.local.entity.SyncQueueState
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.GpStrackClient
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.settings.AppSettings
@@ -15,6 +16,7 @@ import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.SyncRetryPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -133,7 +135,16 @@ private class FakeRouteDao : RouteDao {
         _allFlow.value = _routes.values.toList()
     }
 
-    override fun getAll(): Flow<List<RouteEntity>> = _allFlow
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> = _allFlow.map { list ->
+        list.map { e ->
+            RouteSummaryModel(
+                id = e.id, name = e.name, dateEpochMs = e.dateEpochMs, bikeId = e.bikeId,
+                km = e.km, durSec = e.durSec, avg = e.avg, max = e.max, lean = e.lean,
+                elev = e.elev, fuel = e.fuel, synced = e.synced, thumbnailPathD = e.thumbnailPathD,
+                correctionStatus = e.correctionStatus, confidence = e.confidence,
+            )
+        }
+    }
 
     override suspend fun getById(id: String): RouteEntity? = _routes[id]
     override fun observeById(id: String): Flow<RouteEntity?> = MutableStateFlow(_routes[id])
@@ -144,7 +155,12 @@ private class FakeRouteDao : RouteDao {
     }
 
     override suspend fun clearCorrection(id: String) {
-        _routes[id]?.let { _routes[id] = it.copy(correctedPathJson = null, correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
+        _routes[id]?.let { _routes[id] = it.copy(correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
+        _allFlow.value = _routes.values.toList()
+    }
+
+    override suspend fun setThumbnailPathD(id: String, thumbnailPathD: String?) {
+        _routes[id]?.let { _routes[id] = it.copy(thumbnailPathD = thumbnailPathD) }
         _allFlow.value = _routes.values.toList()
     }
 
@@ -173,7 +189,7 @@ private class FakeRouteDao : RouteDao {
 private fun routeEntity(id: String) = RouteEntity(
     id = id, name = "Route $id", dateEpochMs = 0L, bikeId = null,
     km = 0.0, durSec = 0L, avg = 0.0, max = 0.0, lean = 0.0, elev = 0.0, fuel = 0.0,
-    synced = false, wxJson = null, pathJson = null, speedJson = null, elevProfileJson = null,
+    synced = false, wxJson = null, speedJson = null, elevProfileJson = null,
     notes = null,
 )
 

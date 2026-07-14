@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.R
 import com.mototracker.core.format.UnitFormatter
-import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -24,11 +24,11 @@ import kotlin.math.roundToInt
 /**
  * ViewModel for the Statistics screen.
  *
- * Combines [RouteRepository.observeAll] with [AppSettingsSource.settings] into a
- * single [StatsUiState] stream. All aggregation is done in a pure private [build]
- * function so it is easily unit-testable via fakes.
+ * Combines [RouteRepository.observeSummaries] with [AppSettingsSource.settings] into a
+ * single [StatsUiState] stream. The lightweight summary stream avoids loading GPS trace
+ * blobs (which can be megabytes per route) for what is entirely a scalar aggregation screen.
  *
- * @param routeRepository  Provides the live route list.
+ * @param routeRepository  Provides the live route summary list.
  * @param settingsSource   Provides the user's unit preference.
  */
 @HiltViewModel
@@ -39,10 +39,10 @@ class StatsViewModel @Inject constructor(
 
     /** Live UI state exposed to the Stats screen. */
     val uiState: StateFlow<StatsUiState> = combine(
-        routeRepository.observeAll(),
+        routeRepository.observeSummaries(),
         settingsSource.settings,
-    ) { routes, settings ->
-        build(routes, settings)
+    ) { summaries, settings ->
+        build(summaries, settings)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -51,34 +51,34 @@ class StatsViewModel @Inject constructor(
 
     // ── Mapping ──────────────────────────────────────────────────────────────
 
-    private fun build(routes: List<Route>, settings: AppSettings): StatsUiState {
+    private fun build(summaries: List<RouteSummaryModel>, settings: AppSettings): StatsUiState {
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
 
-        val totalKm = routes.sumOf { it.km }
-        val totalSec = routes.sumOf { it.durSec }
-        val topSpeedKmh = routes.maxOfOrNull { it.max } ?: 0.0
-        val avgLeanDeg = if (routes.isEmpty()) 0.0 else routes.map { it.lean }.average()
-        val avgSpeedKmh = if (routes.isEmpty()) 0.0 else routes.map { it.avg }.average()
-        val totalClimbM = routes.sumOf { it.elev }
+        val totalKm = summaries.sumOf { it.km }
+        val totalSec = summaries.sumOf { it.durSec }
+        val topSpeedKmh = summaries.maxOfOrNull { it.max } ?: 0.0
+        val avgLeanDeg = if (summaries.isEmpty()) 0.0 else summaries.map { it.lean }.average()
+        val avgSpeedKmh = if (summaries.isEmpty()) 0.0 else summaries.map { it.avg }.average()
+        val totalClimbM = summaries.sumOf { it.elev }
 
         val avgSpeedDisplay = UnitFormatter.formatSpeed(avgSpeedKmh, units)
         val avgSpeedFractionKmh = avgSpeedKmh / 100.0
 
-        val yearLabel = if (routes.isEmpty()) "" else {
-            val newestMs = routes.maxOf { it.dateEpochMs }
+        val yearLabel = if (summaries.isEmpty()) "" else {
+            val newestMs = summaries.maxOf { it.dateEpochMs }
             Calendar.getInstance().apply { timeInMillis = newestMs }.get(Calendar.YEAR).toString()
         }
 
-        val personalRecords = PersonalRecordsCalculator.compute(routes)
+        val personalRecords = PersonalRecordsCalculator.computeFromSummaries(summaries)
 
         return StatsUiState(
             totalDistanceDisplay = UnitFormatter.formatDistance(totalKm, units),
             distanceUnitLabel = UnitFormatter.distanceUnitLabel(units),
             timeInSaddleDisplay = UnitFormatter.formatHm(totalSec),
-            ridesCount = routes.size,
+            ridesCount = summaries.size,
             topSpeedDisplay = UnitFormatter.formatSpeed(topSpeedKmh, units),
             speedUnitLabel = UnitFormatter.speedUnitLabel(units),
-            monthBars = buildMonthBars(routes, units),
+            monthBars = buildMonthBars(summaries, units),
             yearLabel = yearLabel,
             style = RidingStyleUi(
                 avgLeanDisplay = "${avgLeanDeg.roundToInt()}°",
@@ -143,18 +143,17 @@ class StatsViewModel @Inject constructor(
 
     /**
      * Builds 6 consecutive calendar months ending at the month of the newest route.
-     * Returns an empty list when [routes] is empty.
+     * Returns an empty list when [summaries] is empty.
      *
      * Each bar's [MonthBarUi.heightFraction] is computed as `0.18 + (km/maxKm)*0.82`,
      * matching the prototype formula (prototype line 958). When all bars have 0 km the
      * fraction is clamped to `0.18f`.
      */
-    private fun buildMonthBars(routes: List<Route>, units: Units): List<MonthBarUi> {
-        if (routes.isEmpty()) return emptyList()
+    private fun buildMonthBars(summaries: List<RouteSummaryModel>, units: Units): List<MonthBarUi> {
+        if (summaries.isEmpty()) return emptyList()
 
-        val newestMs = routes.maxOf { it.dateEpochMs }
+        val newestMs = summaries.maxOf { it.dateEpochMs }
 
-        // Build the 6 consecutive month slots (oldest first).
         val slots = (5 downTo 0).map { offset ->
             val cal = Calendar.getInstance().apply {
                 timeInMillis = newestMs
@@ -168,12 +167,11 @@ class StatsViewModel @Inject constructor(
             Pair(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
         }
 
-        // Aggregate km per (year, month) key from all routes.
         val kmByMonth = mutableMapOf<Pair<Int, Int>, Double>()
-        for (route in routes) {
-            val cal = Calendar.getInstance().apply { timeInMillis = route.dateEpochMs }
+        for (s in summaries) {
+            val cal = Calendar.getInstance().apply { timeInMillis = s.dateEpochMs }
             val key = Pair(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
-            kmByMonth[key] = (kmByMonth[key] ?: 0.0) + route.km
+            kmByMonth[key] = (kmByMonth[key] ?: 0.0) + s.km
         }
 
         val maxKm = slots.maxOfOrNull { kmByMonth[it] ?: 0.0 } ?: 0.0

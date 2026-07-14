@@ -41,6 +41,19 @@ object RouteThumbnail {
             return ""
         }
 
+        return buildPathDFromPoints(points)
+    }
+
+    /**
+     * Builds an SVG path `d` string directly from a pre-parsed list of (lat, lng) pairs.
+     *
+     * Prefer [buildPathD] when starting from raw JSON. Use this overload when the list is
+     * already available (e.g. after downsampling via [TraceDownsampler]) to avoid double-parsing.
+     *
+     * @param points Ordered list of (latitude, longitude) pairs.
+     * @return SVG path `d` string, or `""` when [points] has fewer than 2 entries.
+     */
+    fun buildPathDFromPoints(points: List<Pair<Double, Double>>): String {
         if (points.size < 2) return ""
 
         val minLat = points.minOf { it.first }

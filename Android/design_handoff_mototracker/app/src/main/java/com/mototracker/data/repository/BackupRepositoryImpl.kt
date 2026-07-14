@@ -14,9 +14,10 @@ import javax.inject.Singleton
 /**
  * Room + DataStore implementation of [BackupRepository].
  *
- * Snapshot reads use `.first()` so a single consistent value is captured even though
- * the underlying flows are live. All writes run on whatever dispatcher the caller
- * provides; callers should invoke from `Dispatchers.IO`.
+ * Export fetches route IDs via the lightweight [RouteRepository.observeSummaries] stream
+ * (no trace blobs) and then loads each full route individually via [RouteRepository.getById]
+ * so that no single read can overflow the CursorWindow. Import calls [RouteRepository.save]
+ * per route, which re-splits the trace into out-of-row chunks.
  *
  * @param routeRepository  Provides and persists routes.
  * @param bikeRepository   Provides and persists bikes.
@@ -32,10 +33,14 @@ class BackupRepositoryImpl @Inject constructor(
     /**
      * Captures a point-in-time snapshot of all local data and serialises it to JSON.
      *
+     * Routes are loaded one at a time (via [RouteRepository.getById]) to avoid reading
+     * large trace blobs from a single cursor.
+     *
      * @return [Result.success] with the JSON string, or [Result.failure] if serialisation throws.
      */
     override suspend fun exportBackup(): Result<String> = runCatching {
-        val routes = routeRepository.observeAll().first()
+        val summaries = routeRepository.observeSummaries().first()
+        val routes = summaries.mapNotNull { routeRepository.getById(it.id) }
         val bikes = bikeRepository.observeAll().first()
         val settings = settingsStore.settings.first()
         val data = BackupData(
@@ -63,7 +68,8 @@ class BackupRepositoryImpl @Inject constructor(
     override suspend fun importBackup(json: String, mode: RestoreMode): Result<ImportSummary> =
         runCatching {
             val imported = BackupSerializer.decode(json).getOrThrow()
-            val currentRoutes = routeRepository.observeAll().first()
+            val currentSummaries = routeRepository.observeSummaries().first()
+            val currentRoutes = currentSummaries.mapNotNull { routeRepository.getById(it.id) }
             val currentBikes = bikeRepository.observeAll().first()
             val currentSettings = settingsStore.settings.first()
 

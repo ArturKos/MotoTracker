@@ -1,10 +1,11 @@
 package com.mototracker.domain.stats
 
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import java.util.Calendar
 
 /**
- * Stateless calculator that derives [PersonalRecords] from a list of [Route]s.
+ * Stateless calculator that derives [PersonalRecords] from a route list.
  *
  * Implemented as a Kotlin [object] (no mutable state, no external dependencies) so it
  * can be called directly without DI — following the same pattern as
@@ -14,6 +15,28 @@ import java.util.Calendar
  * `StatsViewModel.buildMonthBars`.
  */
 object PersonalRecordsCalculator {
+
+    /**
+     * Computes [PersonalRecords] for [summaries].
+     *
+     * Accepts the lightweight [RouteSummaryModel] so that list/stats screens never need
+     * to load full trace blobs.
+     *
+     * @param summaries All route summaries, in any order.
+     * @return Aggregated personal records and earned badges.
+     */
+    fun computeFromSummaries(summaries: List<RouteSummaryModel>): PersonalRecords {
+        if (summaries.isEmpty()) return PersonalRecords()
+        return computeCore(
+            n = summaries.size,
+            getKm = { summaries[it].km },
+            getAvg = { summaries[it].avg },
+            getMax = { summaries[it].max },
+            getElev = { summaries[it].elev },
+            getDateMs = { summaries[it].dateEpochMs },
+            getId = { summaries[it].id },
+        )
+    }
 
     /**
      * Computes [PersonalRecords] for [routes].
@@ -26,43 +49,73 @@ object PersonalRecordsCalculator {
      */
     fun compute(routes: List<Route>): PersonalRecords {
         if (routes.isEmpty()) return PersonalRecords()
+        return computeCore(
+            n = routes.size,
+            getKm = { routes[it].km },
+            getAvg = { routes[it].avg },
+            getMax = { routes[it].max },
+            getElev = { routes[it].elev },
+            getDateMs = { routes[it].dateEpochMs },
+            getId = { routes[it].id },
+        )
+    }
 
-        val longestRide = routes.maxByOrNull { it.km }!!
-        val fastestAvgRide = routes.maxByOrNull { it.avg }!!
-        val topSpeedRide = routes.maxByOrNull { it.max }!!
-        val highestAscentRide = routes.maxByOrNull { it.elev }!!
+    private fun computeCore(
+        n: Int,
+        getKm: (Int) -> Double,
+        getAvg: (Int) -> Double,
+        getMax: (Int) -> Double,
+        getElev: (Int) -> Double,
+        getDateMs: (Int) -> Long,
+        getId: (Int) -> String,
+    ): PersonalRecords {
+        var longestRideIdx = 0
+        var fastestAvgIdx = 0
+        var topSpeedIdx = 0
+        var highestAscentIdx = 0
+
+        for (i in 0 until n) {
+            if (getKm(i) > getKm(longestRideIdx)) longestRideIdx = i
+            if (getAvg(i) > getAvg(fastestAvgIdx)) fastestAvgIdx = i
+            if (getMax(i) > getMax(topSpeedIdx)) topSpeedIdx = i
+            if (getElev(i) > getElev(highestAscentIdx)) highestAscentIdx = i
+        }
 
         // Bucket km by (year, month), matching StatsViewModel.buildMonthBars logic.
         val kmByMonth = mutableMapOf<Pair<Int, Int>, Double>()
-        for (route in routes) {
-            val cal = Calendar.getInstance().apply { timeInMillis = route.dateEpochMs }
+        for (i in 0 until n) {
+            val cal = Calendar.getInstance().apply { timeInMillis = getDateMs(i) }
             val key = cal.get(Calendar.YEAR) to cal.get(Calendar.MONTH)
-            kmByMonth[key] = (kmByMonth[key] ?: 0.0) + route.km
+            kmByMonth[key] = (kmByMonth[key] ?: 0.0) + getKm(i)
         }
         val bestEntry = kmByMonth.maxByOrNull { it.value }!!
 
-        val longestDayStreak = computeDayStreak(routes)
+        val longestDayStreak = computeDayStreak(n, getDateMs)
 
-        val totalKm = routes.sumOf { it.km }
-        val totalAscentM = routes.sumOf { it.elev }
+        var totalKm = 0.0
+        var totalAscentM = 0.0
+        for (i in 0 until n) {
+            totalKm += getKm(i)
+            totalAscentM += getElev(i)
+        }
 
         return PersonalRecords(
-            longestRideKm = longestRide.km,
-            longestRideRouteId = longestRide.id,
-            fastestAvgSpeedKmh = fastestAvgRide.avg,
-            fastestAvgSpeedRouteId = fastestAvgRide.id,
-            topSpeedKmh = topSpeedRide.max,
-            topSpeedRouteId = topSpeedRide.id,
-            highestAscentM = highestAscentRide.elev,
-            highestAscentRouteId = highestAscentRide.id,
+            longestRideKm = getKm(longestRideIdx),
+            longestRideRouteId = getId(longestRideIdx),
+            fastestAvgSpeedKmh = getAvg(fastestAvgIdx),
+            fastestAvgSpeedRouteId = getId(fastestAvgIdx),
+            topSpeedKmh = getMax(topSpeedIdx),
+            topSpeedRouteId = getId(topSpeedIdx),
+            highestAscentM = getElev(highestAscentIdx),
+            highestAscentRouteId = getId(highestAscentIdx),
             bestMonthKm = bestEntry.value,
             bestMonthYear = bestEntry.key.first,
             bestMonthMonth = bestEntry.key.second,
             longestDayStreak = longestDayStreak,
             earnedBadges = buildBadges(
-                rideCount = routes.size,
-                longestRideKm = longestRide.km,
-                topSpeedKmh = topSpeedRide.max,
+                rideCount = n,
+                longestRideKm = getKm(longestRideIdx),
+                topSpeedKmh = getMax(topSpeedIdx),
                 totalKm = totalKm,
                 totalAscentM = totalAscentM,
                 bestMonthKm = bestEntry.value,
@@ -73,18 +126,18 @@ object PersonalRecordsCalculator {
 
     /**
      * Returns the longest run of consecutive local calendar days that each contain
-     * at least one ride in [routes].
+     * at least one ride.
      *
      * Days are normalised to a UTC day-number (ms since epoch ÷ 86 400 000) after
      * resetting the time-of-day to midnight in the device's local timezone so that
      * a single ride always maps to exactly one calendar day regardless of its start time.
      */
-    private fun computeDayStreak(routes: List<Route>): Int {
-        if (routes.isEmpty()) return 0
+    private fun computeDayStreak(n: Int, getDateMs: (Int) -> Long): Int {
+        if (n == 0) return 0
 
-        val dayNumbers: Set<Long> = routes.mapTo(mutableSetOf()) { route ->
+        val dayNumbers: Set<Long> = (0 until n).mapTo(mutableSetOf()) { i ->
             val cal = Calendar.getInstance().apply {
-                timeInMillis = route.dateEpochMs
+                timeInMillis = getDateMs(i)
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)

@@ -1,13 +1,17 @@
 package com.mototracker.data.repository
 
 import app.cash.turbine.test
+import com.mototracker.core.format.TraceChunkCodec
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.local.dao.CorrectionQueueDao
 import com.mototracker.data.local.dao.RouteDao
+import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.entity.CorrectionQueueEntity
 import com.mototracker.data.local.entity.CorrectionQueueState
 import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.local.entity.RouteEntity
+import com.mototracker.data.local.entity.RouteTraceChunkEntity
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.CorrectionOutcome
 import com.mototracker.data.network.GpsCorrectionClient
 import com.mototracker.data.network.NetworkMonitor
@@ -17,9 +21,11 @@ import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.SyncRetryPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -120,7 +126,16 @@ private class CorrFakeRouteDao : RouteDao {
         _allFlow.value = _routes.values.toList()
     }
 
-    override fun getAll(): Flow<List<RouteEntity>> = _allFlow
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> = _allFlow.map { list ->
+        list.map { e ->
+            RouteSummaryModel(
+                id = e.id, name = e.name, dateEpochMs = e.dateEpochMs, bikeId = e.bikeId,
+                km = e.km, durSec = e.durSec, avg = e.avg, max = e.max, lean = e.lean,
+                elev = e.elev, fuel = e.fuel, synced = e.synced, thumbnailPathD = e.thumbnailPathD,
+                correctionStatus = e.correctionStatus, confidence = e.confidence,
+            )
+        }
+    }
     override suspend fun getById(id: String): RouteEntity? = _routes[id]
     override fun observeById(id: String): Flow<RouteEntity?> = MutableStateFlow(_routes[id])
 
@@ -130,7 +145,12 @@ private class CorrFakeRouteDao : RouteDao {
     }
 
     override suspend fun clearCorrection(id: String) {
-        _routes[id]?.let { _routes[id] = it.copy(correctedPathJson = null, correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
+        _routes[id]?.let { _routes[id] = it.copy(correctionStatus = CorrectionStatus.NONE, confidence = null) }
+        _allFlow.value = _routes.values.toList()
+    }
+
+    override suspend fun setThumbnailPathD(id: String, thumbnailPathD: String?) {
+        _routes[id]?.let { _routes[id] = it.copy(thumbnailPathD = thumbnailPathD) }
         _allFlow.value = _routes.values.toList()
     }
 
@@ -152,6 +172,35 @@ private class CorrFakeRouteDao : RouteDao {
     fun find(id: String): RouteEntity? = _routes[id]
 }
 
+private class CorrFakeTraceChunkDao : RouteTraceChunkDao {
+    private val store = mutableMapOf<Pair<String, String>, MutableList<RouteTraceChunkEntity>>()
+
+    override suspend fun replace(routeId: String, kind: String, chunks: List<RouteTraceChunkEntity>) {
+        deleteFor(routeId, kind)
+        if (chunks.isNotEmpty()) insertAll(chunks)
+    }
+
+    override suspend fun getChunks(routeId: String, kind: String): List<RouteTraceChunkEntity> =
+        store[routeId to kind]?.sortedBy { it.seq } ?: emptyList()
+
+    override suspend fun deleteFor(routeId: String, kind: String) {
+        store.remove(routeId to kind)
+    }
+
+    override suspend fun insertAll(chunks: List<RouteTraceChunkEntity>) {
+        for (chunk in chunks) {
+            store.getOrPut(chunk.routeId to chunk.kind) { mutableListOf() }.add(chunk)
+        }
+    }
+
+    fun hasChunks(routeId: String, kind: String): Boolean =
+        store[routeId to kind]?.isNotEmpty() == true
+
+    /** Reassembles the stored trace for ([routeId], [kind]) into a single JSON array, or null when empty. */
+    fun trace(routeId: String, kind: String): String? =
+        TraceChunkCodec.join((store[routeId to kind]?.sortedBy { it.seq } ?: emptyList()).map { it.chunkJson })
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -163,11 +212,19 @@ private val BASE_CORR_SETTINGS = AppSettings(
 
 private const val SAMPLE_PATH_JSON = """[{"lat":50.0,"lng":20.0},{"lat":50.001,"lng":20.001}]"""
 
-private fun corrRouteEntity(id: String, pathJson: String? = SAMPLE_PATH_JSON) = RouteEntity(
+/**
+ * The RAW trace as it is stored on disk (chunked then reassembled). The chunk codec round-trips
+ * through `org.json`, which re-serialises numbers (e.g. `50.0` → `50`), so the persisted form is
+ * not byte-identical to [SAMPLE_PATH_JSON]. Assertions that the raw trace is untouched compare
+ * against this canonical stored form.
+ */
+private val CANONICAL_RAW_TRACE: String? = TraceChunkCodec.join(TraceChunkCodec.split(SAMPLE_PATH_JSON))
+
+private fun corrRouteEntity(id: String) = RouteEntity(
     id = id, name = "Route $id", dateEpochMs = 0L, bikeId = null,
     km = 10.0, durSec = 3600L, avg = 10.0, max = 20.0, lean = 5.0,
     elev = 100.0, fuel = 1.0, synced = false,
-    wxJson = null, pathJson = pathJson, speedJson = null, elevProfileJson = null, notes = null,
+    wxJson = null, speedJson = null, elevProfileJson = null, notes = null,
 )
 
 private fun corrPendingEntry(routeId: String, nextRetryMs: Long? = null, attemptCount: Int = 0) =
@@ -189,6 +246,7 @@ class GpsCorrectionRepositoryImplTest {
 
     private lateinit var queueDao: FakeCorrectionQueueDao
     private lateinit var routeDao: CorrFakeRouteDao
+    private lateinit var chunkDao: CorrFakeTraceChunkDao
     private lateinit var settingsSource: CorrFakeAppSettingsSource
     private lateinit var client: FakeGpsCorrectionClient
     private lateinit var networkMonitor: CorrFakeNetworkMonitor
@@ -199,6 +257,7 @@ class GpsCorrectionRepositoryImplTest {
     fun setUp() {
         queueDao = FakeCorrectionQueueDao()
         routeDao = CorrFakeRouteDao()
+        chunkDao = CorrFakeTraceChunkDao()
         settingsSource = CorrFakeAppSettingsSource(BASE_CORR_SETTINGS)
         client = FakeGpsCorrectionClient()
         networkMonitor = CorrFakeNetworkMonitor(initialOnline = true)
@@ -206,11 +265,24 @@ class GpsCorrectionRepositoryImplTest {
         repo = GpsCorrectionRepositoryImpl(
             correctionQueueDao = queueDao,
             routeDao = routeDao,
+            traceChunkDao = chunkDao,
             settingsSource = settingsSource,
             client = client,
             networkMonitor = networkMonitor,
             timeProvider = timeProvider,
         )
+    }
+
+    /**
+     * Persists a route entity and seeds its RAW GPS trace chunks (mirroring what
+     * `RouteRepositoryImpl.save` does), so the correction pipeline has points to submit.
+     */
+    private suspend fun seedRoute(id: String, pathJson: String? = SAMPLE_PATH_JSON) {
+        routeDao.upsert(corrRouteEntity(id))
+        val chunks = TraceChunkCodec.split(pathJson).mapIndexed { seq, chunkJson ->
+            RouteTraceChunkEntity(id, "RAW", seq, chunkJson)
+        }
+        chunkDao.replace(id, "RAW", chunks)
     }
 
     // ── enqueue ─────────────────────────────────────────────────────────────
@@ -264,14 +336,14 @@ class GpsCorrectionRepositoryImplTest {
                 matchedFraction = 0.9,
             ),
         )
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         val count = repo.correctNow()
 
         assertEquals(1, count)
         val route = routeDao.find("r1")!!
-        assertNotNull(route.correctedPathJson)
+        assertTrue("CORRECTED chunks must be written on ACCEPT", chunkDao.hasChunks("r1", "CORRECTED"))
         assertEquals(CorrectionStatus.DONE, route.correctionStatus)
         assertEquals(0.9, route.confidence!!, 0.001)
         assertNull(queueDao.find("r1"))
@@ -282,18 +354,18 @@ class GpsCorrectionRepositoryImplTest {
         client.setResult(
             CorrectionOutcome.Matched(listOf(TrackPoint(50.001, 20.001)), 0.9, 0.9),
         )
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.correctNow()
 
-        assertEquals(SAMPLE_PATH_JSON, routeDao.find("r1")!!.pathJson)
+        assertEquals(CANONICAL_RAW_TRACE, chunkDao.trace("r1", "RAW"))
     }
 
     @Test
     fun `correctNow passes configured osrmBaseUrl to client`() = runTest {
         client.setResult(CorrectionOutcome.Matched(listOf(TrackPoint(50.0, 20.0)), 0.9, 0.9))
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.correctNow()
@@ -312,17 +384,17 @@ class GpsCorrectionRepositoryImplTest {
                 matchedFraction = 0.9,
             ),
         )
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         val count = repo.correctNow()
 
         assertEquals(0, count)
         val route = routeDao.find("r1")!!
-        assertNull("correctedPathJson should remain null on LOW_CONFIDENCE", route.correctedPathJson)
+        assertFalse("no CORRECTED chunks should be written on LOW_CONFIDENCE", chunkDao.hasChunks("r1", "CORRECTED"))
         assertEquals(CorrectionStatus.LOW_CONFIDENCE, route.correctionStatus)
         assertEquals(0.4, route.confidence!!, 0.001)
-        assertEquals(SAMPLE_PATH_JSON, route.pathJson)
+        assertEquals(CANONICAL_RAW_TRACE, chunkDao.trace("r1", "RAW"))
     }
 
     @Test
@@ -330,7 +402,7 @@ class GpsCorrectionRepositoryImplTest {
         client.setResult(
             CorrectionOutcome.Matched(listOf(TrackPoint(50.0, 20.0)), 0.3, 0.3),
         )
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.correctNow()
@@ -343,16 +415,16 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `NoMatch keeps raw trace and sets correctionStatus NONE`() = runTest {
         client.setResult(CorrectionOutcome.NoMatch)
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         val count = repo.correctNow()
 
         assertEquals(0, count)
         val route = routeDao.find("r1")!!
-        assertNull(route.correctedPathJson)
+        assertFalse(chunkDao.hasChunks("r1", "CORRECTED"))
         assertEquals(CorrectionStatus.NONE, route.correctionStatus)
-        assertEquals(SAMPLE_PATH_JSON, route.pathJson)
+        assertEquals(CANONICAL_RAW_TRACE, chunkDao.trace("r1", "RAW"))
     }
 
     // ── failure / retry ───────────────────────────────────────────────────────
@@ -360,7 +432,7 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `failure sets FAILED and records backoff timestamp`() = runTest {
         client.setFailure(RuntimeException("timeout"))
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         val count = repo.correctNow()
@@ -378,18 +450,18 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `pathJson is never mutated on failure`() = runTest {
         client.setFailure()
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.correctNow()
 
-        assertEquals(SAMPLE_PATH_JSON, routeDao.find("r1")!!.pathJson)
+        assertEquals(CANONICAL_RAW_TRACE, chunkDao.trace("r1", "RAW"))
     }
 
     @Test
     fun `second failure doubles the backoff`() = runTest {
         client.setFailure()
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.correctNow()
@@ -410,7 +482,7 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `correctNow returns 0 and makes no calls when offlineOnly is true`() = runTest {
         settingsSource.emit(BASE_CORR_SETTINGS.copy(offlineOnly = true))
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         val count = repo.correctNow()
@@ -423,7 +495,7 @@ class GpsCorrectionRepositoryImplTest {
 
     @Test
     fun `entry with future nextRetryEpochMs is skipped`() = runTest {
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         queueDao.upsert(corrPendingEntry("r1", nextRetryMs = 99_000L))
 
         val count = repo.correctNow()
@@ -450,7 +522,7 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `auto-drain processes entry when online`() = runTest {
         client.setResult(CorrectionOutcome.Matched(listOf(TrackPoint(50.0, 20.0)), 0.9, 0.9))
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.start(backgroundScope)
@@ -464,7 +536,7 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `auto-drain does not run when network is offline`() = runTest {
         networkMonitor.setOnline(false)
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.start(backgroundScope)
@@ -477,7 +549,7 @@ class GpsCorrectionRepositoryImplTest {
     @Test
     fun `auto-drain does not run when offlineOnly is true`() = runTest {
         settingsSource.emit(BASE_CORR_SETTINGS.copy(offlineOnly = true))
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.start(backgroundScope)
@@ -491,7 +563,7 @@ class GpsCorrectionRepositoryImplTest {
     fun `auto-drain triggers when network comes back online`() = runTest {
         networkMonitor.setOnline(false)
         client.setResult(CorrectionOutcome.Matched(listOf(TrackPoint(50.0, 20.0)), 0.9, 0.9))
-        routeDao.upsert(corrRouteEntity("r1"))
+        seedRoute("r1")
         repo.enqueue("r1")
 
         repo.start(backgroundScope)

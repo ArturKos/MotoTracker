@@ -7,7 +7,7 @@ import com.mototracker.data.diagnostics.RideLogShareIntentFactory
 import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
-import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.repository.BackupRepository
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
@@ -40,13 +40,15 @@ import javax.inject.Inject
 /**
  * ViewModel for the Settings screen (B7).
  *
- * Combines persisted settings, the live bike list, and the live route list into a
- * single [SettingsUiState] via the pure [build] function. All intent methods
- * delegate to [SettingsStore], [BikeRepository], or [SyncRepository] — never to UI.
+ * Combines persisted settings, the live bike list, and the live route summary list into a
+ * single [SettingsUiState] via the pure [build] function. Using the lightweight
+ * [RouteSummaryModel] avoids loading GPS trace blobs, which is especially important here
+ * since the settings screen only needs scalar fields (synced, km, name, date). All intent
+ * methods delegate to [SettingsStore], [BikeRepository], or [SyncRepository].
  *
  * @param settingsStore      Reads and writes all persisted [AppSettings].
  * @param bikeRepository     Provides and mutates the motorcycle list.
- * @param routeRepository    Provides the route list (for sync queue + broadcast auto-stats).
+ * @param routeRepository    Provides the route summary list (for sync queue + broadcast auto-stats).
  * @param syncRepository     Drains the outbound sync queue.
  * @param rideLogStore       Read-only access to ride-log files (size + delete).
  * @param shareIntentFactory Selects the file to share in the Diagnostics section.
@@ -93,10 +95,10 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsStore.settings,
         bikeRepository.observeAll(),
-        routeRepository.observeAll(),
+        routeRepository.observeSummaries(),
         _rideLogUsedBytes,
-    ) { settings, bikes, routes, logBytes ->
-        build(settings, bikes, routes, logBytes)
+    ) { settings, bikes, summaries, logBytes ->
+        build(settings, bikes, summaries, logBytes)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -108,7 +110,7 @@ class SettingsViewModel @Inject constructor(
     private fun build(
         settings: AppSettings,
         bikes: List<Bike>,
-        routes: List<Route>,
+        summaries: List<RouteSummaryModel>,
         rideLogUsedBytes: Long = 0L,
     ): SettingsUiState {
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
@@ -126,14 +128,14 @@ class SettingsViewModel @Inject constructor(
             )
         }
 
-        val pendingRoutes = routes
+        val pendingRoutes = summaries
             .filter { !it.synced }
-            .map { route ->
+            .map { s ->
                 SyncQueueItemUi(
-                    routeId = route.id,
-                    name = route.name,
-                    dateDisplay = dateFormat.format(Date(route.dateEpochMs)),
-                    kmDisplay = UnitFormatter.formatDistance(route.km, units),
+                    routeId = s.id,
+                    name = s.name,
+                    dateDisplay = dateFormat.format(Date(s.dateEpochMs)),
+                    kmDisplay = UnitFormatter.formatDistance(s.km, units),
                 )
             }
 
@@ -141,13 +143,13 @@ class SettingsViewModel @Inject constructor(
         val bcBikeDisplay = currentBike?.let { "${it.name} ${it.year}" } ?: ""
 
         val today = Calendar.getInstance()
-        val todayKm = routes.sumOf { route ->
-            val cal = Calendar.getInstance().apply { timeInMillis = route.dateEpochMs }
+        val todayKm = summaries.sumOf { s ->
+            val cal = Calendar.getInstance().apply { timeInMillis = s.dateEpochMs }
             if (cal.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
                 cal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
-            ) route.km else 0.0
+            ) s.km else 0.0
         }
-        val totalKm = routes.sumOf { it.km }
+        val totalKm = summaries.sumOf { it.km }
 
         return SettingsUiState(
             bikes = bikeUis,
@@ -351,7 +353,7 @@ class SettingsViewModel @Inject constructor(
 
     /**
      * Returns the latest ride-log file suitable for sharing via [shareIntentFactory], or null
-     * when no log exists.  The Composable uses the returned [File] to obtain a `content://` URI
+     * when no log exists. The Composable uses the returned [File] to obtain a `content://` URI
      * via `FileProvider.getUriForFile` and launches `Intent.ACTION_SEND`.
      */
     fun getShareTargetFile(): File? = shareIntentFactory.shareTargetFile(rideLogStore)

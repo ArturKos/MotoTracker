@@ -46,7 +46,7 @@ class MapperTest {
             id = "r1", name = "Mountain run", dateEpochMs = 1_700_000_000L,
             bikeId = "b1", km = 234.5, durSec = 9000L, avg = 93.8, max = 155.0,
             lean = 42.0, elev = 1200.0, fuel = 12.3, synced = false,
-            wxJson = """{"temp":20}""", pathJson = "[]", speedJson = "[]",
+            wxJson = """{"temp":20}""", speedJson = "[]",
             elevProfileJson = "[]", notes = "Great roads",
         )
         val domain = entity.toDomain()
@@ -62,7 +62,7 @@ class MapperTest {
             id = "r1", name = "Route", dateEpochMs = 0L, bikeId = null,
             km = 0.0, durSec = 0L, avg = 0.0, max = 0.0, lean = 0.0,
             elev = 0.0, fuel = 0.0, synced = true,
-            wxJson = null, pathJson = null, speedJson = null, elevProfileJson = null, notes = null,
+            wxJson = null, speedJson = null, elevProfileJson = null, notes = null,
         )
         assertEquals(entity, entity.toDomain().toEntity())
     }

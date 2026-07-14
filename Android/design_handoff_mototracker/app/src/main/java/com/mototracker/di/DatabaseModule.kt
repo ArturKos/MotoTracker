@@ -7,6 +7,7 @@ import com.mototracker.data.local.dao.BikeDao
 import com.mototracker.data.local.dao.CorrectionQueueDao
 import com.mototracker.data.local.dao.GroupDao
 import com.mototracker.data.local.dao.RouteDao
+import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.dao.SyncQueueDao
 import com.mototracker.data.local.dao.WaveDao
 import dagger.Module
@@ -48,6 +49,10 @@ object DatabaseModule {
     /** Provides the [RouteDao] from the singleton database. */
     @Provides
     fun provideRouteDao(db: MotoDatabase): RouteDao = db.routeDao()
+
+    /** Provides the [RouteTraceChunkDao] from the singleton database. */
+    @Provides
+    fun provideRouteTraceChunkDao(db: MotoDatabase): RouteTraceChunkDao = db.routeTraceChunkDao()
 
     /** Provides the [GroupDao] from the singleton database. */
     @Provides

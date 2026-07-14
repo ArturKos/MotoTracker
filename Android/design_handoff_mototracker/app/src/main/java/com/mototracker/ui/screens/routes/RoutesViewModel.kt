@@ -2,11 +2,10 @@ package com.mototracker.ui.screens.routes
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.core.format.UnitFormatter
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
-import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
@@ -27,12 +26,14 @@ import javax.inject.Inject
 /**
  * ViewModel for the Routes list screen.
  *
- * Combines [RouteRepository.observeAll], [BikeRepository.observeAll], the
+ * Combines [RouteRepository.observeSummaries], [BikeRepository.observeAll], the
  * units setting from [AppSettingsSource], and the in-memory [RoutesFilter] into
- * a single [RoutesUiState] stream. All list transformation is pure and testable —
- * no Room/DAO involvement; filtering happens on the already-observed list.
+ * a single [RoutesUiState] stream. Switching from full [Route] to the lightweight
+ * [RouteSummaryModel] avoids loading GPS trace blobs (which can be megabytes per
+ * route) for a list that only needs scalar fields and the precomputed thumbnail SVG
+ * path. All list transformation is pure and testable — no Room/DAO involvement.
  *
- * @param routeRepository  Provides the live route list.
+ * @param routeRepository  Provides the live route summary list.
  * @param bikeRepository   Provides the live bike list for name resolution.
  * @param settingsSource   Provides the user's unit preference.
  */
@@ -47,12 +48,12 @@ class RoutesViewModel @Inject constructor(
 
     /** Live UI state exposed to the Routes screen. */
     val uiState: StateFlow<RoutesUiState> = combine(
-        routeRepository.observeAll(),
+        routeRepository.observeSummaries(),
         bikeRepository.observeAll(),
         settingsSource.settings,
         _filter,
-    ) { routes, bikes, settings, filter ->
-        buildUiState(routes, bikes, settings, filter)
+    ) { summaries, bikes, settings, filter ->
+        buildUiState(summaries, bikes, settings, filter)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -88,7 +89,7 @@ class RoutesViewModel @Inject constructor(
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(
-        routes: List<Route>,
+        summaries: List<RouteSummaryModel>,
         bikes: List<Bike>,
         settings: AppSettings,
         filter: RoutesFilter,
@@ -96,14 +97,14 @@ class RoutesViewModel @Inject constructor(
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
         val bikeMap = bikes.associateBy { it.id }
 
-        val filteredRoutes = applyFilter(routes, filter)
-        val totalKm = filteredRoutes.sumOf { it.km }
-        val cards = filteredRoutes.map { route -> toCard(route, bikeMap, units) }
+        val filtered = applyFilter(summaries, filter)
+        val totalKm = filtered.sumOf { it.km }
+        val cards = filtered.map { summary -> toCard(summary, bikeMap, units) }
         val availableBikes = bikes.map { BikeFilterOption(it.id, it.name) }
 
         return RoutesUiState(
-            routeCount = filteredRoutes.size,
-            totalRouteCount = routes.size,
+            routeCount = filtered.size,
+            totalRouteCount = summaries.size,
             totalKmDisplay = UnitFormatter.formatDistance(totalKm, units),
             distanceUnitLabel = UnitFormatter.distanceUnitLabel(units),
             cards = cards,
@@ -113,7 +114,7 @@ class RoutesViewModel @Inject constructor(
     }
 
     /**
-     * Apply [filter] to [routes] and return the matching, sorted list.
+     * Apply [filter] to [summaries] and return the matching, sorted list.
      *
      * Filtering order:
      * 1. Name substring (Locale-independent lowercase, trimmed; empty = no filter).
@@ -124,13 +125,13 @@ class RoutesViewModel @Inject constructor(
      * Sorting: primary key per [RoutesFilter.sortKey] in [RoutesFilter.sortDir] direction.
      * Stable tie-break: `dateEpochMs DESC` then `id ASC` for deterministic output.
      */
-    private fun applyFilter(routes: List<Route>, filter: RoutesFilter): List<Route> {
+    private fun applyFilter(summaries: List<RouteSummaryModel>, filter: RoutesFilter): List<RouteSummaryModel> {
         val trimmedQuery = filter.query.trim().lowercase(Locale.ROOT)
-        val filtered = routes.filter { route ->
-            (trimmedQuery.isEmpty() || route.name.lowercase(Locale.ROOT).contains(trimmedQuery))
-                && (filter.bikeId == null || route.bikeId == filter.bikeId)
-                && (filter.fromEpochMs == null || route.dateEpochMs >= filter.fromEpochMs)
-                && (filter.toEpochMs == null || route.dateEpochMs <= filter.toEpochMs)
+        val filtered = summaries.filter { s ->
+            (trimmedQuery.isEmpty() || s.name.lowercase(Locale.ROOT).contains(trimmedQuery))
+                && (filter.bikeId == null || s.bikeId == filter.bikeId)
+                && (filter.fromEpochMs == null || s.dateEpochMs >= filter.fromEpochMs)
+                && (filter.toEpochMs == null || s.dateEpochMs <= filter.toEpochMs)
         }
         return filtered.sortedWith { a, b ->
             val primary = when (filter.sortKey) {
@@ -148,26 +149,26 @@ class RoutesViewModel @Inject constructor(
     }
 
     private fun toCard(
-        route: Route,
+        summary: RouteSummaryModel,
         bikeMap: Map<String, Bike>,
         units: Units,
     ): RouteCardUi {
-        val bike = route.bikeId?.let { bikeMap[it] }
+        val bike = summary.bikeId?.let { bikeMap[it] }
         val bikeName = bike?.name ?: "—"
         val bikeSold = bike?.status == BikeStatus.SOLD
 
         return RouteCardUi(
-            id = route.id,
-            name = route.name.ifBlank { route.id.take(8) },
-            dateDisplay = formatDate(route.dateEpochMs),
+            id = summary.id,
+            name = summary.name.ifBlank { summary.id.take(8) },
+            dateDisplay = formatDate(summary.dateEpochMs),
             bikeName = bikeName,
             bikeSold = bikeSold,
-            distanceDisplay = UnitFormatter.formatDistance(route.km, units),
+            distanceDisplay = UnitFormatter.formatDistance(summary.km, units),
             distanceUnitLabel = UnitFormatter.distanceUnitLabel(units),
-            durationDisplay = UnitFormatter.formatHms(route.durSec),
-            maxSpeedDisplay = UnitFormatter.formatSpeed(route.max, units),
-            thumbnailPathD = RouteThumbnail.buildPathD(route.pathJson),
-            synced = route.synced,
+            durationDisplay = UnitFormatter.formatHms(summary.durSec),
+            maxSpeedDisplay = UnitFormatter.formatSpeed(summary.max, units),
+            thumbnailPathD = summary.thumbnailPathD ?: "",
+            synced = summary.synced,
         )
     }
 

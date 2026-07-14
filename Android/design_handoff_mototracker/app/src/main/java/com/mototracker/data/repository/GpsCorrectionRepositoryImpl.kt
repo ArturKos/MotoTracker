@@ -1,11 +1,14 @@
 package com.mototracker.data.repository
 
+import com.mototracker.core.format.TraceChunkCodec
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.local.dao.CorrectionQueueDao
 import com.mototracker.data.local.dao.RouteDao
+import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.entity.CorrectionQueueEntity
 import com.mototracker.data.local.entity.CorrectionQueueState
 import com.mototracker.data.local.entity.CorrectionStatus
+import com.mototracker.data.local.entity.RouteTraceChunkEntity
 import com.mototracker.data.network.CorrectionOutcome
 import com.mototracker.data.network.GpsCorrectionClient
 import com.mototracker.data.network.NetworkMonitor
@@ -28,12 +31,15 @@ import javax.inject.Singleton
  * Production implementation of [GpsCorrectionRepository].
  *
  * Drains the correction queue when online and `offlineOnly` is false, submitting
- * each route's raw [pathJson][com.mototracker.data.local.entity.RouteEntity.pathJson]
- * to the OSRM map-matching service and persisting the result according to the
- * [CorrectionQualityGate] verdict. The raw [pathJson] is **never** mutated.
+ * each route's raw GPS trace to the OSRM map-matching service and persisting the result
+ * according to the [CorrectionQualityGate] verdict.
+ *
+ * Raw GPS chunks are read via [traceChunkDao] (`kind = "RAW"`). The raw trace is **never**
+ * mutated. On ACCEPT, the corrected trace is written as `kind = "CORRECTED"` chunks.
  *
  * @param correctionQueueDao DAO for the correction queue.
- * @param routeDao           DAO for reading and updating route correction fields.
+ * @param routeDao           DAO for reading and updating route correction status columns.
+ * @param traceChunkDao      DAO for reading RAW chunks and writing CORRECTED chunks.
  * @param settingsSource     Read-only stream of persisted app settings.
  * @param client             OSRM GPS-correction HTTP client.
  * @param networkMonitor     Observes device connectivity.
@@ -43,6 +49,7 @@ import javax.inject.Singleton
 class GpsCorrectionRepositoryImpl @Inject constructor(
     private val correctionQueueDao: CorrectionQueueDao,
     private val routeDao: RouteDao,
+    private val traceChunkDao: RouteTraceChunkDao,
     private val settingsSource: AppSettingsSource,
     private val client: GpsCorrectionClient,
     private val networkMonitor: NetworkMonitor,
@@ -53,9 +60,7 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
 
     override val pendingCount: Flow<Int> = correctionQueueDao.getPendingCount()
 
-    /**
-     * Inserts or resets the correction queue entry for [routeId] to [CorrectionQueueState.PENDING].
-     */
+    /** Inserts or resets the correction queue entry for [routeId] to [CorrectionQueueState.PENDING]. */
     override suspend fun enqueue(routeId: String) {
         val existing = correctionQueueDao.findByRouteId(routeId)
         correctionQueueDao.upsert(
@@ -71,11 +76,7 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
         )
     }
 
-    /**
-     * Drains all due entries regardless of the auto-drain conditions.
-     *
-     * Returns 0 immediately when `offlineOnly` is true.
-     */
+    /** Drains all due entries regardless of the auto-drain conditions. Returns 0 when `offlineOnly` is true. */
     override suspend fun correctNow(): Int {
         val settings = settingsSource.settings.first()
         if (settings.offlineOnly) return 0
@@ -83,9 +84,7 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Launches background coroutines in [scope] that re-drain when connectivity or
-     * settings change. Uses [Dispatchers.Unconfined] for the same rationale as
-     * [SyncRepositoryImpl.start]: lightweight check + immediate reaction to state changes.
+     * Launches background coroutines in [scope] that re-drain when connectivity or settings change.
      */
     override fun start(scope: CoroutineScope) {
         scope.launch(Dispatchers.Unconfined) { tryDrain() }
@@ -118,11 +117,11 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
      *
      * State transitions:
      * - Transport/HTTP error → FAILED + exponential back-off
-     * - [CorrectionQualityGate.Verdict.ACCEPT] → write [correctedPathJson] + confidence + correctionStatus=DONE; queue DONE+prune
-     * - [CorrectionQualityGate.Verdict.LOW_CONFIDENCE] → write confidence + correctionStatus=LOW_CONFIDENCE; queue DONE+prune
-     * - [CorrectionQualityGate.Verdict.REJECT] (NoMatch) → correctionStatus=NONE; queue DONE+prune
+     * - [CorrectionQualityGate.Verdict.ACCEPT] → write CORRECTED chunks + update status=DONE + confidence; queue DONE+prune
+     * - [CorrectionQualityGate.Verdict.LOW_CONFIDENCE] → update confidence + status=LOW_CONFIDENCE; queue DONE+prune
+     * - [CorrectionQualityGate.Verdict.REJECT] → update status=NONE; queue DONE+prune
      *
-     * The raw [pathJson][com.mototracker.data.local.entity.RouteEntity.pathJson] is never touched.
+     * The RAW chunks are **never** modified.
      *
      * @return `true` only on a quality-gate ACCEPT.
      */
@@ -134,7 +133,9 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
             return false
         }
 
-        val points = parsePathJson(routeEntity.pathJson)
+        val rawChunks = traceChunkDao.getChunks(entry.routeId, KIND_RAW)
+        val pathJson = TraceChunkCodec.join(rawChunks.map { it.chunkJson })
+        val points = parsePathJson(pathJson)
         if (points.isEmpty()) {
             correctionQueueDao.upsert(entry.copy(state = CorrectionQueueState.DONE))
             correctionQueueDao.pruneDone()
@@ -146,12 +147,16 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
 
         return if (result.isSuccess) {
             val outcome = result.getOrThrow()
-            when (val verdict = qualityGate.evaluate(outcome)) {
+            when (qualityGate.evaluate(outcome)) {
                 CorrectionQualityGate.Verdict.ACCEPT -> {
                     val matched = outcome as CorrectionOutcome.Matched
+                    val correctedJson = buildPathJson(matched.points)
+                    val corrChunks = TraceChunkCodec.split(correctedJson).mapIndexed { seq, chunkJson ->
+                        RouteTraceChunkEntity(entry.routeId, KIND_CORRECTED, seq, chunkJson)
+                    }
+                    traceChunkDao.replace(entry.routeId, KIND_CORRECTED, corrChunks)
                     routeDao.upsert(
                         routeEntity.copy(
-                            correctedPathJson = buildPathJson(matched.points),
                             confidence = matched.confidence,
                             correctionStatus = CorrectionStatus.DONE,
                         ),
@@ -195,10 +200,9 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Parses `pathJson` (format `[{"lat":…,"lng":…},…]`) into a list of [TrackPoint]s.
+     * Parses a path JSON string (`[{"lat":…,"lng":…},…]`) into a list of [TrackPoint]s.
      *
-     * Returns an empty list on null input or any parse error so the caller can skip
-     * correction rather than retrying an unparseable trace.
+     * Returns an empty list on null input or any parse error.
      */
     private fun parsePathJson(pathJson: String?): List<TrackPoint> {
         if (pathJson.isNullOrBlank()) return emptyList()
@@ -213,9 +217,7 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Serialises [points] back to the `[{"lat":…,"lng":…},…]` JSON format used by [pathJson].
-     */
+    /** Serialises [points] back to the `[{"lat":…,"lng":…},…]` JSON format. */
     private fun buildPathJson(points: List<TrackPoint>): String {
         val arr = JSONArray()
         points.forEach { pt ->
@@ -227,5 +229,10 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
             )
         }
         return arr.toString()
+    }
+
+    private companion object {
+        private const val KIND_RAW = "RAW"
+        private const val KIND_CORRECTED = "CORRECTED"
     }
 }

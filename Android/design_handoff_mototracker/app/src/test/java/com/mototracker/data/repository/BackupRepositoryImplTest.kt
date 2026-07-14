@@ -4,6 +4,8 @@ import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
+import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.SettingsStore
 import com.mototracker.domain.backup.BackupData
@@ -11,6 +13,7 @@ import com.mototracker.domain.backup.RestoreMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,7 +34,8 @@ private class FakeRouteRepo(initial: List<Route> = emptyList()) : RouteRepositor
         _flow.value = updated
     }
 
-    override fun observeAll(): Flow<List<Route>> = _flow
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> =
+        _flow.map { list -> list.map { it.toRouteSummaryModel() } }
     override suspend fun getById(id: String): Route? = _flow.value.find { it.id == id }
     override fun observeById(id: String): Flow<Route?> = MutableStateFlow(_flow.value.find { it.id == id })
     override suspend fun clearCorrectedTrace(id: String) {}
@@ -161,7 +165,7 @@ class BackupRepositoryImplTest {
         assertTrue(result.isSuccess)
         assertFalse("deleteAll should NOT be called for MERGE", routeRepo.deleteAllCalled)
 
-        val ids = routeRepo.observeAll().first().map { it.id }.toSet()
+        val ids = routeRepo.observeSummaries().first().map { it.id }.toSet()
         // Both existing and imported are present
         assertTrue("existing" in ids)
         assertTrue("imported" in ids)
@@ -241,7 +245,7 @@ class BackupRepositoryImplTest {
         repo.importBackup(json, RestoreMode.REPLACE)
 
         // After deleteAll + save(new1), only new1 should be present
-        val routes = routeRepo.observeAll().first()
+        val routes = routeRepo.observeSummaries().first()
         assertEquals(1, routes.size)
         assertEquals("new1", routes.single().id)
     }

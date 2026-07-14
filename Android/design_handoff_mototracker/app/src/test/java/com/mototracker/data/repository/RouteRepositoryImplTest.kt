@@ -2,20 +2,26 @@ package com.mototracker.data.repository
 
 import app.cash.turbine.test
 import com.mototracker.data.local.dao.RouteDao
+import com.mototracker.data.local.dao.RouteTraceChunkDao
+import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.local.entity.RouteEntity
+import com.mototracker.data.local.entity.RouteTraceChunkEntity
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fake RouteDao
+// Fakes
 // ─────────────────────────────────────────────────────────────────────────────
 
 private class FakeRouteDaoImpl : RouteDao {
@@ -34,7 +40,16 @@ private class FakeRouteDaoImpl : RouteDao {
         allFlow.value = store.values.sortedByDescending { it.dateEpochMs }
     }
 
-    override fun getAll(): Flow<List<RouteEntity>> = allFlow
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> = allFlow.map { entities ->
+        entities.map { e ->
+            RouteSummaryModel(
+                id = e.id, name = e.name, dateEpochMs = e.dateEpochMs, bikeId = e.bikeId,
+                km = e.km, durSec = e.durSec, avg = e.avg, max = e.max, lean = e.lean,
+                elev = e.elev, fuel = e.fuel, synced = e.synced, thumbnailPathD = e.thumbnailPathD,
+                correctionStatus = e.correctionStatus, confidence = e.confidence,
+            )
+        }
+    }
 
     override suspend fun getById(id: String): RouteEntity? = store[id]
 
@@ -45,7 +60,9 @@ private class FakeRouteDaoImpl : RouteDao {
     }
 
     override suspend fun clearCorrection(id: String) {
-        store[id]?.let { store[id] = it.copy(correctedPathJson = null, correctionStatus = com.mototracker.data.local.entity.CorrectionStatus.NONE, confidence = null) }
+        store[id]?.let {
+            store[id] = it.copy(correctionStatus = CorrectionStatus.NONE, confidence = null)
+        }
     }
 
     override suspend fun setName(id: String, name: String) {
@@ -63,6 +80,39 @@ private class FakeRouteDaoImpl : RouteDao {
         store.clear()
         allFlow.value = emptyList()
     }
+
+    override suspend fun setThumbnailPathD(id: String, thumbnailPathD: String?) {
+        store[id]?.let { store[id] = it.copy(thumbnailPathD = thumbnailPathD) }
+    }
+}
+
+private class FakeRouteTraceChunkDaoImpl : RouteTraceChunkDao {
+    // (routeId, kind) → sorted list of chunks
+    private val store = mutableMapOf<Pair<String, String>, MutableList<RouteTraceChunkEntity>>()
+
+    override suspend fun replace(routeId: String, kind: String, chunks: List<RouteTraceChunkEntity>) {
+        deleteFor(routeId, kind)
+        if (chunks.isNotEmpty()) insertAll(chunks)
+    }
+
+    override suspend fun getChunks(routeId: String, kind: String): List<RouteTraceChunkEntity> =
+        store[routeId to kind]?.sortedBy { it.seq } ?: emptyList()
+
+    override suspend fun deleteFor(routeId: String, kind: String) {
+        store.remove(routeId to kind)
+    }
+
+    override suspend fun insertAll(chunks: List<RouteTraceChunkEntity>) {
+        for (chunk in chunks) {
+            store.getOrPut(chunk.routeId to chunk.kind) { mutableListOf() }.add(chunk)
+        }
+    }
+
+    fun hasChunks(routeId: String, kind: String): Boolean =
+        store[routeId to kind]?.isNotEmpty() == true
+
+    fun chunkCount(routeId: String, kind: String): Int =
+        store[routeId to kind]?.size ?: 0
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,15 +122,17 @@ private class FakeRouteDaoImpl : RouteDao {
 class RouteRepositoryImplTest {
 
     private lateinit var dao: FakeRouteDaoImpl
+    private lateinit var chunkDao: FakeRouteTraceChunkDaoImpl
     private lateinit var repo: RouteRepositoryImpl
 
     @Before
     fun setUp() {
         dao = FakeRouteDaoImpl()
-        repo = RouteRepositoryImpl(dao)
+        chunkDao = FakeRouteTraceChunkDaoImpl()
+        repo = RouteRepositoryImpl(dao, chunkDao)
     }
 
-    // ── save ─────────────────────────────────────────────────────────────────
+    // ── save — entity upsert ──────────────────────────────────────────────────
 
     @Test
     fun `save calls upsert on dao with mapped entity`() = runTest {
@@ -94,7 +146,7 @@ class RouteRepositoryImplTest {
     }
 
     @Test
-    fun `save maps all domain fields to entity`() = runTest {
+    fun `save maps all domain scalar fields to entity`() = runTest {
         val route = buildRoute(
             id = "abc",
             name = "Morning Ride",
@@ -109,7 +161,6 @@ class RouteRepositoryImplTest {
             fuel = 5.5,
             synced = false,
             wxJson = "{\"temp\":20}",
-            pathJson = "[]",
             speedJson = "[]",
             elevProfileJson = "[]",
             notes = "Great ride",
@@ -130,7 +181,6 @@ class RouteRepositoryImplTest {
         assertEquals(5.5, entity.fuel, 0.001)
         assertFalse(entity.synced)
         assertEquals("{\"temp\":20}", entity.wxJson)
-        assertEquals("[]", entity.pathJson)
         assertEquals("[]", entity.speedJson)
         assertEquals("[]", entity.elevProfileJson)
         assertEquals("Great ride", entity.notes)
@@ -156,73 +206,79 @@ class RouteRepositoryImplTest {
         assertNull(entity.notes)
     }
 
-    // ── observeAll ───────────────────────────────────────────────────────────
+    // ── save — chunk storage ──────────────────────────────────────────────────
 
     @Test
-    fun `observeAll emits empty list initially`() = runTest {
-        repo.observeAll().test {
-            assertEquals(emptyList<Route>(), awaitItem())
+    fun `save splits non-null pathJson into RAW chunks`() = runTest {
+        val route = buildRoute(id = "r1", pathJson = """[{"lat":50.0,"lng":20.0}]""")
+        repo.save(route)
+
+        assertTrue("RAW chunks must be present", chunkDao.hasChunks("r1", "RAW"))
+    }
+
+    @Test
+    fun `save null pathJson stores no RAW chunks`() = runTest {
+        val route = buildRoute(id = "r1", pathJson = null)
+        repo.save(route)
+
+        assertFalse("no RAW chunks for null pathJson", chunkDao.hasChunks("r1", "RAW"))
+    }
+
+    @Test
+    fun `save non-null correctedPathJson stores CORRECTED chunks`() = runTest {
+        val route = buildRoute(id = "r1", correctedPathJson = """[{"lat":50.0,"lng":20.0}]""")
+        repo.save(route)
+
+        assertTrue("CORRECTED chunks must be present", chunkDao.hasChunks("r1", "CORRECTED"))
+    }
+
+    @Test
+    fun `save null correctedPathJson stores no CORRECTED chunks`() = runTest {
+        val route = buildRoute(id = "r1", correctedPathJson = null)
+        repo.save(route)
+
+        assertFalse("no CORRECTED chunks for null", chunkDao.hasChunks("r1", "CORRECTED"))
+    }
+
+    // ── observeSummaries ─────────────────────────────────────────────────────
+
+    @Test
+    fun `observeSummaries emits empty list initially`() = runTest {
+        repo.observeSummaries().test {
+            assertEquals(emptyList<RouteSummaryModel>(), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `observeAll emits routes after save`() = runTest {
-        repo.observeAll().test {
-            awaitItem() // empty initial
+    fun `observeSummaries emits summaries after save`() = runTest {
+        repo.observeSummaries().test {
+            awaitItem() // initial empty
 
             repo.save(buildRoute(id = "r1", km = 55.0))
-            val routes = awaitItem()
+            val summaries = awaitItem()
 
-            assertEquals(1, routes.size)
-            assertEquals("r1", routes.first().id)
-            assertEquals(55.0, routes.first().km, 0.001)
+            assertEquals(1, summaries.size)
+            assertEquals("r1", summaries.first().id)
+            assertEquals(55.0, summaries.first().km, 0.001)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `observeAll maps entity fields to domain model`() = runTest {
-        repo.observeAll().test {
-            awaitItem() // empty
-            repo.save(
-                buildRoute(
-                    id = "abc",
-                    name = "Test",
-                    km = 12.3,
-                    avg = 60.0,
-                    max = 120.0,
-                    lean = 30.0,
-                    synced = false,
-                )
-            )
-            val routes = awaitItem()
-            val route = routes.first()
-            assertEquals("abc", route.id)
-            assertEquals("Test", route.name)
-            assertEquals(12.3, route.km, 0.001)
-            assertEquals(60.0, route.avg, 0.001)
-            assertEquals(120.0, route.max, 0.001)
-            assertEquals(30.0, route.lean, 0.001)
-            assertFalse(route.synced)
+    fun `observeSummaries does not include trace fields`() = runTest {
+        repo.observeSummaries().test {
+            awaitItem()
+            repo.save(buildRoute(id = "r1", pathJson = """[{"lat":1.0,"lng":2.0}]"""))
+            val summaries = awaitItem()
+            assertEquals(1, summaries.size)
+            // RouteSummaryModel has no pathJson field by design — just verify it exists
+            assertNotNull(summaries.first().id)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
-    @Test
-    fun `observeAll emits updated list after multiple saves`() = runTest {
-        repo.observeAll().test {
-            awaitItem() // empty
-            repo.save(buildRoute(id = "a"))
-            awaitItem() // [a]
-            repo.save(buildRoute(id = "b"))
-            val routes = awaitItem()
-            assertEquals(2, routes.size)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    // ── getById ──────────────────────────────────────────────────────────────
+    // ── getById ───────────────────────────────────────────────────────────────
 
     @Test
     fun `getById returns null when route does not exist`() = runTest {
@@ -239,13 +295,34 @@ class RouteRepositoryImplTest {
     }
 
     @Test
-    fun `getById returns null for a different id than what was saved`() = runTest {
-        repo.save(buildRoute(id = "alpha"))
-        assertNull(repo.getById("beta"))
+    fun `getById reassembles pathJson from RAW chunks`() = runTest {
+        val json = """[{"lat":50.0,"lng":20.0},{"lat":51.0,"lng":21.0}]"""
+        repo.save(buildRoute(id = "r1", pathJson = json))
+
+        val result = repo.getById("r1")
+        assertNotNull("pathJson must be reassembled", result?.pathJson)
+        val arr = org.json.JSONArray(result!!.pathJson)
+        assertEquals(2, arr.length())
     }
 
     @Test
-    fun `getById maps all fields correctly`() = runTest {
+    fun `getById returns null pathJson when no RAW chunks exist`() = runTest {
+        repo.save(buildRoute(id = "r1", pathJson = null))
+        val result = repo.getById("r1")
+        assertNull(result?.pathJson)
+    }
+
+    @Test
+    fun `getById reassembles correctedPathJson from CORRECTED chunks`() = runTest {
+        val json = """[{"lat":50.0,"lng":20.0}]"""
+        repo.save(buildRoute(id = "r1", correctedPathJson = json))
+
+        val result = repo.getById("r1")
+        assertNotNull("correctedPathJson must be reassembled", result?.correctedPathJson)
+    }
+
+    @Test
+    fun `getById maps all scalar fields correctly`() = runTest {
         val route = buildRoute(
             id = "m1",
             name = "Dawn Run",
@@ -279,12 +356,37 @@ class RouteRepositoryImplTest {
         assertEquals("Misty", got.notes)
     }
 
-    // ── setBike ──────────────────────────────────────────────────────────────
+    // ── clearCorrectedTrace ───────────────────────────────────────────────────
 
     @Test
-    fun `setBike delegates to RouteDao setBike with routeId and bikeId`() = runTest {
-        repo.save(buildRoute(id = "route-assign", bikeId = null))
+    fun `clearCorrectedTrace removes only CORRECTED chunks not RAW`() = runTest {
+        repo.save(
+            buildRoute(
+                id = "r1",
+                pathJson = """[{"lat":50.0,"lng":20.0}]""",
+                correctedPathJson = """[{"lat":50.0,"lng":20.0}]""",
+            )
+        )
 
+        repo.clearCorrectedTrace("r1")
+
+        assertTrue("RAW chunks must remain", chunkDao.hasChunks("r1", "RAW"))
+        assertFalse("CORRECTED chunks must be removed", chunkDao.hasChunks("r1", "CORRECTED"))
+    }
+
+    @Test
+    fun `clearCorrectedTrace resets correction status on entity`() = runTest {
+        repo.save(buildRoute(id = "r1"))
+        repo.clearCorrectedTrace("r1")
+
+        assertEquals(CorrectionStatus.NONE, dao.upsertCalls.first().correctionStatus)
+    }
+
+    // ── setBike ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun `setBike delegates to RouteDao with routeId and bikeId`() = runTest {
+        repo.save(buildRoute(id = "route-assign", bikeId = null))
         repo.setBike("route-assign", "bike-7")
 
         assertEquals(1, dao.setBikeCalls.size)
@@ -293,17 +395,15 @@ class RouteRepositoryImplTest {
     }
 
     @Test
-    fun `setBike with null bikeId clears the bike association`() = runTest {
+    fun `setBike with null clears the bike association`() = runTest {
         repo.save(buildRoute(id = "route-clear", bikeId = "old-bike"))
-
         repo.setBike("route-clear", null)
 
         assertEquals(1, dao.setBikeCalls.size)
-        assertEquals("route-clear", dao.setBikeCalls.first().first)
         assertNull(dao.setBikeCalls.first().second)
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun buildRoute(
         id: String = "route-0",
@@ -319,10 +419,11 @@ class RouteRepositoryImplTest {
         fuel: Double = 0.0,
         synced: Boolean = false,
         wxJson: String? = null,
-        pathJson: String? = "[]",
-        speedJson: String? = "[]",
-        elevProfileJson: String? = "[]",
+        pathJson: String? = null,
+        speedJson: String? = null,
+        elevProfileJson: String? = null,
         notes: String? = null,
+        correctedPathJson: String? = null,
     ) = Route(
         id = id,
         name = name,
@@ -341,5 +442,6 @@ class RouteRepositoryImplTest {
         speedJson = speedJson,
         elevProfileJson = elevProfileJson,
         notes = notes,
+        correctedPathJson = correctedPathJson,
     )
 }

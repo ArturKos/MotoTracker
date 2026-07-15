@@ -13,9 +13,11 @@ import com.mototracker.data.network.GpStrackClient
 import com.mototracker.data.network.HttpGpStrackClient
 import com.mototracker.data.network.HttpTransport
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.network.OpenMeteoWeatherClient
 import com.mototracker.data.network.OsrmGpsCorrectionClient
 import com.mototracker.data.network.SessionStore
 import com.mototracker.data.network.UrlConnectionHttpTransport
+import com.mototracker.data.network.WeatherClient
 import com.mototracker.data.repository.GpsCorrectionRepository
 import com.mototracker.data.repository.GpsCorrectionRepositoryImpl
 import com.mototracker.data.repository.SyncRepository
@@ -112,4 +114,9 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindGpsCorrectionRepository(impl: GpsCorrectionRepositoryImpl): GpsCorrectionRepository
+
+    /** Binds [OpenMeteoWeatherClient] as the [WeatherClient] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindWeatherClient(impl: OpenMeteoWeatherClient): WeatherClient
 }

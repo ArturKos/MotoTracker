@@ -18,6 +18,8 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.network.WeatherClient
+import com.mototracker.data.network.WeatherSnapshot
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
@@ -214,6 +216,18 @@ private class FakeStringResolver : StringResolver {
 private class FakeResumeRouteBus : ResumeRouteBus {
     override val requests: kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.flow {}
     override suspend fun request(routeId: String) {}
+}
+
+private class FakeWeatherClient(
+    private val result: Result<WeatherSnapshot> = Result.success(
+        WeatherSnapshot(tempC = 20, humidity = 65, rain = false),
+    ),
+) : WeatherClient {
+    var fetchCallCount = 0
+    override suspend fun fetch(lat: Double, lon: Double): Result<WeatherSnapshot> {
+        fetchCallCount++
+        return result
+    }
 }
 
 private class FakeRefuelRepository(
@@ -1447,6 +1461,7 @@ class RecordingViewModelTest {
         sessionStore: RecordingSessionStore = FakeRecordingSessionStore(),
         bikeRepository: BikeRepository = FakeBikeRepository(),
         refuelRepository: RefuelRepository = FakeRefuelRepository(),
+        weatherClient: WeatherClient = FakeWeatherClient(),
     ) = RecordingViewModel(
         rideLocationCollector = rideLocationCollector,
         leanSensorSource = leanSensorSource,
@@ -1465,5 +1480,6 @@ class RecordingViewModelTest {
         refuelRepository = refuelRepository,
         resumeRouteBus = FakeResumeRouteBus(),
         autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
+        weatherClient = weatherClient,
     )
 }

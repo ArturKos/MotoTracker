@@ -13,6 +13,7 @@ import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.network.WeatherClient
 import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.FuelConsumptionCalculator
 import com.mototracker.data.recording.ActiveSessionSnapshot
@@ -96,6 +97,7 @@ import javax.inject.Inject
  * @param refuelRepository                  Persistence for per-route refuel events (G5).
  * @param resumeRouteBus                    App-scoped bus for receiving "continue existing route" requests (J5).
  * @param autoUpdateBikeConsumptionUseCase  Refreshes bike consumption from the refuel ledger after a refuel is saved (K2).
+ * @param weatherClient                     Fetches current weather once at ride start when online (K5).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -117,6 +119,7 @@ class RecordingViewModel @Inject constructor(
     private val refuelRepository: RefuelRepository,
     private val resumeRouteBus: ResumeRouteBus,
     private val autoUpdateBikeConsumptionUseCase: AutoUpdateBikeConsumptionUseCase,
+    private val weatherClient: WeatherClient,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -161,6 +164,12 @@ class RecordingViewModel @Inject constructor(
 
     /** Original start timestamp of the route being continued; preserved on save (J5). */
     private var existingRouteDateEpochMs: Long = 0L
+
+    /** Weather JSON accumulated from the first GPS fix of the ride; null when offline or not yet fetched. */
+    private var pendingWxJson: String? = null
+
+    /** Guard ensuring weather is fetched at most once per ride session. */
+    private var weatherFetchedForRide: Boolean = false
 
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
@@ -308,6 +317,8 @@ class RecordingViewModel @Inject constructor(
         rideDebugLogger.beginRide()
         recordingStartMs = timeProvider.nowEpochMs()
         pendingRouteId = UUID.randomUUID().toString()
+        pendingWxJson = null
+        weatherFetchedForRide = false
         _uiState.update {
             it.copy(
                 phase = RecordingPhase.Recording,
@@ -428,7 +439,7 @@ class RecordingViewModel @Inject constructor(
                 elev = result.metrics.elevGainM,
                 fuel = result.metrics.fuelL,
                 synced = false,
-                wxJson = null,
+                wxJson = if (isResume) null else pendingWxJson,
                 pathJson = result.pathJson,
                 speedJson = result.speedJson,
                 elevProfileJson = result.elevProfileJson,
@@ -618,6 +629,24 @@ class RecordingViewModel @Inject constructor(
                 val coord = GeoCoord(sample.lat, sample.lng)
                 _uiState.update { prev ->
                     prev.copy(metrics = metrics, trackPoints = prev.trackPoints + coord)
+                }
+                // K5: Fetch weather once on the first GPS fix when online.
+                if (!weatherFetchedForRide) {
+                    weatherFetchedForRide = true
+                    viewModelScope.launch {
+                        val settings = settingsSource.settings.first()
+                        val isOnline = networkMonitor.isOnline.first()
+                        val offline = settings.offline || settings.offlineOnly || !isOnline
+                        if (!offline) {
+                            weatherClient.fetch(sample.lat, sample.lng).onSuccess { snapshot ->
+                                pendingWxJson = snapshot.toWxJson()
+                                rideDebugLogger.log(
+                                    "WEATHER",
+                                    "tempC=${snapshot.tempC} hum=${snapshot.humidity} rain=${snapshot.rain}",
+                                )
+                            }
+                        }
+                    }
                 }
                 // B20: Persist snapshot on each GPS fix. Launched in a sibling coroutine
                 // so the location collector is not blocked by the DataStore write.

@@ -13,6 +13,8 @@ import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.network.WeatherClient
+import com.mototracker.data.network.WeatherSnapshot
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.recording.ResumeRouteBus
@@ -177,6 +179,11 @@ private class FakeRouteBus : ResumeRouteBus {
     override suspend fun request(routeId: String) { _channel.send(routeId) }
 }
 
+private class FakeResumeWeatherClient : WeatherClient {
+    override suspend fun fetch(lat: Double, lon: Double): Result<WeatherSnapshot> =
+        Result.success(WeatherSnapshot(tempC = 20, humidity = 60, rain = false))
+}
+
 private class FakeResumeRefuelRepository : RefuelRepository {
     override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {}
     override fun observeRefuels(routeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> =
@@ -249,6 +256,7 @@ class RecordingViewModelResumeTest {
         refuelRepository = FakeResumeRefuelRepository(),
         resumeRouteBus = resumeRouteBus,
         autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
+        weatherClient = FakeResumeWeatherClient(),
     )
 
     // ── Startup detection ────────────────────────────────────────────────────

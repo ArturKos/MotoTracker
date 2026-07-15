@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    FileProvider paths for ride diagnostic logs.
-    Exposes <externalFilesDir>/ride-logs/ via a content:// URI so the system share
-    sheet can read log files without MANAGE_EXTERNAL_STORAGE or world-readable modes.
+    FileProvider paths for shared files.
+    Exposes app directories via content:// URIs so the system share sheet can read files
+    without MANAGE_EXTERNAL_STORAGE or world-readable modes.
     Referenced by AndroidManifest.xml <provider android:name="androidx.core.content.FileProvider">.
 -->
 <paths>
     <external-files-path
         name="ride-logs"
         path="ride-logs/" />
+    <!-- Share-card PNGs rendered into cacheDir/share-cards/ (K4) -->
+    <cache-path
+        name="share-cards"
+        path="share-cards/" />
 </paths>

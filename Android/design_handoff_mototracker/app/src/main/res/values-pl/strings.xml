@@ -116,6 +116,8 @@
     <string name="desc_export_gpx">Zapisz ślad do pliku .gpx</string>
     <string name="btn_share_route">Udostępnij trasę</string>
     <string name="desc_share_route">Wyślij link lub przekaż innym</string>
+    <string name="btn_share_image">Udostępnij jako grafikę</string>
+    <string name="desc_share_image">Zapisz kartę podsumowania do udostępnienia</string>
     <string name="btn_send_server">Wyślij na serwer GPStrack</string>
     <string name="desc_send_server">192.168.1.145/gpstrack</string>
 
@@ -437,4 +439,9 @@
 
     <!-- Auto-update consumption checkbox (K2) -->
     <string name="label_auto_update_consumption">Aktualizuj spalanie automatycznie z tankowań</string>
+
+    <!-- Share card stat row labels (K4) -->
+    <string name="share_card_stat_distance">Dystans</string>
+    <string name="share_card_stat_duration">Czas trwania</string>
+    <string name="share_card_stat_top_speed">Prędkość maks.</string>
 </resources>

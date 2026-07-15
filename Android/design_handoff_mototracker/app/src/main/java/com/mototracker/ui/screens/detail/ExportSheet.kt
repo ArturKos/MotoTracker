@@ -31,20 +31,22 @@ import com.mototracker.ui.theme.MotoTracker
 /**
  * Export & share bottom sheet for the Route Detail screen.
  *
- * Presents three action rows matching the prototype spec:
+ * Presents four action rows matching the prototype spec:
  * - Export GPX file
  * - Share route link
+ * - Share as image (K4)
  * - Send to GPStrack server
  *
  * Each row invokes the matching ViewModel action and dismisses the sheet.
  * Sheet visibility is controlled by the caller via [onDismiss]; visibility state
  * is kept as Compose-local state in the parent screen.
  *
- * @param routeName    The route display name shown as the sheet subtitle.
- * @param onExportGpx  Called when the user taps "Export GPX file".
- * @param onShareRoute Called when the user taps "Share route".
- * @param onSendServer Called when the user taps "Send to GPStrack server".
- * @param onDismiss    Called when the sheet should be dismissed (drag away or option tapped).
+ * @param routeName     The route display name shown as the sheet subtitle.
+ * @param onExportGpx   Called when the user taps "Export GPX file".
+ * @param onShareRoute  Called when the user taps "Share route".
+ * @param onShareImage  Called when the user taps "Share as image" (K4).
+ * @param onSendServer  Called when the user taps "Send to GPStrack server".
+ * @param onDismiss     Called when the sheet should be dismissed (drag away or option tapped).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +54,7 @@ fun ExportSheet(
     routeName: String,
     onExportGpx: () -> Unit,
     onShareRoute: () -> Unit,
+    onShareImage: () -> Unit,
     onSendServer: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -98,6 +101,12 @@ fun ExportSheet(
                 title = stringResource(R.string.btn_share_route),
                 desc = stringResource(R.string.desc_share_route),
                 onClick = { onShareRoute(); onDismiss() },
+            )
+            HorizontalDivider(color = MotoTracker.colors.line.copy(alpha = 0.4f))
+            ExportOptionRow(
+                title = stringResource(R.string.btn_share_image),
+                desc = stringResource(R.string.desc_share_image),
+                onClick = { onShareImage(); onDismiss() },
             )
             HorizontalDivider(color = MotoTracker.colors.line.copy(alpha = 0.4f))
             ExportOptionRow(

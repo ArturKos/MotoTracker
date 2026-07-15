@@ -69,13 +69,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.content.Intent
 import com.mototracker.R
 import com.mototracker.core.format.WeatherUi
 import com.mototracker.ui.map.OsmTrackMap
 import com.mototracker.ui.screens.record.FrozenLeanTiltBar
 import com.mototracker.ui.theme.JetBrainsMonoFamily
 import com.mototracker.ui.theme.MotoTracker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 
 /**
  * Route Detail screen — ViewModel wrapper that delegates rendering to [RouteDetailContent].
@@ -152,6 +155,22 @@ fun RouteDetailScreen(
                 is RouteDetailEvent.RefuelAdded -> onToast(refuelAddedMsg)
                 is RouteDetailEvent.RefuelDeleted -> onToast(refuelDeletedMsg)
                 is RouteDetailEvent.ResumeRoute -> onNavigateToRecord()
+                is RouteDetailEvent.ShareCardReady -> {
+                    // Render PNG on IO; launch share sheet on main (🔬 on-device).
+                    withContext(Dispatchers.IO) {
+                        val file = RideShareCardRenderer.render(context, event.card, event.routeId)
+                        val factory = RideShareCardShareIntentFactory()
+                        val uri = factory.imageUri(context, file)
+                        val shareIntent = factory.buildIntent(uri)
+                        withContext(Dispatchers.Main) {
+                            context.startActivity(
+                                Intent.createChooser(shareIntent, null).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -196,6 +215,7 @@ fun RouteDetailScreen(
             routeName = state.name,
             onExportGpx = { viewModel.exportGpx() },
             onShareRoute = { viewModel.shareRoute() },
+            onShareImage = { viewModel.onShareImage() },
             onSendServer = { viewModel.sendToServer() },
             onDismiss = { showExportSheet = false },
         )

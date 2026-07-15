@@ -1,5 +1,7 @@
 package com.mototracker.ui.screens.detail
 
+import com.mototracker.domain.share.RideShareCard
+
 /**
  * One-shot UI events emitted by [RouteDetailViewModel] for the [RouteDetailScreen] to consume.
  *
@@ -63,4 +65,16 @@ sealed interface RouteDetailEvent {
      * @param routeId UUID of the route to continue.
      */
     data class ResumeRoute(val routeId: String) : RouteDetailEvent
+
+    /**
+     * A share card has been built and is ready for the Composable to render and share (K4).
+     *
+     * The Composable should render the card to a PNG via [RideShareCardRenderer] on
+     * [kotlinx.coroutines.Dispatchers.IO], obtain a FileProvider URI, and launch the system
+     * share sheet via [android.content.Intent.createChooser].
+     *
+     * @param card    Immutable domain model with pre-formatted card content.
+     * @param routeId UUID of the route; used as the PNG filename component.
+     */
+    data class ShareCardReady(val card: RideShareCard, val routeId: String) : RouteDetailEvent
 }

@@ -116,6 +116,8 @@
     <string name="desc_export_gpx">Uložit stopu do .gpx</string>
     <string name="btn_share_route">Sdílet trasu</string>
     <string name="desc_share_route">Odeslat odkaz nebo předat dál</string>
+    <string name="btn_share_image">Sdílet jako obrázek</string>
+    <string name="desc_share_image">Uložit souhrnnou kartu ke sdílení</string>
     <string name="btn_send_server">Odeslat na server GPStrack</string>
     <string name="desc_send_server">192.168.1.145/gpstrack</string>
 
@@ -437,4 +439,9 @@
 
     <!-- Auto-update consumption checkbox (K2) -->
     <string name="label_auto_update_consumption">Automaticky aktualizovat spotřebu z tankování</string>
+
+    <!-- Share card stat row labels (K4) -->
+    <string name="share_card_stat_distance">Vzdálenost</string>
+    <string name="share_card_stat_duration">Trvání</string>
+    <string name="share_card_stat_top_speed">Max. rychlost</string>
 </resources>

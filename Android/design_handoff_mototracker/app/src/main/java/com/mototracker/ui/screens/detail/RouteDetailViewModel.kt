@@ -360,6 +360,23 @@ class RouteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Builds a [com.mototracker.domain.share.RideShareCard] from the current [uiState] and emits
+     * [RouteDetailEvent.ShareCardReady] (K4).
+     *
+     * The Composable is responsible for calling [RideShareCardRenderer.render] on IO and
+     * launching the system share sheet — both are on-device concerns (🔬).
+     * No-op when the route is still loading or not found.
+     */
+    fun onShareImage() {
+        val state = uiState.value
+        if (state.loading || state.routeNotFound) return
+        val card = RideShareCardBuilder.from(state)
+        viewModelScope.launch {
+            _events.send(RouteDetailEvent.ShareCardReady(card = card, routeId = routeId))
+        }
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun buildUiState(

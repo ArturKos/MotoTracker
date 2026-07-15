@@ -116,6 +116,8 @@
     <string name="desc_export_gpx">Track als .gpx speichern</string>
     <string name="btn_share_route">Route teilen</string>
     <string name="desc_share_route">Link senden oder weitergeben</string>
+    <string name="btn_share_image">Als Bild teilen</string>
+    <string name="desc_share_image">Zusammenfassungskarte zum Teilen speichern</string>
     <string name="btn_send_server">An GPStrack-Server senden</string>
     <string name="desc_send_server">192.168.1.145/gpstrack</string>
 
@@ -437,4 +439,9 @@
 
     <!-- Auto-update consumption checkbox (K2) -->
     <string name="label_auto_update_consumption">Verbrauch automatisch aus Tankungen aktualisieren</string>
+
+    <!-- Share card stat row labels (K4) -->
+    <string name="share_card_stat_distance">Strecke</string>
+    <string name="share_card_stat_duration">Dauer</string>
+    <string name="share_card_stat_top_speed">Spitzentempo</string>
 </resources>

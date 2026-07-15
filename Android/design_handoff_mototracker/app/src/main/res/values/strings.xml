@@ -131,6 +131,8 @@
     <string name="desc_export_gpx">Save track to a .gpx file</string>
     <string name="btn_share_route">Share route</string>
     <string name="desc_share_route">Send a link or pass it on</string>
+    <string name="btn_share_image">Share as image</string>
+    <string name="desc_share_image">Save a summary card to share</string>
     <string name="btn_send_server">Send to GPStrack server</string>
     <string name="desc_send_server">192.168.1.145/gpstrack</string>
 
@@ -467,4 +469,9 @@
 
     <!-- Resume/continue a saved route (J5) -->
     <string name="route_detail_continue">Continue route</string>
+
+    <!-- Share card stat row labels (K4) -->
+    <string name="share_card_stat_distance">Distance</string>
+    <string name="share_card_stat_duration">Duration</string>
+    <string name="share_card_stat_top_speed">Top Speed</string>
 </resources>

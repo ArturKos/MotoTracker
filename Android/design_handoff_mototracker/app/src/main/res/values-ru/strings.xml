@@ -116,6 +116,8 @@
     <string name="desc_export_gpx">Сохранить трек в .gpx</string>
     <string name="btn_share_route">Поделиться маршрутом</string>
     <string name="desc_share_route">Отправить ссылку или передать</string>
+    <string name="btn_share_image">Поделиться как изображение</string>
+    <string name="desc_share_image">Сохранить сводную карточку для публикации</string>
     <string name="btn_send_server">Отправить на сервер GPStrack</string>
     <string name="desc_send_server">192.168.1.145/gpstrack</string>
 
@@ -437,4 +439,9 @@
 
     <!-- Auto-update consumption checkbox (K2) -->
     <string name="label_auto_update_consumption">Автоматически обновлять расход из заправок</string>
+
+    <!-- Share card stat row labels (K4) -->
+    <string name="share_card_stat_distance">Расстояние</string>
+    <string name="share_card_stat_duration">Продолжительность</string>
+    <string name="share_card_stat_top_speed">Макс. скорость</string>
 </resources>

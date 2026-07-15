@@ -81,6 +81,7 @@ import com.mototracker.ui.theme.FuelDangerRed
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -267,7 +268,7 @@ fun RecordingContent(
                     LeanRow(state = state, currentLeanDeg = displayLeanDeg)
                     Spacer(Modifier.height(sizing.rowSpacingDp.dp))
                     TimersRow(state = state, sizing = sizing)
-                    Spacer(Modifier.height((sizing.rowSpacingDp * 2).dp))
+                    Spacer(Modifier.height(sizing.rowSpacingDp.dp))
                     if (locationPermDenied && state.phase == RecordingPhase.Idle) {
                         PermissionDeniedBanner(
                             text = stringResource(R.string.perm_location_denied),
@@ -277,19 +278,10 @@ fun RecordingContent(
                         RecordingControlRow(
                             phase = state.phase,
                             metrics = state.metrics,
+                            sizing = sizing,
                             onEvent = onEvent,
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.hint_pause_handlebar),
-                        style = MotoTracker.typography.bodySmall,
-                        color = MotoTracker.colors.dim,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                    )
                 }
             }
         }
@@ -828,14 +820,19 @@ private fun fuelRangeTint(color: FuelRangeColor): androidx.compose.ui.graphics.C
  *
  * The fuel icon (FILL_TO_FULL) is tinted by remaining fuel via [FuelRangeIndicator] (H3).
  *
+ * Button size is driven by [sizing.controlButtonDp] so the control strip scales with the
+ * available screen height (K3).
+ *
  * @param phase   Current recording phase from [RecordingUiState].
  * @param metrics Live recording metrics used to derive the fuel-icon tint colour.
+ * @param sizing  Responsive layout tokens for the current screen height breakpoint.
  * @param onEvent Callback for dispatching [RecordingEvent]s to the ViewModel.
  */
 @Composable
 private fun RecordingControlRow(
     phase: RecordingPhase,
     metrics: RecordingMetrics,
+    sizing: RecordSizing,
     onEvent: (RecordingEvent) -> Unit,
 ) {
     val controls = RecordingControls.forPhase(phase)
@@ -849,7 +846,7 @@ private fun RecordingControlRow(
             when (control) {
                 RecordingControl.START -> FilledIconButton(
                     onClick = { onEvent(RecordingEvent.Start) },
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(sizing.controlButtonDp.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MotoTracker.colors.accent,
                         contentColor = MotoTracker.colors.onAccent,
@@ -858,12 +855,12 @@ private fun RecordingControlRow(
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = stringResource(R.string.btn_start_ride),
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size((sizing.controlButtonDp * 0.6f).roundToInt().dp),
                     )
                 }
                 RecordingControl.PAUSE -> OutlinedIconButton(
                     onClick = { onEvent(RecordingEvent.Pause) },
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(sizing.controlButtonDp.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Pause,
@@ -872,7 +869,7 @@ private fun RecordingControlRow(
                 }
                 RecordingControl.RESUME -> FilledIconButton(
                     onClick = { onEvent(RecordingEvent.Resume) },
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(sizing.controlButtonDp.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MotoTracker.colors.accent,
                         contentColor = MotoTracker.colors.onAccent,
@@ -885,7 +882,7 @@ private fun RecordingControlRow(
                 }
                 RecordingControl.STOP -> FilledIconButton(
                     onClick = { onEvent(RecordingEvent.RequestStop) },
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(sizing.controlButtonDp.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MotoTracker.colors.accent2,
                         contentColor = MotoTracker.colors.onAccent2,
@@ -905,7 +902,7 @@ private fun RecordingControlRow(
                     )
                     OutlinedIconButton(
                         onClick = { onEvent(RecordingEvent.ShowRefuelDialog) },
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier.size(sizing.controlButtonDp.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.LocalGasStation,

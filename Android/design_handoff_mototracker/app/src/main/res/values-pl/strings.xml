@@ -187,8 +187,6 @@
     <string name="label_on_road">na drodze</string>
     <string name="label_meetings">Spotkania na trasie</string>
     <string name="label_meetings_none">Brak spotkań</string>
-    <string name="hint_pause_handlebar">Pauza także przyciskiem na kierownicy</string>
-
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Zapisz</string>
 

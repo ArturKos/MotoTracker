@@ -21,7 +21,7 @@ class RecordLayoutSizingTest {
         assertEquals(52, s.compassDiameterDp)
         assertEquals(22, s.bigNumberFontSp)
         assertEquals(3,  s.rowSpacingDp)
-        assertEquals(48, s.controlButtonDp)
+        assertEquals(44, s.controlButtonDp)
     }
 
     @Test
@@ -31,7 +31,7 @@ class RecordLayoutSizingTest {
         assertEquals(62, s.compassDiameterDp)
         assertEquals(26, s.bigNumberFontSp)
         assertEquals(5,  s.rowSpacingDp)
-        assertEquals(52, s.controlButtonDp)
+        assertEquals(48, s.controlButtonDp)
     }
 
     @Test
@@ -41,7 +41,7 @@ class RecordLayoutSizingTest {
         assertEquals(72, s.compassDiameterDp)
         assertEquals(30, s.bigNumberFontSp)
         assertEquals(6,  s.rowSpacingDp)
-        assertEquals(56, s.controlButtonDp)
+        assertEquals(52, s.controlButtonDp)
     }
 
     // ── Boundary values ───────────────────────────────────────────────────────
@@ -136,5 +136,27 @@ class RecordLayoutSizingTest {
             "compact.compassDiameterDp (${compact.compassDiameterDp}) must be < comfortable.compassDiameterDp (${comfortable.compassDiameterDp})",
             compact.compassDiameterDp < comfortable.compassDiameterDp,
         )
+    }
+
+    @Test
+    fun compactControlButtonStrictlySmallerThanComfortable() {
+        val compact = RecordLayoutSizing.forHeight(300)
+        val comfortable = RecordLayoutSizing.forHeight(800)
+        assertTrue(
+            "compact.controlButtonDp (${compact.controlButtonDp}) must be < comfortable.controlButtonDp (${comfortable.controlButtonDp})",
+            compact.controlButtonDp < comfortable.controlButtonDp,
+        )
+    }
+
+    @Test
+    fun controlButtonIsMonotonicNonDecreasing() {
+        val heights = listOf(0, 300, 559, 560, 650, 719, 720, 900)
+        val buttons = heights.map { RecordLayoutSizing.forHeight(it).controlButtonDp }
+        for (i in 0 until buttons.lastIndex) {
+            assertTrue(
+                "controlButtonDp must be non-decreasing: index $i ${buttons[i]} > ${buttons[i + 1]}",
+                buttons[i] <= buttons[i + 1],
+            )
+        }
     }
 }

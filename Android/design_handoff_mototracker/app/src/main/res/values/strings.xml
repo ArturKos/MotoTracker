@@ -218,8 +218,6 @@
     <string name="label_on_road">on road</string>
     <string name="label_meetings">Meetups on route</string>
     <string name="label_meetings_none">No meetups</string>
-    <string name="hint_pause_handlebar">Pause also via handlebar button</string>
-
     <!-- Add/edit motorcycle dialog — auto-update consumption checkbox (K2) -->
     <string name="label_auto_update_consumption">Auto-update consumption from refuels</string>
 

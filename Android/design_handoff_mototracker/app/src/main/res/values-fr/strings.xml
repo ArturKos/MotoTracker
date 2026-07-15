@@ -187,8 +187,6 @@
     <string name="label_on_road">sur route</string>
     <string name="label_meetings">Rencontres sur le trajet</string>
     <string name="label_meetings_none">Aucune rencontre</string>
-    <string name="hint_pause_handlebar">Pause aussi au bouton guidon</string>
-
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Enregistrer</string>
 

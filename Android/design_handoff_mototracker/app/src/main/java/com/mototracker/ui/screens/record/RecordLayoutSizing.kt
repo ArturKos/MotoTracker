@@ -10,7 +10,10 @@ package com.mototracker.ui.screens.record
  * @param compassDiameterDp  Outer diameter (dp) of the CompassDial rose.
  * @param bigNumberFontSp    Font size (sp) for secondary numeric tiles (distance, altitude, timers).
  * @param rowSpacingDp       Vertical gap (dp) between major tile rows.
- * @param controlButtonDp    Side length (dp) of primary icon buttons in the control strip.
+ * @param controlButtonDp    Side length (dp) of all icon buttons in the control strip (START, PAUSE,
+ *                           RESUME, STOP, FILL_TO_FULL). Reduced from the original 48/52/56 to
+ *                           44/48/52 (K3) so the Idle screen fits without scrolling on P20-class
+ *                           devices. Tokens are monotonic non-decreasing; COMPACT &lt; COMFORTABLE.
  */
 data class RecordSizing(
     val speedFontSp: Int,
@@ -24,7 +27,7 @@ data class RecordSizing(
  * Derives [RecordSizing] layout tokens from the available screen height.
  *
  * Three breakpoints keep the full control column — chip row → Speed + Compass →
- * distance/altitude/fuel → fuel-tank → lean bar → timers → controls → hint — on a single screen
+ * distance/altitude/fuel → fuel-tank → lean bar → timers → controls — on a single screen
  * without scrolling on phones as compact as ~411 dp × ~683 dp usable height.
  *
  * The [forHeight] function is deterministic, pure, and monotonic non-decreasing in height.
@@ -44,7 +47,7 @@ object RecordLayoutSizing {
         compassDiameterDp = 52,
         bigNumberFontSp   = 22,
         rowSpacingDp      = 3,
-        controlButtonDp   = 48,
+        controlButtonDp   = 44,
     )
 
     private val REGULAR = RecordSizing(
@@ -52,7 +55,7 @@ object RecordLayoutSizing {
         compassDiameterDp = 62,
         bigNumberFontSp   = 26,
         rowSpacingDp      = 5,
-        controlButtonDp   = 52,
+        controlButtonDp   = 48,
     )
 
     private val COMFORTABLE = RecordSizing(
@@ -60,7 +63,7 @@ object RecordLayoutSizing {
         compassDiameterDp = 72,
         bigNumberFontSp   = 30,
         rowSpacingDp      = 6,
-        controlButtonDp   = 56,
+        controlButtonDp   = 52,
     )
 
     /**

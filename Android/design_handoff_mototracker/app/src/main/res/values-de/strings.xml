@@ -187,8 +187,6 @@
     <string name="label_on_road">auf Straße</string>
     <string name="label_meetings">Treffen unterwegs</string>
     <string name="label_meetings_none">Keine Treffen</string>
-    <string name="hint_pause_handlebar">Pause auch per Lenkertaste</string>
-
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Speichern</string>
 

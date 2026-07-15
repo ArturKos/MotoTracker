@@ -187,8 +187,6 @@
     <string name="label_on_road">na silnici</string>
     <string name="label_meetings">Setkání na trase</string>
     <string name="label_meetings_none">Žádná setkání</string>
-    <string name="hint_pause_handlebar">Pauza i tlačítkem na řídítkách</string>
-
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Uložit</string>
 

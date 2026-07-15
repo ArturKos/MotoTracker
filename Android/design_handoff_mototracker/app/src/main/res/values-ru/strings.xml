@@ -187,8 +187,6 @@
     <string name="label_on_road">на дороге</string>
     <string name="label_meetings">Встречи на маршруте</string>
     <string name="label_meetings_none">Нет встреч</string>
-    <string name="hint_pause_handlebar">Пауза также кнопкой на руле</string>
-
     <string name="label_account_authed_name">Jan Kowalski</string>
     <string name="btn_save">Сохранить</string>
 

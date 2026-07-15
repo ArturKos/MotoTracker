@@ -8,8 +8,8 @@ import com.mototracker.domain.fuel.FuelRangeColor
 import com.mototracker.domain.fuel.FuelRangeIndicator
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
-import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
@@ -33,11 +33,16 @@ import com.mototracker.domain.recording.LocationSample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
@@ -56,10 +61,28 @@ import org.junit.Test
 // Fakes
 // ─────────────────────────────────────────────────────────────────────────────
 
-private class FakeLocationClient(
-    private val locations: Flow<LocationSample> = flow {},
-) : LocationClient {
-    override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = locations
+/**
+ * Fake [RideLocationCollector] backed by a controllable [MutableSharedFlow].
+ *
+ * [start] and [stop] are no-ops; emit samples directly via [tryEmit].
+ */
+private class FakeRideLocationCollector : RideLocationCollector(
+    locationClient = object : com.mototracker.data.location.LocationClient {
+        override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
+    },
+    scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+) {
+    private val _fakeFlow = MutableSharedFlow<LocationSample>(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    override val samples: SharedFlow<LocationSample> = _fakeFlow.asSharedFlow()
+    override fun start(intervalMs: Long) {}
+    override fun stop() {}
+
+    /** Emits a sample to [samples] immediately (non-suspending). Returns false if no collectors yet. */
+    fun tryEmit(sample: LocationSample): Boolean = _fakeFlow.tryEmit(sample)
 }
 
 private class FakeLeanSensorSource(
@@ -444,10 +467,12 @@ class RecordingViewModelTest {
     // ── SecurityException resilience ─────────────────────────────────────────
 
     @Test
-    fun `ViewModel stays in Recording phase when location flow throws SecurityException`() =
+    fun `ViewModel stays in Recording phase when location collector emits nothing`() =
         runTest(testDispatcher) {
-            val securityFlow = flow<LocationSample> { throw SecurityException("Permission denied") }
-            val vm = buildViewModel(locationClient = FakeLocationClient(securityFlow))
+            // SecurityException is now handled inside RideLocationCollector (see RideLocationCollectorTest).
+            // The VM collects from a SharedFlow that never throws; it simply stays in Recording
+            // even when no GPS samples arrive (e.g. permission revoked, Doze, no signal).
+            val vm = buildViewModel(rideLocationCollector = FakeRideLocationCollector())
 
             vm.uiState.test {
                 awaitItem() // Idle
@@ -455,18 +480,16 @@ class RecordingViewModelTest {
                 val recordingState = awaitItem()
                 assertEquals(RecordingPhase.Recording, recordingState.phase)
 
-                // Advance enough for the SecurityException to propagate through the location job
-                // without using advanceUntilIdle() which hangs with the infinite ticker loop.
                 advanceTimeBy(200L)
 
                 assertEquals(
-                    "ViewModel should remain in Recording despite SecurityException in location flow",
+                    "ViewModel should remain in Recording when no GPS samples arrive",
                     RecordingPhase.Recording,
                     vm.uiState.value.phase,
                 )
                 cancelAndIgnoreRemainingEvents()
             }
-            vm.onEvent(RecordingEvent.Pause) // stop the ticker
+            vm.onEvent(RecordingEvent.Pause)
         }
 
     // ── Settings sync ────────────────────────────────────────────────────────
@@ -529,23 +552,23 @@ class RecordingViewModelTest {
 
     @Test
     fun `GPS samples are logged per location update`() = runTest(testDispatcher) {
-        // Completing flow so the location collector finishes and runTest drains cleanly.
+        val collector = FakeRideLocationCollector()
         val vm = buildViewModel(
-            locationClient = FakeLocationClient(
-                flowOf(
-                    LocationSample(lat = 50.0, lng = 20.0, speedMps = 16.7, altitudeM = 200.0, bearingDeg = 0f, timeMs = 1000L),
-                ),
-            ),
+            rideLocationCollector = collector,
             rideDebugLogger = fakeLogger,
         )
         vm.onEvent(RecordingEvent.Start)
-        advanceTimeBy(200L)
+        advanceTimeBy(100L) // let viewModelScope collect from samples
+        collector.tryEmit(
+            LocationSample(lat = 50.0, lng = 20.0, speedMps = 16.7, altitudeM = 200.0, bearingDeg = 0f, timeMs = 1000L),
+        )
+        advanceTimeBy(100L)
 
         assertTrue(
             "GPS log expected",
             fakeLogger.logCalls.any { it.first == "GPS" },
         )
-        vm.onEvent(RecordingEvent.Pause) // cancel ticker before runTest drains scheduler
+        vm.onEvent(RecordingEvent.Pause)
     }
 
     @Test
@@ -568,41 +591,44 @@ class RecordingViewModelTest {
     }
 
     @Test
-    fun `SecurityException in location flow logs ERROR`() = runTest(testDispatcher) {
-        val securityFlow = flow<LocationSample> { throw SecurityException("denied") }
-        val vm = buildViewModel(
-            locationClient = FakeLocationClient(securityFlow),
-            rideDebugLogger = fakeLogger,
-        )
-        vm.onEvent(RecordingEvent.Start)
-        advanceTimeBy(200L)
+    fun `no ERROR log in VM when location collector emits nothing — SecurityException handled in collector`() =
+        runTest(testDispatcher) {
+            // SecurityException is caught inside RideLocationCollector (covered by RideLocationCollectorTest).
+            // The VM no longer logs ERROR for SecurityException — it just receives nothing on samples.
+            val vm = buildViewModel(
+                rideLocationCollector = FakeRideLocationCollector(),
+                rideDebugLogger = fakeLogger,
+            )
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(200L)
 
-        assertTrue(
-            "ERROR log expected after SecurityException",
-            fakeLogger.logCalls.any { it.first == "ERROR" },
-        )
-        vm.onEvent(RecordingEvent.Pause)
-    }
+            // No ERROR tag should be logged in the VM for location-related failures.
+            val locationErrors = fakeLogger.logCalls.filter {
+                it.first == "ERROR" && it.second.contains("ecurity")
+            }
+            assertTrue("VM should not log SecurityException ERROR", locationErrors.isEmpty())
+            vm.onEvent(RecordingEvent.Pause)
+        }
 
     // ── B17 — route name composition ─────────────────────────────────────────
 
     @Test
     fun `Finish online with geocoder area — route name contains area`() = runTest(testDispatcher) {
         val repo = FakeRouteRepository()
-        // Emit a couple of GPS fixes so the path is non-empty and geocoding is attempted.
-        val locationFlow = kotlinx.coroutines.flow.flowOf(
-            LocationSample(lat = 53.43, lng = 14.55, speedMps = 16.0, altitudeM = 10.0, bearingDeg = 90f, timeMs = 1_000_000L),
-            LocationSample(lat = 53.44, lng = 14.56, speedMps = 18.0, altitudeM = 12.0, bearingDeg = 90f, timeMs = 1_001_000L),
-        )
+        val collector = FakeRideLocationCollector()
         val vm = buildViewModel(
             online = true,
             offline = false,
             routeRepository = repo,
             reverseGeocoder = FakeReverseGeocoder(result = "Szczecin"),
-            locationClient = FakeLocationClient(locationFlow),
+            rideLocationCollector = collector,
         )
         vm.onEvent(RecordingEvent.Start)
-        advanceTimeBy(200L) // allow location flow to emit into engine
+        advanceTimeBy(100L) // let viewModelScope start collecting
+        // Emit a couple of GPS fixes so the path is non-empty and geocoding is attempted.
+        collector.tryEmit(LocationSample(lat = 53.43, lng = 14.55, speedMps = 16.0, altitudeM = 10.0, bearingDeg = 90f, timeMs = 1_000_000L))
+        collector.tryEmit(LocationSample(lat = 53.44, lng = 14.56, speedMps = 18.0, altitudeM = 12.0, bearingDeg = 90f, timeMs = 1_001_000L))
+        advanceTimeBy(100L)
         vm.onEvent(RecordingEvent.Finish)
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -807,18 +833,18 @@ class RecordingViewModelTest {
             tankCapacityL = 17.0,
             consumptionLper100km = 5.0,
         )
-        val locationFlow = kotlinx.coroutines.flow.flowOf(
-            LocationSample(lat = 0.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 1000L),
-            LocationSample(lat = 1.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 2000L),
-        )
+        val collector = FakeRideLocationCollector()
         val vm = buildViewModel(
             settings = AppSettings(currentBikeId = "bike-1"),
             bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
-            locationClient = FakeLocationClient(locationFlow),
+            rideLocationCollector = collector,
         )
         advanceTimeBy(200L)
         vm.onEvent(RecordingEvent.Start)
-        advanceTimeBy(300L)
+        advanceTimeBy(100L) // let viewModelScope start collecting
+        collector.tryEmit(LocationSample(lat = 0.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 1000L))
+        collector.tryEmit(LocationSample(lat = 1.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 2000L))
+        advanceTimeBy(200L)
 
         val distanceBeforeFill = vm.uiState.value.metrics.distanceSinceFullKm
         assertTrue("distanceSinceFullKm should be > 0 after driving", distanceBeforeFill > 0.0)
@@ -1362,7 +1388,7 @@ class RecordingViewModelTest {
         settings: AppSettings = AppSettings(offline = offline, offlineOnly = offlineOnly),
         routeRepository: RouteRepository = routeRepo,
         fixedTimeMs: Long = 1_000_000L,
-        locationClient: LocationClient = FakeLocationClient(),
+        rideLocationCollector: RideLocationCollector = FakeRideLocationCollector(),
         leanSensorSource: LeanSensorSource = FakeLeanSensorSource(),
         headingSensorSource: HeadingSensorSource = FakeHeadingSensorSource(),
         rideDebugLogger: RideDebugLogger = fakeLogger,
@@ -1372,7 +1398,7 @@ class RecordingViewModelTest {
         bikeRepository: BikeRepository = FakeBikeRepository(),
         refuelRepository: RefuelRepository = FakeRefuelRepository(),
     ) = RecordingViewModel(
-        locationClient = locationClient,
+        rideLocationCollector = rideLocationCollector,
         leanSensorSource = leanSensorSource,
         headingSensorSource = headingSensorSource,
         routeRepository = routeRepository,

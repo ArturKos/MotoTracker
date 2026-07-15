@@ -8,6 +8,7 @@ import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.recording.ChannelResumeRouteBus
 import com.mototracker.data.recording.DataStoreRecordingSessionStore
 import com.mototracker.data.recording.RecordingSessionStore
@@ -24,8 +25,12 @@ import com.mototracker.data.sensor.SensorManagerHeadingSource
 import com.mototracker.data.sensor.SensorManagerLeanSource
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
 /**
@@ -93,4 +98,23 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindResumeRouteBus(impl: ChannelResumeRouteBus): ResumeRouteBus
+
+    companion object {
+
+        /**
+         * Provides [RideLocationCollector] as a process-lived singleton.
+         *
+         * The scope is backed by [SupervisorJob] + [Dispatchers.Default] so GPS acquisition
+         * outlives any individual ViewModel or Activity and survives screen-off / Doze when
+         * the service holds a wake lock.
+         */
+        @Provides
+        @Singleton
+        fun provideRideLocationCollector(
+            locationClient: LocationClient,
+        ): RideLocationCollector = RideLocationCollector(
+            locationClient = locationClient,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
+    }
 }

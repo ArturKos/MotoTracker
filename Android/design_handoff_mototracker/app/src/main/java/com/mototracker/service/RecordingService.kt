@@ -1,10 +1,12 @@
 package com.mototracker.service
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -15,6 +17,7 @@ import com.mototracker.data.bluetooth.BleWaveSource
 import com.mototracker.data.bluetooth.WaveFactory
 import com.mototracker.data.bluetooth.WavePayload
 import com.mototracker.data.local.dao.WaveDao
+import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.mapper.toEntity
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.settings.SettingsStore
@@ -53,14 +56,18 @@ class RecordingService : Service() {
     @Inject lateinit var bikeRepository: BikeRepository
     @Inject lateinit var waveDao: WaveDao
     @Inject lateinit var dataStore: DataStore<Preferences>
+    @Inject lateinit var rideLocationCollector: RideLocationCollector
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Route UUID received from the intent; wires BLE-discovered waves to the active route. */
     @Volatile private var activeRouteId: String? = null
 
+    private var wakeLock: PowerManager.WakeLock? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
+    @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         activeRouteId = intent?.getStringExtra(EXTRA_ROUTE_ID)
         ensureChannel()
@@ -71,14 +78,24 @@ class RecordingService : Service() {
             .build()
         startForeground(NOTIFICATION_ID, notification)
 
+        if (wakeLock?.isHeld != true) {
+            val pm = getSystemService(PowerManager::class.java)
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MotoTracker::Recording")
+            wakeLock?.acquire()
+        }
+
+        rideLocationCollector.start()
         startBleWaves()
 
         return START_STICKY
     }
 
     override fun onDestroy() {
+        rideLocationCollector.stop()
         bleWaveSource.stop()
         serviceScope.cancel()
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }

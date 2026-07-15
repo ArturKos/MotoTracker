@@ -7,8 +7,8 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
-import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
@@ -62,7 +62,7 @@ import javax.inject.Inject
  * Owns the recording state machine (Idle → Recording → Paused → Idle) and
  * co-ordinates:
  * - A 1-second ticker that advances elapsed time via [RecordingEngine.tick].
- * - Location updates from [LocationClient] feeding [RecordingEngine.onLocation].
+ * - Location updates from [RideLocationCollector] feeding [RecordingEngine.onLocation].
  * - Lean-sensor readings from [LeanSensorSource] feeding [RecordingEngine.onLean].
  * - On Finish: composes a sensible default route name (using [RouteNameComposer] +
  *   [ReverseGeocoder] when online), persists the route via [RouteRepository], and
@@ -72,10 +72,11 @@ import javax.inject.Inject
  *   exposes it as [RecordingUiState.resumableSession] so the UI can prompt the user
  *   to resume or discard (B20).
  *
- * All collaborators are injectable interfaces so the ViewModel is fully unit-testable
+ * All collaborators are injectable so the ViewModel is fully unit-testable
  * with fakes (no Android runtime needed).
  *
- * @param locationClient      GPS location updates.
+ * @param rideLocationCollector  Process-scoped GPS stream owner; survives screen-off / Doze
+ *                               because the stream is driven by [com.mototracker.service.RecordingService].
  * @param leanSensorSource    Gravity-sensor lean angles.
  * @param headingSensorSource Magnetometer + gravity heading source; feeds [RecordingUiState.liveHeadingDeg]
  *                            always, regardless of phase (F2 — live compass in Idle).
@@ -99,7 +100,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
-    private val locationClient: LocationClient,
+    private val rideLocationCollector: RideLocationCollector,
     private val leanSensorSource: LeanSensorSource,
     private val headingSensorSource: HeadingSensorSource,
     private val routeRepository: RouteRepository,
@@ -308,6 +309,8 @@ class RecordingViewModel @Inject constructor(
                 activeRouteId = pendingRouteId,
             )
         }
+        // Defensive start — idempotent; the service owns stop() and is the primary starter.
+        rideLocationCollector.start()
         startTicker()
         startLocationUpdates()
     }
@@ -598,34 +601,29 @@ class RecordingViewModel @Inject constructor(
 
     private fun startLocationUpdates() {
         locationJob = viewModelScope.launch {
-            try {
-                locationClient.locationUpdates().collect { sample ->
-                    rideDebugLogger.log(
-                        "GPS",
-                        "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
-                    )
-                    val metrics = engine.onLocation(sample)
-                    val coord = GeoCoord(sample.lat, sample.lng)
-                    _uiState.update { prev ->
-                        prev.copy(metrics = metrics, trackPoints = prev.trackPoints + coord)
-                    }
-                    // B20: Persist snapshot on each GPS fix. Launched in a sibling coroutine
-                    // so the location collector is not blocked by the DataStore write.
-                    viewModelScope.launch {
-                        sessionStore.save(
-                            ActiveSessionSnapshot(
-                                engineState = engine.exportState(),
-                                recordingStartMs = recordingStartMs,
-                                bikeId = currentBikeId,
-                                paused = false,
-                                pendingRefuels = pendingRefuels.toList(),
-                            ),
-                        )
-                    }
+            rideLocationCollector.samples.collect { sample ->
+                rideDebugLogger.log(
+                    "GPS",
+                    "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
+                )
+                val metrics = engine.onLocation(sample)
+                val coord = GeoCoord(sample.lat, sample.lng)
+                _uiState.update { prev ->
+                    prev.copy(metrics = metrics, trackPoints = prev.trackPoints + coord)
                 }
-            } catch (_: SecurityException) {
-                rideDebugLogger.log("ERROR", "SecurityException — location permission revoked mid-session")
-                // Permission was revoked mid-session; recording continues on ticker/lean only.
+                // B20: Persist snapshot on each GPS fix. Launched in a sibling coroutine
+                // so the location collector is not blocked by the DataStore write.
+                viewModelScope.launch {
+                    sessionStore.save(
+                        ActiveSessionSnapshot(
+                            engineState = engine.exportState(),
+                            recordingStartMs = recordingStartMs,
+                            bikeId = currentBikeId,
+                            paused = false,
+                            pendingRefuels = pendingRefuels.toList(),
+                        ),
+                    )
+                }
             }
         }
     }

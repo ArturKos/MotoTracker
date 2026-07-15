@@ -6,8 +6,8 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
-import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
@@ -32,10 +32,15 @@ import com.mototracker.domain.recording.RecordingEngineState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -66,8 +71,20 @@ private class FakeSessionStore(
     override suspend fun clear() { clearCount++; _flow.value = null }
 }
 
-private class FakeResumeLocationClient : LocationClient {
-    override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
+private class FakeResumeRideLocationCollector : RideLocationCollector(
+    locationClient = object : com.mototracker.data.location.LocationClient {
+        override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
+    },
+    scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+) {
+    private val _fakeFlow = MutableSharedFlow<LocationSample>(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    override val samples: SharedFlow<LocationSample> = _fakeFlow.asSharedFlow()
+    override fun start(intervalMs: Long) {}
+    override fun stop() {}
 }
 
 private class FakeResumeLeanSource : LeanSensorSource {
@@ -141,10 +158,17 @@ private class FakeResumeStringResolver : StringResolver {
     override fun getString(resId: Int, vararg args: Any): String = getString(resId)
 }
 
-private class FakeChannelLocationClient : LocationClient {
-    private val _flow = kotlinx.coroutines.flow.MutableSharedFlow<LocationSample>(extraBufferCapacity = 16)
-    suspend fun emit(s: LocationSample) { _flow.emit(s) }
-    override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = _flow
+private class FakeChannelRideLocationCollector : RideLocationCollector(
+    locationClient = object : com.mototracker.data.location.LocationClient {
+        override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
+    },
+    scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+) {
+    private val _fakeFlow = MutableSharedFlow<LocationSample>(extraBufferCapacity = 16)
+    override val samples: SharedFlow<LocationSample> = _fakeFlow.asSharedFlow()
+    override fun start(intervalMs: Long) {}
+    override fun stop() {}
+    suspend fun emit(s: LocationSample) { _fakeFlow.emit(s) }
 }
 
 private class FakeRouteBus : ResumeRouteBus {
@@ -206,9 +230,9 @@ class RecordingViewModelResumeTest {
         routeRepo: FakeResumeRouteRepository = FakeResumeRouteRepository(),
         bikeRepository: BikeRepository = FakeResumeBikeRepository(),
         resumeRouteBus: ResumeRouteBus = FakeRouteBus(),
-        locationClient: LocationClient = FakeResumeLocationClient(),
+        rideLocationCollector: RideLocationCollector = FakeResumeRideLocationCollector(),
     ) = RecordingViewModel(
-        locationClient = locationClient,
+        rideLocationCollector = rideLocationCollector,
         leanSensorSource = FakeResumeLeanSource(),
         headingSensorSource = FakeResumeHeadingSource(),
         routeRepository = routeRepo,
@@ -580,11 +604,11 @@ class RecordingViewModelResumeTest {
                 dateEpochMs = originalDate,
             )
             val routeRepo = FakeResumeRouteRepository().apply { saved += route }
-            val locationClient = FakeChannelLocationClient()
+            val locationCollector = FakeChannelRideLocationCollector()
             val vm = buildVm(
                 routeRepo = routeRepo,
                 resumeRouteBus = bus,
-                locationClient = locationClient,
+                rideLocationCollector = locationCollector,
             )
             testDispatcher.scheduler.runCurrent()
 
@@ -594,7 +618,7 @@ class RecordingViewModelResumeTest {
             assertEquals(RecordingPhase.Paused, vm.uiState.value.phase)
 
             // Emit one location sample to extend the track
-            locationClient.emit(LocationSample(50.2, 20.2, 15.0, 110.0, 90f, 5000L))
+            locationCollector.emit(LocationSample(50.2, 20.2, 15.0, 110.0, 90f, 5000L))
             testDispatcher.scheduler.runCurrent()
 
             // Finish

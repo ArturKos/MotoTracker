@@ -441,11 +441,12 @@ class RecordingViewModel @Inject constructor(
      * Shows the refuel input dialog pre-filled with the current bike's tank capacity and price (G5).
      *
      * Replaces the old instant fill-to-full so the rider can confirm or adjust the values
-     * before the event is persisted. Only meaningful when the current bike has a tank
-     * capacity configured; the dialog will not appear if none is set (same guard as E4).
+     * before the event is persisted. Opens for ALL bikes, including those without a configured
+     * tank capacity — in that case [refuelDialogLitres] is pre-filled with 0.0 and the rider
+     * must enter a value; the dialog validates litres > 0.0 before enabling confirm.
      */
     private fun doShowRefuelDialog() {
-        val tankCap = currentBikeTankCapacity ?: return
+        val tankCap = currentBikeTankCapacity ?: 0.0
         _uiState.update {
             it.copy(
                 showRefuelDialog = true,

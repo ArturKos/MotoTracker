@@ -714,7 +714,7 @@ class RecordingViewModelTest {
     }
 
     @Test
-    fun `ShowRefuelDialog is no-op when bike has no tank capacity`() = runTest(testDispatcher) {
+    fun `ShowRefuelDialog opens dialog with 0_0 litres pre-fill when tank capacity is null`() = runTest(testDispatcher) {
         val bike = Bike(
             id = "bike-1",
             name = "Test Bike",
@@ -735,7 +735,10 @@ class RecordingViewModelTest {
         vm.onEvent(RecordingEvent.ShowRefuelDialog)
         advanceTimeBy(100L)
 
-        assertFalse("showRefuelDialog should remain false when tank capacity not set", vm.uiState.value.showRefuelDialog)
+        // Dialog must open even when no tank capacity is configured (I1 fix).
+        assertTrue("showRefuelDialog should be true even when tank capacity is null", vm.uiState.value.showRefuelDialog)
+        // Litres pre-filled to 0.0 so the rider must enter a value; dialog validates > 0.0 before confirm.
+        assertEquals(0.0, vm.uiState.value.refuelDialogLitres, 0.001)
         vm.onEvent(RecordingEvent.Pause)
     }
 

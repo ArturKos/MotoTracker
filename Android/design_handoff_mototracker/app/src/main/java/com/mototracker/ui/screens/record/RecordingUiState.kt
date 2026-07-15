@@ -55,6 +55,9 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param showRefuelDialog     `true` when the refuel-input dialog should be visible (G5).
  * @param refuelDialogLitres   Pre-filled litres value for the refuel dialog (bike tank capacity or 0).
  * @param refuelDialogPricePerL Pre-filled price/L for the refuel dialog (bike default or null).
+ * @param showStopConfirmDialog `true` when the stop-confirmation dialog should be visible (J4).
+ *                              Recording continues untouched while the dialog is open; only
+ *                              [RecordingEvent.ConfirmStop] leads to an actual finish and save.
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -73,6 +76,7 @@ data class RecordingUiState(
     val showRefuelDialog: Boolean = false,
     val refuelDialogLitres: Double = 0.0,
     val refuelDialogPricePerL: Double? = null,
+    val showStopConfirmDialog: Boolean = false,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */
@@ -108,6 +112,25 @@ sealed class RecordingEvent {
 
     /** User dismissed the refuel dialog without confirming (G5). */
     data object DismissRefuelDialog : RecordingEvent()
+
+    /**
+     * User tapped the Stop button — shows the stop-confirmation dialog (J4).
+     *
+     * Recording continues untouched; no save or phase change occurs until [ConfirmStop].
+     */
+    data object RequestStop : RecordingEvent()
+
+    /**
+     * User confirmed the stop dialog — finishes the ride and saves the route (J4).
+     *
+     * Internally delegates to the existing `doFinish()` path.
+     */
+    data object ConfirmStop : RecordingEvent()
+
+    /**
+     * User dismissed the stop-confirmation dialog — recording continues unchanged (J4).
+     */
+    data object DismissStopDialog : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

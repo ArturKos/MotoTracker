@@ -459,4 +459,8 @@
     <string name="terms_no_riding">The app must not be operated while riding. Use it only when the vehicle is stationary.</string>
     <string name="terms_accept">Accept</string>
     <string name="terms_decline">Decline</string>
+
+    <!-- Stop-recording confirmation dialog (J4) -->
+    <string name="dialog_stop_ride_title">End ride?</string>
+    <string name="dialog_stop_ride_confirm">End</string>
 </resources>

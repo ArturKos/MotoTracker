@@ -1237,6 +1237,97 @@ class RecordingViewModelTest {
         vm.onEvent(RecordingEvent.Pause)
     }
 
+    // ── J4 — Stop-confirmation dialog ────────────────────────────────────────
+
+    @Test
+    fun `RequestStop sets showStopConfirmDialog=true and phase stays Recording with no effects`() =
+        runTest(testDispatcher) {
+            viewModel.onEvent(RecordingEvent.Start)
+            advanceTimeBy(200L)
+
+            viewModel.effects.test {
+                viewModel.onEvent(RecordingEvent.RequestStop)
+                advanceTimeBy(100L)
+
+                assertTrue(
+                    "showStopConfirmDialog should be true after RequestStop",
+                    viewModel.uiState.value.showStopConfirmDialog,
+                )
+                assertEquals(
+                    "phase should remain Recording after RequestStop",
+                    RecordingPhase.Recording,
+                    viewModel.uiState.value.phase,
+                )
+                // No Saved or NavigateToDetail effect should have been emitted.
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+            viewModel.onEvent(RecordingEvent.Pause)
+        }
+
+    @Test
+    fun `DismissStopDialog clears showStopConfirmDialog with no effects and phase unchanged`() =
+        runTest(testDispatcher) {
+            viewModel.onEvent(RecordingEvent.Start)
+            advanceTimeBy(200L)
+            viewModel.onEvent(RecordingEvent.RequestStop)
+            advanceTimeBy(50L)
+            assertTrue(viewModel.uiState.value.showStopConfirmDialog)
+
+            viewModel.effects.test {
+                viewModel.onEvent(RecordingEvent.DismissStopDialog)
+                advanceTimeBy(100L)
+
+                assertFalse(
+                    "showStopConfirmDialog should be false after DismissStopDialog",
+                    viewModel.uiState.value.showStopConfirmDialog,
+                )
+                assertEquals(
+                    "phase should remain Recording after DismissStopDialog",
+                    RecordingPhase.Recording,
+                    viewModel.uiState.value.phase,
+                )
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+            viewModel.onEvent(RecordingEvent.Pause)
+        }
+
+    @Test
+    fun `ConfirmStop clears showStopConfirmDialog and produces Saved and NavigateToDetail effects`() =
+        runTest(testDispatcher) {
+            val vm = buildViewModel(online = true, offline = false)
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(200L)
+            vm.onEvent(RecordingEvent.RequestStop)
+            advanceTimeBy(50L)
+            assertTrue(vm.uiState.value.showStopConfirmDialog)
+
+            vm.effects.test {
+                vm.onEvent(RecordingEvent.ConfirmStop)
+                testDispatcher.scheduler.advanceUntilIdle()
+
+                assertFalse(
+                    "showStopConfirmDialog should be false after ConfirmStop",
+                    vm.uiState.value.showStopConfirmDialog,
+                )
+                assertEquals(
+                    "phase should be Idle after ConfirmStop",
+                    RecordingPhase.Idle,
+                    vm.uiState.value.phase,
+                )
+
+                val first = awaitItem()
+                assertTrue("first effect should be Saved", first is RecordingEffect.Saved)
+                val second = awaitItem()
+                assertTrue(
+                    "second effect should be NavigateToDetail",
+                    second is RecordingEffect.NavigateToDetail,
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun makeTestRoute(

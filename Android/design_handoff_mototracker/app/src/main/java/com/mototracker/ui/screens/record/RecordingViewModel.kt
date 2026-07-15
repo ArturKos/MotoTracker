@@ -261,6 +261,12 @@ class RecordingViewModel @Inject constructor(
             is RecordingEvent.ShowRefuelDialog -> doShowRefuelDialog()
             is RecordingEvent.ConfirmRefuel -> doConfirmRefuel(event.litres, event.pricePerL)
             is RecordingEvent.DismissRefuelDialog -> _uiState.update { it.copy(showRefuelDialog = false) }
+            is RecordingEvent.RequestStop -> _uiState.update { it.copy(showStopConfirmDialog = true) }
+            is RecordingEvent.DismissStopDialog -> _uiState.update { it.copy(showStopConfirmDialog = false) }
+            is RecordingEvent.ConfirmStop -> {
+                _uiState.update { it.copy(showStopConfirmDialog = false) }
+                doFinish()
+            }
         }
     }
 

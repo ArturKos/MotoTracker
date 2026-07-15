@@ -429,4 +429,8 @@
     <string name="terms_no_riding">Запрещено использовать приложение во время езды. Пользуйтесь им только при остановленном транспортном средстве.</string>
     <string name="terms_accept">Принять</string>
     <string name="terms_decline">Отклонить</string>
+
+    <!-- Stop-recording confirmation dialog (J4) -->
+    <string name="dialog_stop_ride_title">Завершить поездку?</string>
+    <string name="dialog_stop_ride_confirm">Завершить</string>
 </resources>

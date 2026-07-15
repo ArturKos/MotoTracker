@@ -429,4 +429,8 @@
     <string name="terms_no_riding">Aplikacja nie może być obsługiwana podczas jazdy. Używaj jej wyłącznie przy zatrzymanym pojeździe.</string>
     <string name="terms_accept">Akceptuję</string>
     <string name="terms_decline">Odrzuć</string>
+
+    <!-- Stop-recording confirmation dialog (J4) -->
+    <string name="dialog_stop_ride_title">Czy na pewno zakończyć jazdę?</string>
+    <string name="dialog_stop_ride_confirm">Zakończ</string>
 </resources>

@@ -429,4 +429,8 @@
     <string name="terms_no_riding">Aplikaci nelze obsluhovat za jízdy. Používejte ji pouze při stojícím vozidle.</string>
     <string name="terms_accept">Přijmout</string>
     <string name="terms_decline">Odmítnout</string>
+
+    <!-- Stop-recording confirmation dialog (J4) -->
+    <string name="dialog_stop_ride_title">Ukončit jízdu?</string>
+    <string name="dialog_stop_ride_confirm">Ukončit</string>
 </resources>

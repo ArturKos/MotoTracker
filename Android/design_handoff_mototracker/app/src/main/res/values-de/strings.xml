@@ -429,4 +429,8 @@
     <string name="terms_no_riding">Die App darf während der Fahrt nicht bedient werden. Verwende sie nur bei stehendem Fahrzeug.</string>
     <string name="terms_accept">Akzeptieren</string>
     <string name="terms_decline">Ablehnen</string>
+
+    <!-- Stop-recording confirmation dialog (J4) -->
+    <string name="dialog_stop_ride_title">Fahrt beenden?</string>
+    <string name="dialog_stop_ride_confirm">Beenden</string>
 </resources>

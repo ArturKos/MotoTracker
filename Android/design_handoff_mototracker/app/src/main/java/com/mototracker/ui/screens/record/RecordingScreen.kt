@@ -219,6 +219,14 @@ fun RecordingContent(
         )
     }
 
+    // J4: Stop-confirmation dialog shown when the user taps the Stop button.
+    if (state.showStopConfirmDialog) {
+        StopConfirmDialog(
+            onConfirm = { onEvent(RecordingEvent.ConfirmStop) },
+            onDismiss = { onEvent(RecordingEvent.DismissStopDialog) },
+        )
+    }
+
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // ── Tiles — fills remaining space; adaptive sizing primary, scroll fallback ─
@@ -876,7 +884,7 @@ private fun RecordingControlRow(
                     )
                 }
                 RecordingControl.STOP -> FilledIconButton(
-                    onClick = { onEvent(RecordingEvent.Finish) },
+                    onClick = { onEvent(RecordingEvent.RequestStop) },
                     modifier = Modifier.size(52.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MotoTracker.colors.accent2,
@@ -1015,6 +1023,52 @@ private fun RefuelDialog(
                     text = stringResource(R.string.dialog_refuel_confirm),
                     color = MotoTracker.colors.accent,
                 )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stop-confirmation dialog (J4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Modal dialog shown when the rider taps Stop during an active recording session.
+ *
+ * Prevents accidental ride termination by requiring explicit confirmation before
+ * [RecordingEvent.ConfirmStop] is dispatched. Dismissing via button or back gesture
+ * dispatches [RecordingEvent.DismissStopDialog] so recording continues unchanged.
+ * On-device rendering is 🔬.
+ *
+ * @param onConfirm Called when the user taps the confirm button; triggers `ConfirmStop`.
+ * @param onDismiss Called when the user cancels or dismisses; triggers `DismissStopDialog`.
+ */
+@Composable
+private fun StopConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dialog_stop_ride_title)) },
+        text = null,
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MotoTracker.colors.accent2,
+                    contentColor = MotoTracker.colors.onAccent2,
+                ),
+            ) {
+                Text(stringResource(R.string.dialog_stop_ride_confirm))
             }
         },
         dismissButton = {

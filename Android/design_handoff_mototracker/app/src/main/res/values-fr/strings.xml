@@ -429,4 +429,8 @@
     <string name="terms_no_riding">L\'application ne doit pas être utilisée en conduisant. Utilisez-la uniquement véhicule à l\'arrêt.</string>
     <string name="terms_accept">Accepter</string>
     <string name="terms_decline">Refuser</string>
+
+    <!-- Stop-recording confirmation dialog (J4) -->
+    <string name="dialog_stop_ride_title">Terminer le trajet ?</string>
+    <string name="dialog_stop_ride_confirm">Terminer</string>
 </resources>

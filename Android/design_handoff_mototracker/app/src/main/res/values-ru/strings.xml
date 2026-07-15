@@ -385,6 +385,28 @@
     <string name="action_delete">Удалить</string>
     <string name="toast_route_deleted">Маршрут удалён</string>
 
+    <!-- Экран помощи (J1) -->
+    <string name="nav_help">Помощь</string>
+    <string name="screen_help">Помощь</string>
+    <string name="action_help">Помощь</string>
+    <string name="help_intro">MotoTracker записывает и анализирует ваши поездки на мотоцикле. Здесь вы найдёте описание основных функций приложения.</string>
+    <string name="help_topic_recording_title">Запись и плитки</string>
+    <string name="help_topic_recording_body">Нажмите «Начать поездку», чтобы начать запись маршрута. Плитки в реальном времени показывают скорость, расстояние, время езды, угол крена, высоту и уровень топлива.</string>
+    <string name="help_topic_routes_title">Маршруты</string>
+    <string name="help_topic_routes_body">Все сохранённые поездки отображаются в списке маршрутов. Нажмите на маршрут для просмотра карты, графика скорости, профиля высот и статистики.</string>
+    <string name="help_topic_gps_title">Коррекция GPS</string>
+    <string name="help_topic_gps_body">Включите «Привязка GPS к дороге» в настройках, чтобы применить карту-согласование и устранить смещение GPS.</string>
+    <string name="help_topic_fuel_title">Модель топлива &amp; заправки</string>
+    <string name="help_topic_fuel_body">Укажите объём бака, цену топлива и расход в настройках мотоцикла. Записывайте заправки в деталях маршрута для отслеживания затрат.</string>
+    <string name="help_topic_waves_title">Приветствия (Bluetooth)</string>
+    <string name="help_topic_waves_body">MotoTracker может тихо приветствовать других мотоциклистов с этим приложением через Bluetooth. Работает офлайн без интернета.</string>
+    <string name="help_topic_backup_title">Резервная копия &amp; восстановление</string>
+    <string name="help_topic_backup_body">Экспортируйте маршруты, мотоциклы и настройки в JSON-файл через Настройки → Система → Резервная копия. Импортируйте файл на новом устройстве для восстановления данных.</string>
+    <string name="help_topic_themes_title">Темы &amp; единицы</string>
+    <string name="help_topic_themes_body">Выбирайте между темами Кокпит (тёмная), Сетка и Дневная. Переключайтесь между метрическими (км) и имперскими (ми) единицами в настройках.</string>
+    <string name="help_about_title">О приложении</string>
+    <string name="help_version_label">Версия %1$s</string>
+
     <!-- Журнал заправок (G5) -->
     <string name="label_refuels">Заправки</string>
     <string name="label_add_refuel">Добавить заправку</string>

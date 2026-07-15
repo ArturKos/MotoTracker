@@ -23,6 +23,7 @@ import com.mototracker.R
 import com.mototracker.ui.components.MotoBottomBar
 import com.mototracker.ui.components.MotoTopAppBar
 import com.mototracker.ui.screens.bikedetail.BikeDetailScreen
+import com.mototracker.ui.screens.help.HelpScreen
 import com.mototracker.ui.screens.riders.RidersScreen
 import com.mototracker.ui.screens.settings.SettingsScreen
 import com.mototracker.ui.screens.stats.StatsScreen
@@ -175,8 +176,12 @@ fun MotoApp(
                     onOpenBikeDetail = { bikeId ->
                         navController.navigate("bike_detail/$bikeId")
                     },
+                    onOpenHelp = {
+                        navController.navigate(MotoDestination.HELP.route)
+                    },
                 )
             }
+            composable(MotoDestination.HELP.route) { HelpScreen() }
             composable(
                 route = MotoDestination.ROUTE_DETAIL.route,
                 arguments = listOf(navArgument("routeId") { type = NavType.StringType }),

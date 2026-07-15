@@ -385,6 +385,28 @@
     <string name="action_delete">Löschen</string>
     <string name="toast_route_deleted">Route gelöscht</string>
 
+    <!-- Hilfe-Bildschirm (J1) -->
+    <string name="nav_help">Hilfe</string>
+    <string name="screen_help">Hilfe</string>
+    <string name="action_help">Hilfe</string>
+    <string name="help_intro">MotoTracker zeichnet deine Motorradtouren auf und analysiert sie. Hier findest du eine Übersicht der wichtigsten Funktionen.</string>
+    <string name="help_topic_recording_title">Aufnahme &amp; Live-Kacheln</string>
+    <string name="help_topic_recording_body">Tippe auf Fahrt starten, um die Streckenaufzeichnung zu beginnen. Die Kacheln zeigen Geschwindigkeit, Strecke, Fahrzeit, Neigungswinkel, Höhe und Tankstand in Echtzeit.</string>
+    <string name="help_topic_routes_title">Routen</string>
+    <string name="help_topic_routes_body">Alle gespeicherten Fahrten erscheinen in der Routenliste. Tippe auf eine Route, um Karte, Geschwindigkeitsdiagramm, Höhenprofil und Statistiken zu sehen.</string>
+    <string name="help_topic_gps_title">GPS-Korrektur</string>
+    <string name="help_topic_gps_body">Aktiviere GPS auf Straße einrasten in den Einstellungen, um Map-Matching anzuwenden und GPS-Drift zu korrigieren.</string>
+    <string name="help_topic_fuel_title">Kraftstoffmodell &amp; Tankstopps</string>
+    <string name="help_topic_fuel_body">Lege Tankvolumen, Kraftstoffpreis und Verbrauch in den Motorradeinstellungen fest. Erfasse Tankstopps in der Routendetailansicht, um Kraftstoffkosten zu verfolgen.</string>
+    <string name="help_topic_waves_title">Waves (Bluetooth)</string>
+    <string name="help_topic_waves_body">MotoTracker kann andere Fahrer, die die App nutzen, per Bluetooth grüßen. Funktioniert offline ohne Internet.</string>
+    <string name="help_topic_backup_title">Sicherung &amp; Wiederherstellung</string>
+    <string name="help_topic_backup_body">Exportiere Routen, Motorräder und Einstellungen als JSON-Datei unter Einstellungen → System → Sicherung. Importiere die Datei auf einem neuen Gerät, um deine Daten wiederherzustellen.</string>
+    <string name="help_topic_themes_title">Themen &amp; Einheiten</string>
+    <string name="help_topic_themes_body">Wähle zwischen Cockpit (dunkel), Raster und Tageslicht-Thema. Wechsle zwischen metrischen (km) und imperialen (mi) Einheiten in den Einstellungen.</string>
+    <string name="help_about_title">Über</string>
+    <string name="help_version_label">Version %1$s</string>
+
     <!-- Tankprotokoll (G5) -->
     <string name="label_refuels">Tankstopps</string>
     <string name="label_add_refuel">Tankstopp hinzufügen</string>

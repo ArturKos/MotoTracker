@@ -98,6 +98,7 @@ import kotlinx.coroutines.launch
  * @param appStateVm     [AppStateViewModel] resolved from the Activity scope; defaults to
  *                       `hiltViewModel(activity)` so Settings and MainActivity share one instance.
  * @param onSignOut      Called after [AppStateViewModel.signOut]; the host navigates to Login.
+ * @param onOpenHelp     Called when the user taps the Help row; the host navigates to [com.mototracker.ui.navigation.MotoDestination.HELP].
  */
 @Composable
 fun SettingsScreen(
@@ -106,6 +107,7 @@ fun SettingsScreen(
     appStateVm: AppStateViewModel = hiltViewModel(checkNotNull(LocalActivity.current) as ComponentActivity),
     onSignOut: () -> Unit = {},
     onOpenBikeDetail: (String) -> Unit = {},
+    onOpenHelp: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appState by appStateVm.uiState.collectAsStateWithLifecycle()
@@ -241,6 +243,7 @@ fun SettingsScreen(
         onKeepScreenOn = viewModel::setKeepScreenOn,
         onExportBackup = { exportLauncher.launch("mototracker-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
+        onOpenHelp = onOpenHelp,
         modifier = modifier,
     )
 }
@@ -275,6 +278,7 @@ fun SettingsScreen(
  * @param onClearLogs          Called when the user taps Clear ride logs.
  * @param onAutoPause          Called when the Auto-pause switch changes.
  * @param onKeepScreenOn       Called when the Keep-screen-on switch changes.
+ * @param onOpenHelp           Called when the user taps the Help row; navigates to the Help screen.
  * @param modifier             Standard Compose modifier.
  */
 @Composable
@@ -307,6 +311,7 @@ fun SettingsContent(
     onKeepScreenOn: (Boolean) -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val ctx = LocalContext.current
@@ -569,6 +574,11 @@ fun SettingsContent(
                             desc = null,
                             checked = state.keepScreenOn,
                             onChecked = onKeepScreenOn,
+                        )
+                        DiagnosticsActionRow(
+                            label = stringResource(R.string.action_help),
+                            enabled = true,
+                            onClick = onOpenHelp,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(

@@ -67,6 +67,12 @@ sealed class MotoDestination(
      */
     object BIKE_DETAIL : MotoDestination("bike_detail/{bikeId}", R.string.nav_bike_detail, R.string.screen_bike_detail, Icons.Filled.TwoWheeler)
 
+    /**
+     * Help screen (J1). Not in the bottom nav; reached from Settings → Preferences → Help.
+     * Shows a back arrow in the top bar.
+     */
+    object HELP : MotoDestination("help", R.string.nav_help, R.string.screen_help, Icons.Filled.Info)
+
     companion object {
         /**
          * Resolves a [MotoDestination] from a NavBackStackEntry route string.
@@ -86,6 +92,7 @@ sealed class MotoDestination(
             route == "settings"                       -> SETTINGS
             route?.startsWith("route_detail") == true -> ROUTE_DETAIL
             route?.startsWith("bike_detail") == true  -> BIKE_DETAIL
+            route == "help"                           -> HELP
             else                                      -> RECORD
         }
     }
@@ -112,7 +119,8 @@ val bottomNavDestinations: List<MotoDestination> = listOf(
 fun showBottomBar(dest: MotoDestination): Boolean =
     dest != MotoDestination.LOGIN &&
         dest != MotoDestination.ROUTE_DETAIL &&
-        dest != MotoDestination.BIKE_DETAIL
+        dest != MotoDestination.BIKE_DETAIL &&
+        dest != MotoDestination.HELP
 
 /**
  * Returns `true` when the top app bar should be visible for [dest].
@@ -129,7 +137,7 @@ fun showTopBar(dest: MotoDestination): Boolean =
  * Per spec: only [MotoDestination.ROUTE_DETAIL] uses a back arrow.
  */
 fun showBackArrow(dest: MotoDestination): Boolean =
-    dest == MotoDestination.ROUTE_DETAIL || dest == MotoDestination.BIKE_DETAIL
+    dest == MotoDestination.ROUTE_DETAIL || dest == MotoDestination.BIKE_DETAIL || dest == MotoDestination.HELP
 
 /**
  * Returns `true` when navigation should be locked to the Record screen.

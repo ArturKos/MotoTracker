@@ -385,6 +385,28 @@
     <string name="action_delete">Usuń</string>
     <string name="toast_route_deleted">Trasa usunięta</string>
 
+    <!-- Ekran pomocy (J1) -->
+    <string name="nav_help">Pomoc</string>
+    <string name="screen_help">Pomoc</string>
+    <string name="action_help">Pomoc</string>
+    <string name="help_intro">MotoTracker rejestruje i analizuje Twoje przejazdy motocyklem. Poniżej znajdziesz opis głównych funkcji aplikacji.</string>
+    <string name="help_topic_recording_title">Nagrywanie i kafelki</string>
+    <string name="help_topic_recording_body">Dotknij Rozpocznij jazdę, aby rozpocząć rejestrowanie trasy. Kafelki pokazują prędkość, dystans, czas jazdy, kąt przechyłu, wysokość i poziom paliwa w czasie rzeczywistym.</string>
+    <string name="help_topic_routes_title">Trasy</string>
+    <string name="help_topic_routes_body">Wszystkie zapisane przejazdy widoczne są na liście Tras. Dotknij trasę, aby zobaczyć mapę, wykres prędkości, profil wysokości i statystyki.</string>
+    <string name="help_topic_gps_title">Korekcja GPS</string>
+    <string name="help_topic_gps_body">Włącz Korekcja GPS na drodze w Ustawieniach, aby wyrównać ślad GPS do osi jezdni i wyeliminować dryf sygnału.</string>
+    <string name="help_topic_fuel_title">Model paliwa i tankowania</string>
+    <string name="help_topic_fuel_body">Ustaw pojemność baku, cenę paliwa i zużycie w ustawieniach motocykla. Rejestruj tankowania w szczegółach trasy, by śledzić koszty paliwa.</string>
+    <string name="help_topic_waves_title">Pomachania (Bluetooth)</string>
+    <string name="help_topic_waves_body">MotoTracker może wysłać cichy pozdrowienie Bluetooth (pomachanie) do innych motocyklistów korzystających z aplikacji. Działa offline, bez internetu.</string>
+    <string name="help_topic_backup_title">Kopia zapasowa</string>
+    <string name="help_topic_backup_body">Wyeksportuj trasy, motocykle i ustawienia do pliku JSON w Ustawieniach → System → Kopia zapasowa. Importuj plik na nowym urządzeniu, aby przywrócić dane.</string>
+    <string name="help_topic_themes_title">Motywy i jednostki</string>
+    <string name="help_topic_themes_body">Wybieraj między motywami Kokpit (ciemny), Siatka i Dzienny. Przełączaj się między jednostkami metrycznymi (km) i imperialnymi (mi) w Ustawieniach.</string>
+    <string name="help_about_title">O aplikacji</string>
+    <string name="help_version_label">Wersja %1$s</string>
+
     <!-- Ewidencja tankowania (G5) -->
     <string name="label_refuels">Tankowania</string>
     <string name="label_add_refuel">Dodaj tankowanie</string>

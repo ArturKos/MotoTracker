@@ -113,4 +113,31 @@ class MotoDestinationTest {
         assertEquals(MotoDestination.RECORD, MotoDestination.fromRoute("unknown"))
         assertEquals(MotoDestination.RECORD, MotoDestination.fromRoute(null))
     }
+
+    // ── HELP destination (J1) ────────────────────────────────────────────────
+
+    @Test
+    fun `fromRoute resolves help to HELP`() {
+        assertEquals(MotoDestination.HELP, MotoDestination.fromRoute("help"))
+    }
+
+    @Test
+    fun `showBottomBar is false for HELP`() {
+        assertFalse(showBottomBar(MotoDestination.HELP))
+    }
+
+    @Test
+    fun `showTopBar is true for HELP`() {
+        assertTrue(showTopBar(MotoDestination.HELP))
+    }
+
+    @Test
+    fun `showBackArrow is true for HELP`() {
+        assertTrue(showBackArrow(MotoDestination.HELP))
+    }
+
+    @Test
+    fun `bottomNavDestinations does not contain HELP`() {
+        assertFalse(MotoDestination.HELP in bottomNavDestinations)
+    }
 }

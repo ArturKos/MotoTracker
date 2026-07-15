@@ -385,6 +385,28 @@
     <string name="action_delete">Supprimer</string>
     <string name="toast_route_deleted">Itinéraire supprimé</string>
 
+    <!-- Écran d'aide (J1) -->
+    <string name="nav_help">Aide</string>
+    <string name="screen_help">Aide</string>
+    <string name="action_help">Aide</string>
+    <string name="help_intro">MotoTracker enregistre et analyse vos sorties moto. Voici un guide des principales fonctionnalités.</string>
+    <string name="help_topic_recording_title">Enregistrement &amp; vignettes</string>
+    <string name="help_topic_recording_body">Appuyez sur Démarrer la balade pour commencer l\'enregistrement. Les vignettes affichent en temps réel la vitesse, la distance, le temps de trajet, l\'angle d\'inclinaison, l\'altitude et le niveau de carburant.</string>
+    <string name="help_topic_routes_title">Trajets</string>
+    <string name="help_topic_routes_body">Tous vos trajets enregistrés apparaissent dans la liste des trajets. Appuyez sur un trajet pour voir la carte, le graphique de vitesse, le profil altimétrique et les statistiques.</string>
+    <string name="help_topic_gps_title">Correction GPS</string>
+    <string name="help_topic_gps_body">Activez Aligner GPS sur la route dans les réglages pour appliquer le map-matching à vos traces et corriger la dérive GPS.</string>
+    <string name="help_topic_fuel_title">Modèle de carburant &amp; pleins</string>
+    <string name="help_topic_fuel_body">Définissez la capacité du réservoir, le prix du carburant et la consommation dans les réglages de la moto. Enregistrez les pleins dans le détail du trajet pour suivre les coûts.</string>
+    <string name="help_topic_waves_title">Saluts (Bluetooth)</string>
+    <string name="help_topic_waves_body">MotoTracker peut envoyer un salut Bluetooth silencieux aux autres motards utilisant l\'application. Fonctionne hors ligne sans internet.</string>
+    <string name="help_topic_backup_title">Sauvegarde &amp; restauration</string>
+    <string name="help_topic_backup_body">Exportez trajets, motos et réglages en fichier JSON via Réglages → Système → Sauvegarde. Importez le fichier sur un nouvel appareil pour restaurer vos données.</string>
+    <string name="help_topic_themes_title">Thèmes &amp; unités</string>
+    <string name="help_topic_themes_body">Choisissez entre les thèmes Cockpit (sombre), Grille et Jour. Basculez entre les unités métriques (km) et impériales (mi) dans les réglages.</string>
+    <string name="help_about_title">À propos</string>
+    <string name="help_version_label">Version %1$s</string>
+
     <!-- Journal de ravitaillement (G5) -->
     <string name="label_refuels">Ravitaillements</string>
     <string name="label_add_refuel">Ajouter un ravitaillement</string>

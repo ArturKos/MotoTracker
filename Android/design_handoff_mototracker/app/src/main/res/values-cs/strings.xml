@@ -385,6 +385,28 @@
     <string name="action_delete">Smazat</string>
     <string name="toast_route_deleted">Trasa smazána</string>
 
+    <!-- Obrazovka nápovědy (J1) -->
+    <string name="nav_help">Nápověda</string>
+    <string name="screen_help">Nápověda</string>
+    <string name="action_help">Nápověda</string>
+    <string name="help_intro">MotoTracker zaznamenává a analyzuje vaše motocyklové výlety. Zde najdete průvodce hlavními funkcemi aplikace.</string>
+    <string name="help_topic_recording_title">Nahrávání &amp; živé dlaždice</string>
+    <string name="help_topic_recording_body">Klepnutím na Zahájit jízdu spusťte záznam trasy. Dlaždice zobrazují v reálném čase rychlost, vzdálenost, dobu jízdy, náklon, nadmořskou výšku a hladinu paliva.</string>
+    <string name="help_topic_routes_title">Trasy</string>
+    <string name="help_topic_routes_body">Všechny uložené jízdy se zobrazí v seznamu tras. Klepnutím na trasu zobrazíte mapu, graf rychlosti, profil výšky a statistiky.</string>
+    <string name="help_topic_gps_title">Korekce GPS</string>
+    <string name="help_topic_gps_body">Aktivujte Přichytit GPS na silnici v nastavení pro map-matching, který opravuje odchylky GPS signálu.</string>
+    <string name="help_topic_fuel_title">Model paliva &amp; tankování</string>
+    <string name="help_topic_fuel_body">V nastavení motocyklu zadejte objem nádrže, cenu paliva a spotřebu. Tankování zaznamenávejte v detailu trasy pro sledování nákladů.</string>
+    <string name="help_topic_waves_title">Mávání (Bluetooth)</string>
+    <string name="help_topic_waves_body">MotoTracker může ostatním jezdcům s touto aplikací potichu zamávat přes Bluetooth. Funguje offline bez internetu.</string>
+    <string name="help_topic_backup_title">Záloha &amp; obnovení</string>
+    <string name="help_topic_backup_body">Exportujte trasy, motocykly a nastavení jako soubor JSON v Nastavení → Systém → Záloha. Importujte soubor na novém zařízení pro obnovení dat.</string>
+    <string name="help_topic_themes_title">Motivy &amp; jednotky</string>
+    <string name="help_topic_themes_body">Vyberte si z motivů Kokpit (tmavý), Mřížka nebo Denní. Přepínejte mezi metrickými (km) a imperiálními (mi) jednotkami v nastavení.</string>
+    <string name="help_about_title">O aplikaci</string>
+    <string name="help_version_label">Verze %1$s</string>
+
     <!-- Evidence tankování (G5) -->
     <string name="label_refuels">Tankování</string>
     <string name="label_add_refuel">Přidat tankování</string>

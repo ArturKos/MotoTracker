@@ -415,6 +415,28 @@
     <string name="action_delete">Delete</string>
     <string name="toast_route_deleted">Route deleted</string>
 
+    <!-- Help screen (J1) -->
+    <string name="nav_help">Help</string>
+    <string name="screen_help">Help</string>
+    <string name="action_help">Help</string>
+    <string name="help_intro">MotoTracker logs and analyses your motorcycle rides. Here is a guide to the main features.</string>
+    <string name="help_topic_recording_title">Recording &amp; live tiles</string>
+    <string name="help_topic_recording_body">Tap Start ride to begin logging your route. Live tiles show speed, distance, ride time, lean angle, altitude and fuel level in real time.</string>
+    <string name="help_topic_routes_title">Routes</string>
+    <string name="help_topic_routes_body">All saved rides appear in the Routes list. Tap a route to open its detail: map, speed chart, elevation profile and statistics.</string>
+    <string name="help_topic_gps_title">GPS correction</string>
+    <string name="help_topic_gps_body">Enable Snap GPS to road in Settings to apply map-matching to your tracks, correcting GPS drift to align with the actual road.</string>
+    <string name="help_topic_fuel_title">Fuel model &amp; refuels</string>
+    <string name="help_topic_fuel_body">Set your motorcycle\'s tank capacity, fuel price and consumption in bike settings. Log refuels from the route detail screen to track fuel costs.</string>
+    <string name="help_topic_waves_title">Waves (Bluetooth)</string>
+    <string name="help_topic_waves_body">MotoTracker can send a silent Bluetooth greeting (wave) to other riders using the app as you pass them. Works offline without internet.</string>
+    <string name="help_topic_backup_title">Backup &amp; restore</string>
+    <string name="help_topic_backup_body">Export all your routes, bikes and settings to a JSON file from Settings → System → Backup. Import the file on a new device to restore your data.</string>
+    <string name="help_topic_themes_title">Themes &amp; units</string>
+    <string name="help_topic_themes_body">Choose between Cockpit (dark), Grid and Day themes. Switch between metric (km) and imperial (mi) units in Settings → Appearance.</string>
+    <string name="help_about_title">About</string>
+    <string name="help_version_label">Version %1$s</string>
+
     <!-- Refuel ledger (G5) -->
     <string name="label_refuels">Refuels</string>
     <string name="label_add_refuel">Add refuel</string>

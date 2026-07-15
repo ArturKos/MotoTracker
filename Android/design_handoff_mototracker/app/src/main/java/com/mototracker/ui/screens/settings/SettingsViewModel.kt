@@ -128,6 +128,7 @@ class SettingsViewModel @Inject constructor(
                 tankCapacityL = bike.tankCapacityL,
                 fuelPricePerL = bike.fuelPricePerL,
                 consumptionLper100km = bike.consumptionLper100km,
+                autoUpdateConsumption = bike.autoUpdateConsumption,
             )
         }
 
@@ -197,13 +198,14 @@ class SettingsViewModel @Inject constructor(
      * Input is validated via [BikeFormValidation.validate]; the call is a no-op when
      * validation returns an error result.
      *
-     * @param name                  Display name, e.g. "Yamaha MT-07".
-     * @param year                  Model year (must be in 1900–2030).
-     * @param plate                 Registration plate (may be blank).
-     * @param status                Lifecycle status; defaults to [BikeStatus.ACTIVE].
-     * @param tankCapacityLText     Tank capacity string; blank → null, non-blank must be a non-negative Double.
-     * @param fuelPricePerLText     Fuel price string; blank → null, non-blank must be a non-negative Double.
+     * @param name                     Display name, e.g. "Yamaha MT-07".
+     * @param year                     Model year (must be in 1900–2030).
+     * @param plate                    Registration plate (may be blank).
+     * @param status                   Lifecycle status; defaults to [BikeStatus.ACTIVE].
+     * @param tankCapacityLText        Tank capacity string; blank → null, non-blank must be a non-negative Double.
+     * @param fuelPricePerLText        Fuel price string; blank → null, non-blank must be a non-negative Double.
      * @param consumptionLper100kmText Consumption string; blank → null, non-blank must be a non-negative Double.
+     * @param autoUpdateConsumption    Checkbox state for auto-update from refuel ledger (K2).
      */
     fun addBike(
         name: String,
@@ -213,10 +215,12 @@ class SettingsViewModel @Inject constructor(
         tankCapacityLText: String = "",
         fuelPricePerLText: String = "",
         consumptionLper100kmText: String = "",
+        autoUpdateConsumption: Boolean = false,
     ) {
         val result = BikeFormValidation.validate(
             name, year.toString(), plate,
             tankCapacityLText, fuelPricePerLText, consumptionLper100kmText,
+            autoUpdateConsumption,
         )
         if (result !is BikeFormResult.Valid) return
         viewModelScope.launch {
@@ -230,6 +234,7 @@ class SettingsViewModel @Inject constructor(
                     tankCapacityL = result.tankCapacityL,
                     fuelPricePerL = result.fuelPricePerL,
                     consumptionLper100km = result.consumptionLper100km,
+                    autoUpdateConsumption = result.autoUpdateConsumption,
                 )
             )
         }
@@ -241,14 +246,15 @@ class SettingsViewModel @Inject constructor(
      * Input is validated via [BikeFormValidation.validate]; the call is a no-op when
      * validation returns an error result.
      *
-     * @param id                    UUID of the bike to update.
-     * @param name                  New display name.
-     * @param year                  New model year (must be in 1900–2030).
-     * @param plate                 New registration plate (may be blank).
-     * @param status                New lifecycle status.
-     * @param tankCapacityLText     Tank capacity string; blank → null, non-blank must be a non-negative Double.
-     * @param fuelPricePerLText     Fuel price string; blank → null, non-blank must be a non-negative Double.
+     * @param id                       UUID of the bike to update.
+     * @param name                     New display name.
+     * @param year                     New model year (must be in 1900–2030).
+     * @param plate                    New registration plate (may be blank).
+     * @param status                   New lifecycle status.
+     * @param tankCapacityLText        Tank capacity string; blank → null, non-blank must be a non-negative Double.
+     * @param fuelPricePerLText        Fuel price string; blank → null, non-blank must be a non-negative Double.
      * @param consumptionLper100kmText Consumption string; blank → null, non-blank must be a non-negative Double.
+     * @param autoUpdateConsumption    Checkbox state for auto-update from refuel ledger (K2).
      */
     fun updateBike(
         id: String,
@@ -259,10 +265,12 @@ class SettingsViewModel @Inject constructor(
         tankCapacityLText: String = "",
         fuelPricePerLText: String = "",
         consumptionLper100kmText: String = "",
+        autoUpdateConsumption: Boolean = false,
     ) {
         val result = BikeFormValidation.validate(
             name, year.toString(), plate,
             tankCapacityLText, fuelPricePerLText, consumptionLper100kmText,
+            autoUpdateConsumption,
         )
         if (result !is BikeFormResult.Valid) return
         viewModelScope.launch {
@@ -276,6 +284,7 @@ class SettingsViewModel @Inject constructor(
                     tankCapacityL = result.tankCapacityL,
                     fuelPricePerL = result.fuelPricePerL,
                     consumptionLper100km = result.consumptionLper100km,
+                    autoUpdateConsumption = result.autoUpdateConsumption,
                 )
             )
         }

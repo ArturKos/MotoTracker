@@ -436,4 +436,7 @@
 
     <!-- Resume/continue a saved route (J5) -->
     <string name="route_detail_continue">Kontynuuj trasę</string>
+
+    <!-- Auto-update consumption checkbox (K2) -->
+    <string name="label_auto_update_consumption">Aktualizuj spalanie automatycznie z tankowań</string>
 </resources>

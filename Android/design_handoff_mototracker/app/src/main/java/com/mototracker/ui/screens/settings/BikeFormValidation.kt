@@ -9,6 +9,8 @@ sealed class BikeFormResult {
      *
      * Fuel fields ([tankCapacityL], [fuelPricePerL], [consumptionLper100km]) are null when
      * the user left the corresponding text field blank (meaning "unknown").
+     *
+     * @param autoUpdateConsumption Passed through unchanged from the checkbox state (K2).
      */
     data class Valid(
         val name: String,
@@ -17,6 +19,7 @@ sealed class BikeFormResult {
         val tankCapacityL: Double? = null,
         val fuelPricePerL: Double? = null,
         val consumptionLper100km: Double? = null,
+        val autoUpdateConsumption: Boolean = false,
     ) : BikeFormResult()
 
     /** The trimmed name field is blank. */
@@ -54,12 +57,13 @@ object BikeFormValidation {
      * A non-blank value must parse as a non-negative Double, or the corresponding
      * [BikeFormResult] error is returned.
      *
-     * @param name                  Display name typed by the user (leading/trailing whitespace is trimmed).
-     * @param yearText              Year typed by the user (may be non-numeric or out of range).
-     * @param plate                 Registration plate text (trimmed; may be blank — that is allowed).
-     * @param tankCapacityLText     Fuel tank capacity in litres; blank → null.
-     * @param fuelPricePerLText     Fuel price per litre; blank → null.
+     * @param name                     Display name typed by the user (leading/trailing whitespace is trimmed).
+     * @param yearText                 Year typed by the user (may be non-numeric or out of range).
+     * @param plate                    Registration plate text (trimmed; may be blank — that is allowed).
+     * @param tankCapacityLText        Fuel tank capacity in litres; blank → null.
+     * @param fuelPricePerLText        Fuel price per litre; blank → null.
      * @param consumptionLper100kmText Average consumption in L/100km; blank → null.
+     * @param autoUpdateConsumption    Checkbox state — passed straight through into [BikeFormResult.Valid] (K2).
      * @return [BikeFormResult.Valid] with sanitised values on success, or an error subtype.
      */
     fun validate(
@@ -69,6 +73,7 @@ object BikeFormValidation {
         tankCapacityLText: String = "",
         fuelPricePerLText: String = "",
         consumptionLper100kmText: String = "",
+        autoUpdateConsumption: Boolean = false,
     ): BikeFormResult {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) return BikeFormResult.NameBlank
@@ -89,6 +94,7 @@ object BikeFormValidation {
             tankCapacityL = tankCapacityL.value,
             fuelPricePerL = fuelPricePerL.value,
             consumptionLper100km = consumptionLper100km.value,
+            autoUpdateConsumption = autoUpdateConsumption,
         )
     }
 

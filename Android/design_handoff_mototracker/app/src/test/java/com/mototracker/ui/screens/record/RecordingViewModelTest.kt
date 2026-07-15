@@ -3,6 +3,7 @@ package com.mototracker.ui.screens.record
 import app.cash.turbine.test
 import com.mototracker.R
 import com.mototracker.core.resource.StringResolver
+import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.FuelRangeColor
 import com.mototracker.domain.fuel.FuelRangeIndicator
 import com.mototracker.core.time.TimeProvider
@@ -1348,6 +1349,12 @@ class RecordingViewModelTest {
         pathJson = null, speedJson = null, elevProfileJson = null, notes = null,
     )
 
+    private fun noOpAutoUpdateUseCase() = AutoUpdateBikeConsumptionUseCase(
+        bikeRepository = FakeBikeRepository(),
+        routeRepository = FakeRouteRepository(),
+        refuelRepository = FakeRefuelRepository(),
+    )
+
     private fun buildViewModel(
         online: Boolean = true,
         offline: Boolean = false,
@@ -1381,5 +1388,6 @@ class RecordingViewModelTest {
         sessionStore = sessionStore,
         refuelRepository = refuelRepository,
         resumeRouteBus = FakeResumeRouteBus(),
+        autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
     )
 }

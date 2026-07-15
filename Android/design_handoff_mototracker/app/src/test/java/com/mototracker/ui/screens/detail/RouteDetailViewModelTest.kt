@@ -19,6 +19,7 @@ import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.data.recording.ResumeRouteBus
+import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.RefuelEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -186,6 +187,13 @@ private class FakeTimeProvider(private val nowMs: Long = 9_000_000L) : TimeProvi
     override fun nowEpochMs(): Long = nowMs
 }
 
+/** No-op use case instance for tests that don't need the auto-update behaviour. */
+private fun noOpAutoUpdateUseCase() = AutoUpdateBikeConsumptionUseCase(
+    bikeRepository = FakeBikeRepository(),
+    routeRepository = FakeRouteRepository(),
+    refuelRepository = FakeRefuelRepository(),
+)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -278,6 +286,7 @@ class RouteDetailViewModelTest {
             refuelRepository = refuelRepo,
             timeProvider = timeProvider,
             resumeRouteBus = resumeRouteBus,
+            autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
         )
     }
 
@@ -981,6 +990,7 @@ class RouteDetailViewModelTest {
             refuelRepository = FakeRefuelRepository(),
             timeProvider = FakeTimeProvider(),
             resumeRouteBus = FakeDetailResumeRouteBus(),
+            autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
         )
         vmNoRoute.uiState.test {
             val s = awaitItem(); if (s.loading) awaitItem()
@@ -1239,6 +1249,7 @@ class RouteDetailViewModelTest {
             refuelRepository = FakeRefuelRepository(),
             timeProvider = FakeTimeProvider(),
             resumeRouteBus = FakeDetailResumeRouteBus(),
+            autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
         )
         vmNoRoute.uiState.test {
             val s = awaitItem(); if (s.loading) awaitItem()

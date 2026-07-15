@@ -25,6 +25,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.FuelCostCalculator
 import com.mototracker.domain.fuel.RefuelEvent
 import com.mototracker.domain.fuel.RefuelLedger
@@ -69,10 +70,11 @@ import kotlin.math.roundToInt
  * @param settingsSource           Provides measurement units preference.
  * @param syncRepository           Manages the outbound sync queue for server upload.
  * @param gpsCorrectionRepository  Manages the OSRM GPS road-correction queue.
- * @param refuelRepository         Source and sink for per-route refuel event ledger (G5).
- * @param timeProvider             Wall-clock source for new refuel event timestamps.
- * @param resumeRouteBus           App-scoped bus for routing continue-route requests to
- *                                 RecordingViewModel (J5).
+ * @param refuelRepository                  Source and sink for per-route refuel event ledger (G5).
+ * @param timeProvider                      Wall-clock source for new refuel event timestamps.
+ * @param resumeRouteBus                    App-scoped bus for routing continue-route requests to
+ *                                          RecordingViewModel (J5).
+ * @param autoUpdateBikeConsumptionUseCase  Refreshes bike consumption from the refuel ledger (K2).
  */
 @HiltViewModel
 class RouteDetailViewModel @Inject constructor(
@@ -86,6 +88,7 @@ class RouteDetailViewModel @Inject constructor(
     private val refuelRepository: RefuelRepository,
     private val timeProvider: TimeProvider,
     private val resumeRouteBus: ResumeRouteBus,
+    private val autoUpdateBikeConsumptionUseCase: AutoUpdateBikeConsumptionUseCase,
 ) : ViewModel() {
 
     private val routeId: String = savedStateHandle["routeId"] ?: ""
@@ -315,6 +318,11 @@ class RouteDetailViewModel @Inject constructor(
                 litres = litres,
                 pricePerL = pricePerL,
             )
+            // K2: update per-bike consumption from ledger when auto-update is enabled.
+            val bikeId = route.bikeId
+            if (bikeId != null) {
+                runCatching { autoUpdateBikeConsumptionUseCase.run(bikeId) }
+            }
             _events.send(RouteDetailEvent.RefuelAdded)
         }
     }

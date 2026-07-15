@@ -436,4 +436,7 @@
 
     <!-- Resume/continue a saved route (J5) -->
     <string name="route_detail_continue">Continuer l\'itinéraire</string>
+
+    <!-- Auto-update consumption checkbox (K2) -->
+    <string name="label_auto_update_consumption">Mettre à jour la consommation automatiquement depuis les pleins</string>
 </resources>

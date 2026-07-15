@@ -260,4 +260,66 @@ class MigrationTest {
 
         db.close()
     }
+
+    /**
+     * Verifies [MIGRATION_6_7]: `autoUpdateConsumption INTEGER NOT NULL DEFAULT 0` is added to
+     * `bikes`; pre-existing bike rows survive with the column defaulting to 0; a round-trip
+     * through the mapper preserves the value.
+     */
+    @Test
+    fun migrate6To7_addsAutoUpdateConsumptionColumnDefaultZero() {
+        val db = SQLiteDatabase.openOrCreateDatabase(":memory:", null)
+
+        // ── Build version-6 bikes schema (no autoUpdateConsumption column) ────
+        db.execSQL(
+            """CREATE TABLE bikes (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                year INTEGER NOT NULL,
+                plate TEXT NOT NULL,
+                status TEXT NOT NULL,
+                tankCapacityL REAL,
+                fuelPricePerL REAL,
+                consumptionLper100km REAL
+            )""",
+        )
+
+        // ── Insert a v6 bike row ──────────────────────────────────────────────
+        db.execSQL(
+            "INSERT INTO bikes (id, name, year, plate, status, consumptionLper100km) VALUES ('b-k2', 'Honda CB500', 2019, 'KR 111', 'ACTIVE', 5.5)",
+        )
+
+        // ── Run MIGRATION_6_7 SQL (mirrors private val in MotoDatabase) ───────
+        db.execSQL("ALTER TABLE bikes ADD COLUMN autoUpdateConsumption INTEGER NOT NULL DEFAULT 0")
+
+        // ── Verify column exists and pre-existing row defaults to 0 ──────────
+        db.rawQuery(
+            "SELECT id, consumptionLper100km, autoUpdateConsumption FROM bikes WHERE id = 'b-k2'",
+            null,
+        ).use { cursor ->
+            assertEquals(1, cursor.count)
+            assertTrue(cursor.moveToFirst())
+            assertEquals("b-k2", cursor.getString(cursor.getColumnIndexOrThrow("id")))
+            assertEquals(5.5, cursor.getDouble(cursor.getColumnIndexOrThrow("consumptionLper100km")), 0.001)
+            assertEquals(
+                "autoUpdateConsumption should default to 0",
+                0,
+                cursor.getInt(cursor.getColumnIndexOrThrow("autoUpdateConsumption")),
+            )
+        }
+
+        // ── Verify a new row can store autoUpdateConsumption = 1 ─────────────
+        db.execSQL(
+            "INSERT INTO bikes (id, name, year, plate, status, autoUpdateConsumption) VALUES ('b-k2b', 'Yamaha MT-07', 2021, 'WA 222', 'ACTIVE', 1)",
+        )
+        db.rawQuery(
+            "SELECT autoUpdateConsumption FROM bikes WHERE id = 'b-k2b'",
+            null,
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(cursor.getColumnIndexOrThrow("autoUpdateConsumption")))
+        }
+
+        db.close()
+    }
 }

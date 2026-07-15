@@ -13,6 +13,7 @@ fun BikeEntity.toDomain(): Bike = Bike(
     tankCapacityL = tankCapacityL,
     fuelPricePerL = fuelPricePerL,
     consumptionLper100km = consumptionLper100km,
+    autoUpdateConsumption = autoUpdateConsumption,
 )
 
 /** Converts a [Bike] domain model to its Room entity counterpart. */
@@ -25,4 +26,5 @@ fun Bike.toEntity(): BikeEntity = BikeEntity(
     tankCapacityL = tankCapacityL,
     fuelPricePerL = fuelPricePerL,
     consumptionLper100km = consumptionLper100km,
+    autoUpdateConsumption = autoUpdateConsumption,
 )

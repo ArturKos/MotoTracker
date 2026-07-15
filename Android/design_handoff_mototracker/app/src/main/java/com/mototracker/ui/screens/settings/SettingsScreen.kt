@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -193,12 +195,12 @@ fun SettingsScreen(
         },
         onSelectBike = viewModel::selectBike,
         onOpenBikeDetail = onOpenBikeDetail,
-        onAddBike = { name, year, plate, status, tankText, priceText, consumptionText ->
-            viewModel.addBike(name, year, plate, status, tankText, priceText, consumptionText)
+        onAddBike = { name, year, plate, status, tankText, priceText, consumptionText, autoUpdate ->
+            viewModel.addBike(name, year, plate, status, tankText, priceText, consumptionText, autoUpdate)
             Toast.makeText(ctx, addBikeMsg, Toast.LENGTH_SHORT).show()
         },
-        onUpdateBike = { id, name, year, plate, status, tankText, priceText, consumptionText ->
-            viewModel.updateBike(id, name, year, plate, status, tankText, priceText, consumptionText)
+        onUpdateBike = { id, name, year, plate, status, tankText, priceText, consumptionText, autoUpdate ->
+            viewModel.updateBike(id, name, year, plate, status, tankText, priceText, consumptionText, autoUpdate)
         },
         onTheme = { key ->
             viewModel.setTheme(key)
@@ -292,8 +294,8 @@ fun SettingsContent(
     onSignOut: () -> Unit = {},
     onSelectBike: (String) -> Unit = {},
     onOpenBikeDetail: (String) -> Unit = {},
-    onAddBike: (String, Int, String, BikeStatus, String, String, String) -> Unit = { _, _, _, _, _, _, _ -> },
-    onUpdateBike: (String, String, Int, String, BikeStatus, String, String, String) -> Unit = { _, _, _, _, _, _, _, _ -> },
+    onAddBike: (String, Int, String, BikeStatus, String, String, String, Boolean) -> Unit = { _, _, _, _, _, _, _, _ -> },
+    onUpdateBike: (String, String, Int, String, BikeStatus, String, String, String, Boolean) -> Unit = { _, _, _, _, _, _, _, _, _ -> },
     onTheme: (String) -> Unit = {},
     onAccent: (String) -> Unit = {},
     onLanguage: (String) -> Unit = {},
@@ -326,11 +328,11 @@ fun SettingsContent(
         val editBike = editBikeId?.let { id -> state.bikes.find { it.id == id } }
         AddEditBikeDialog(
             initial = editBike,
-            onConfirm = { name, year, plate, status, tankText, priceText, consumptionText ->
+            onConfirm = { name, year, plate, status, tankText, priceText, consumptionText, autoUpdate ->
                 if (editBikeId != null) {
-                    onUpdateBike(editBikeId!!, name, year, plate, status, tankText, priceText, consumptionText)
+                    onUpdateBike(editBikeId!!, name, year, plate, status, tankText, priceText, consumptionText, autoUpdate)
                 } else {
-                    onAddBike(name, year, plate, status, tankText, priceText, consumptionText)
+                    onAddBike(name, year, plate, status, tankText, priceText, consumptionText, autoUpdate)
                 }
             },
             onDismiss = {
@@ -1066,13 +1068,13 @@ private fun BcTextField(
  *
  * @param initial    Pre-fills the form for edit mode; null means add mode.
  * @param onConfirm  Called with validated values when the user taps Save:
- *                   (name, year, plate, status, tankCapacityLText, fuelPricePerLText, consumptionLper100kmText).
+ *                   (name, year, plate, status, tankCapacityLText, fuelPricePerLText, consumptionLper100kmText, autoUpdateConsumption).
  * @param onDismiss  Called when the user taps Cancel or dismisses the dialog.
  */
 @Composable
 private fun AddEditBikeDialog(
     initial: BikeUi?,
-    onConfirm: (name: String, year: Int, plate: String, status: BikeStatus, tankCapacityLText: String, fuelPricePerLText: String, consumptionLper100kmText: String) -> Unit,
+    onConfirm: (name: String, year: Int, plate: String, status: BikeStatus, tankCapacityLText: String, fuelPricePerLText: String, consumptionLper100kmText: String, autoUpdateConsumption: Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var nameText by rememberSaveable { mutableStateOf(initial?.name ?: "") }
@@ -1089,6 +1091,7 @@ private fun AddEditBikeDialog(
     var consumptionText by rememberSaveable {
         mutableStateOf(initial?.consumptionLper100km?.toString() ?: "")
     }
+    var autoUpdateConsumption by rememberSaveable { mutableStateOf(initial?.autoUpdateConsumption ?: false) }
     var status by remember { mutableStateOf(initial?.status ?: BikeStatus.ACTIVE) }
     var nameError by rememberSaveable { mutableStateOf(false) }
     var yearError by rememberSaveable { mutableStateOf(false) }
@@ -1183,6 +1186,24 @@ private fun AddEditBikeDialog(
                         modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
                     )
                 }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = autoUpdateConsumption,
+                        onCheckedChange = { autoUpdateConsumption = it },
+                        colors = CheckboxDefaults.colors(checkedColor = MotoTracker.colors.accent),
+                    )
+                    Text(
+                        text = stringResource(R.string.label_auto_update_consumption),
+                        color = MotoTracker.colors.text,
+                        style = MotoTracker.typography.label,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.label_bike_status),
@@ -1213,14 +1234,14 @@ private fun AddEditBikeDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                when (val result = BikeFormValidation.validate(nameText, yearText, plateText, tankText, priceText, consumptionText)) {
+                when (val result = BikeFormValidation.validate(nameText, yearText, plateText, tankText, priceText, consumptionText, autoUpdateConsumption)) {
                     is BikeFormResult.NameBlank -> nameError = true
                     is BikeFormResult.YearInvalid -> yearError = true
                     is BikeFormResult.TankCapacityInvalid -> tankError = true
                     is BikeFormResult.FuelPriceInvalid -> priceError = true
                     is BikeFormResult.ConsumptionInvalid -> consumptionError = true
                     is BikeFormResult.Valid -> {
-                        onConfirm(result.name, result.year, result.plate, status, tankText, priceText, consumptionText)
+                        onConfirm(result.name, result.year, result.plate, status, tankText, priceText, consumptionText, result.autoUpdateConsumption)
                         onDismiss()
                     }
                 }

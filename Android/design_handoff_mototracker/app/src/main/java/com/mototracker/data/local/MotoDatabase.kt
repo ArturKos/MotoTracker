@@ -40,6 +40,7 @@ import com.mototracker.data.local.entity.WaveEntity
  *           added per-route fuel price override (fuelPricePerL) to routes (E3).
  * - 4 → 5: Added maxLeanLeftDeg and maxLeanRightDeg (NOT NULL DEFAULT 0) to routes (E7 separate L/R lean tracking).
  * - 5 → 6: Added refuel_event table with per-route refuel ledger (G5).
+ * - 6 → 7: Added autoUpdateConsumption (INTEGER NOT NULL DEFAULT 0) to bikes (K2).
  */
 @Database(
     entities = [
@@ -52,7 +53,7 @@ import com.mototracker.data.local.entity.WaveEntity
         CorrectionQueueEntity::class,
         RefuelEventEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -81,7 +82,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
     }
 }
 
@@ -297,5 +298,17 @@ private val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_refuel_event_routeId ON refuel_event (routeId)",
         )
+    }
+}
+
+/**
+ * Schema migration from version 6 to 7 (K2 — per-bike auto-update consumption flag).
+ *
+ * Adds [BikeEntity.autoUpdateConsumption] as INTEGER NOT NULL DEFAULT 0 so that all
+ * existing bikes retain the "off" default (manual consumption entry).
+ */
+private val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE bikes ADD COLUMN autoUpdateConsumption INTEGER NOT NULL DEFAULT 0")
     }
 }

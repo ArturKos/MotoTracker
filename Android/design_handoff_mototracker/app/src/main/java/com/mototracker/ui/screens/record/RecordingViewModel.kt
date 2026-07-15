@@ -13,6 +13,7 @@ import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.FuelConsumptionCalculator
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.PendingRefuel
@@ -91,8 +92,9 @@ import javax.inject.Inject
  *                          Only called when the device is online.
  * @param stringResolver    Resolves localized string resources for the composed route name.
  * @param sessionStore      Durable storage for the in-progress recording session snapshot (B20).
- * @param refuelRepository  Persistence for per-route refuel events (G5).
- * @param resumeRouteBus    App-scoped bus for receiving "continue existing route" requests (J5).
+ * @param refuelRepository                  Persistence for per-route refuel events (G5).
+ * @param resumeRouteBus                    App-scoped bus for receiving "continue existing route" requests (J5).
+ * @param autoUpdateBikeConsumptionUseCase  Refreshes bike consumption from the refuel ledger after a refuel is saved (K2).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -113,6 +115,7 @@ class RecordingViewModel @Inject constructor(
     private val sessionStore: RecordingSessionStore,
     private val refuelRepository: RefuelRepository,
     private val resumeRouteBus: ResumeRouteBus,
+    private val autoUpdateBikeConsumptionUseCase: AutoUpdateBikeConsumptionUseCase,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -436,6 +439,13 @@ class RecordingViewModel @Inject constructor(
                     litres = r.litres,
                     pricePerL = r.pricePerL,
                 )
+            }
+            // K2: refresh per-bike consumption from ledger if any refuels were just saved.
+            if (refuelsToSave.isNotEmpty()) {
+                val bikeId = route.bikeId
+                if (bikeId != null) {
+                    runCatching { autoUpdateBikeConsumptionUseCase.run(bikeId) }
+                }
             }
 
             // B20: Clear snapshot AFTER the route is durably saved.

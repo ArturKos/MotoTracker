@@ -20,6 +20,7 @@ import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.RefuelEvent
 import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
@@ -194,6 +195,12 @@ class RecordingViewModelResumeTest {
     @Before fun setUp() { Dispatchers.setMain(testDispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
 
+    private fun noOpAutoUpdateUseCase() = AutoUpdateBikeConsumptionUseCase(
+        bikeRepository = FakeResumeBikeRepository(),
+        routeRepository = FakeResumeRouteRepository(),
+        refuelRepository = FakeResumeRefuelRepository(),
+    )
+
     private fun buildVm(
         store: RecordingSessionStore = FakeSessionStore(),
         routeRepo: FakeResumeRouteRepository = FakeResumeRouteRepository(),
@@ -217,6 +224,7 @@ class RecordingViewModelResumeTest {
         sessionStore = store,
         refuelRepository = FakeResumeRefuelRepository(),
         resumeRouteBus = resumeRouteBus,
+        autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
     )
 
     // ── Startup detection ────────────────────────────────────────────────────

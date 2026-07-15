@@ -5,16 +5,17 @@ import com.mototracker.data.local.entity.BikeStatus
 /**
  * Represents a single motorcycle row in the Settings → My motorcycles section.
  *
- * @param id                   Bike UUID.
- * @param name                 Display name.
- * @param yearPlate            Formatted "year · plate" string, e.g. "2020 · WA 12345".
- * @param status               Active or sold lifecycle flag.
- * @param isCurrent            Whether this is the user-selected active bike.
- * @param year                 Model year; used to prefill the add/edit dialog.
- * @param plate                Registration plate; used to prefill the add/edit dialog.
- * @param tankCapacityL        Fuel tank capacity in litres; null when not configured.
- * @param fuelPricePerL        Fuel price per litre; null when not configured.
- * @param consumptionLper100km Average fuel consumption in L/100km; null when not configured.
+ * @param id                      Bike UUID.
+ * @param name                    Display name.
+ * @param yearPlate               Formatted "year · plate" string, e.g. "2020 · WA 12345".
+ * @param status                  Active or sold lifecycle flag.
+ * @param isCurrent               Whether this is the user-selected active bike.
+ * @param year                    Model year; used to prefill the add/edit dialog.
+ * @param plate                   Registration plate; used to prefill the add/edit dialog.
+ * @param tankCapacityL           Fuel tank capacity in litres; null when not configured.
+ * @param fuelPricePerL           Fuel price per litre; null when not configured.
+ * @param consumptionLper100km    Average fuel consumption in L/100km; null when not configured.
+ * @param autoUpdateConsumption   Whether the auto-update-from-refuels checkbox is checked (K2).
  */
 data class BikeUi(
     val id: String,
@@ -27,6 +28,7 @@ data class BikeUi(
     val tankCapacityL: Double? = null,
     val fuelPricePerL: Double? = null,
     val consumptionLper100km: Double? = null,
+    val autoUpdateConsumption: Boolean = false,
 )
 
 /**

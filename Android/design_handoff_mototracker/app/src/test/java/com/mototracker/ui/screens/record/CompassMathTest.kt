@@ -203,6 +203,71 @@ class CompassMathTest {
         assertEquals(200f, result, 0.001f)
     }
 
+    // ─── needleEndpoint — cardinal directions ────────────────────────────────
+
+    private val DELTA = 0.001f
+    private val LENGTH = 100f
+
+    @Test
+    fun needleEndpoint_north_pointsUp() {
+        val (dx, dy) = CompassMath.needleEndpoint(0f, LENGTH)
+        assertEquals(0f, dx, DELTA)
+        assertEquals(-LENGTH, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_east_pointsRight() {
+        val (dx, dy) = CompassMath.needleEndpoint(90f, LENGTH)
+        assertEquals(LENGTH, dx, DELTA)
+        assertEquals(0f, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_south_pointsDown() {
+        val (dx, dy) = CompassMath.needleEndpoint(180f, LENGTH)
+        assertEquals(0f, dx, DELTA)
+        assertEquals(LENGTH, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_west_pointsLeft() {
+        val (dx, dy) = CompassMath.needleEndpoint(270f, LENGTH)
+        assertEquals(-LENGTH, dx, DELTA)
+        assertEquals(0f, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_negativeHeading_normalisedCorrectly() {
+        // -90° normalises to 270° (West) → same as needleEndpoint(270°)
+        val (dx, dy) = CompassMath.needleEndpoint(-90f, LENGTH)
+        assertEquals(-LENGTH, dx, DELTA)
+        assertEquals(0f, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_headingOver360_normalisedCorrectly() {
+        // 450° normalises to 90° (East) → same as needleEndpoint(90°)
+        val (dx, dy) = CompassMath.needleEndpoint(450f, LENGTH)
+        assertEquals(LENGTH, dx, DELTA)
+        assertEquals(0f, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_negativeLength_pointsOpposite() {
+        // Tail at 0° heading with negative length should point south (dx=0, dy=+len)
+        val (dx, dy) = CompassMath.needleEndpoint(0f, -LENGTH)
+        assertEquals(0f, dx, DELTA)
+        assertEquals(LENGTH, dy, DELTA)
+    }
+
+    @Test
+    fun needleEndpoint_exactly360_sameAsZero() {
+        val (dx0, dy0) = CompassMath.needleEndpoint(0f, LENGTH)
+        val (dx360, dy360) = CompassMath.needleEndpoint(360f, LENGTH)
+        assertEquals(dx0, dx360, DELTA)
+        assertEquals(dy0, dy360, DELTA)
+    }
+
     // ─── cardinal — edge cases ───────────────────────────────────────────────
 
     @Test

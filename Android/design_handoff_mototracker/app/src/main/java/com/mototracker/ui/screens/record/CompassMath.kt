@@ -1,5 +1,8 @@
 package com.mototracker.ui.screens.record
 
+import kotlin.math.cos
+import kotlin.math.sin
+
 /**
  * Pure heading-math utilities for the analog compass dial.
  *
@@ -60,6 +63,27 @@ object CompassMath {
         liveHeadingDeg: Float?,
         gpsHeadingDeg: Float,
     ): Float = liveHeadingDeg ?: gpsHeadingDeg
+
+    /**
+     * Returns the (dx, dy) offset from the compass centre in Canvas coordinates for a needle
+     * endpoint at the given [headingDeg].
+     *
+     * Convention matches the compass tick marks: bearing θ measured clockwise from North maps to
+     * `x = sin(θ) * length` and `y = -cos(θ) * length` (Canvas up = negative-y axis).
+     *
+     * A positive [length] places the point in the direction of the heading (needle tip).
+     * A negative [length] places the point in the opposite direction (needle tail).
+     *
+     * @param headingDeg Raw heading in degrees; normalised internally via [normalizeHeading].
+     * @param length     Distance from centre in the same unit as the canvas radius.
+     * @return           Pair(dx, dy) offset from the canvas centre.
+     */
+    fun needleEndpoint(headingDeg: Float, length: Float): Pair<Float, Float> {
+        val rad = Math.toRadians(normalizeHeading(headingDeg).toDouble())
+        val dx = (sin(rad) * length).toFloat()
+        val dy = (-cos(rad) * length).toFloat()
+        return Pair(dx, dy)
+    }
 
     /**
      * Returns the 8-point [Cardinal] direction for [deg].

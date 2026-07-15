@@ -600,12 +600,13 @@ private fun LeanRow(state: RecordingUiState, currentLeanDeg: Double) {
  *
  * Draws a compass rose inside a [MetricTile]: an outer ring, tick marks for all
  * eight cardinal directions (N is longer and red), and a two-colour needle.  The
- * whole rose is rotated by the normalised heading so the needle points in the
- * direction of travel.  Below the rose the numeric heading and the localised
- * [CompassMath.Cardinal] abbreviation are shown.
+ * rose (ring, tick marks, and N/E/S/W labels) is **fixed** — N is always at the
+ * top of the dial.  Only the red needle rotates to point at the current heading.
+ * Below the rose the numeric heading and the localised [CompassMath.Cardinal]
+ * abbreviation are shown.
  *
  * Heading comes from GPS bearing ([RecordingMetrics.headingDeg]) and only updates
- * while moving — correct rotation on a live ride is verified on-device (🔬).
+ * while moving — correct rendering on a live ride is verified on-device (🔬).
  *
  * @param headingDeg Raw GPS bearing in degrees; may be any float (normalised internally).
  * @param modifier   Standard Compose modifier applied to the enclosing [MetricTile].
@@ -651,8 +652,8 @@ private fun CompassDial(
             Modifier.size(compassDiameterDp.dp),
             contentAlignment = Alignment.Center,
         ) {
-            // Inner Box rotates with the heading so the rose + N/E/S/W labels turn together.
-            Box(Modifier.size((compassDiameterDp - 4).dp).rotate(normalised)) {
+            // Inner Box holds the fixed rose + N/E/S/W labels — no rotation applied.
+            Box(Modifier.size((compassDiameterDp - 4).dp)) {
                 Canvas(Modifier.fillMaxSize()) {
                     val cx = size.width / 2
                     val cy = size.height / 2
@@ -688,25 +689,27 @@ private fun CompassDial(
                         )
                     }
 
-                    // Needle — red tip (north / direction of travel) + grey tail
+                    // Needle — red tip points at heading; grey tail points opposite.
+                    val (tipDx, tipDy) = CompassMath.needleEndpoint(normalised, r * 0.54f)
+                    val (tailDx, tailDy) = CompassMath.needleEndpoint(normalised, -r * 0.38f)
                     drawLine(
                         color = Color.Red,
                         start = Offset(cx, cy),
-                        end   = Offset(cx, cy - r * 0.54f),
+                        end   = Offset(cx + tipDx, cy + tipDy),
                         strokeWidth = 3.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
                     drawLine(
                         color = Color.White.copy(alpha = 0.35f),
                         start = Offset(cx, cy),
-                        end   = Offset(cx, cy + r * 0.38f),
+                        end   = Offset(cx + tailDx, cy + tailDy),
                         strokeWidth = 2.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
                     // Centre dot
                     drawCircle(color = accent, radius = 3.dp.toPx())
                 }
-                // N/E/S/W cardinal text labels at the 4 compass points — rotate with the rose.
+                // N/E/S/W cardinal text labels at the 4 compass points — fixed, always upright.
                 Text(
                     text = compassNLabel,
                     style = MotoTracker.typography.label,

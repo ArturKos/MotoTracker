@@ -70,6 +70,7 @@ import com.mototracker.R
 import com.mototracker.domain.fuel.FuelCostCalculator
 import com.mototracker.domain.fuel.FuelRangeColor
 import com.mototracker.domain.fuel.FuelRangeIndicator
+import com.mototracker.domain.location.GnssSignalLevel
 import com.mototracker.domain.recording.RecordingControl
 import com.mototracker.domain.recording.RecordingControls
 import com.mototracker.domain.recording.RecordingMetrics
@@ -244,20 +245,16 @@ fun RecordingContent(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 8.dp),
                 ) {
-                    // ── Compact chip row: GPS sat-count (left) · range · weather ─────
-                    // WindRose removed — E6 compass tile already shows heading.
-                    // No separate sync/offline chip was present in this row (verified).
+                    // ── Compact chip row: GPS sat-count centred, sole chip (K7) ─────
+                    // Range info is in the fuel readout below; weather is on Route detail.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.Center,
                     ) {
                         GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
-                        RangeChip(remainingRangeKm = state.metrics.remainingRangeKm)
-                        Spacer(Modifier.weight(1f))
-                        WeatherChip(weather = state.weather)
                     }
                     Spacer(Modifier.height(8.dp))
                     SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg, sizing = sizing)
@@ -298,13 +295,32 @@ fun RecordingContent(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Top-left chip showing GPS satellite count and optional road-correction indicator.
+ * Maps a [GnssSignalLevel] to the Compose [Color] used as the GPS chip's text/accent colour.
+ *
+ * NONE → [FuelDangerRed] (no satellites; mirrors fuel-danger pattern);
+ * ACQUIRING → accent2 (amber; signal improving); FIXED → accent (full fix, speed colour).
+ */
+@Composable
+private fun gnssSignalTint(level: GnssSignalLevel): Color = when (level) {
+    GnssSignalLevel.NONE      -> FuelDangerRed
+    GnssSignalLevel.ACQUIRING -> MotoTracker.colors.accent2
+    GnssSignalLevel.FIXED     -> MotoTracker.colors.accent
+}
+
+/**
+ * Centred chip showing GPS satellite count, colour-coded by signal quality, with an optional
+ * road-correction indicator (K7).
+ *
+ * Text colour transitions from red (0 sats) through amber (1–3) to accent green/blue (≥ 4)
+ * via [GnssSignalLevel.fromSatelliteCount].
  *
  * @param satCount Number of GPS satellites in use.
  * @param onRoad   Whether GPS-to-road correction is active.
  */
 @Composable
 private fun GpsChip(satCount: Int, onRoad: Boolean, modifier: Modifier = Modifier) {
+    val level = GnssSignalLevel.fromSatelliteCount(satCount)
+    val tint = gnssSignalTint(level)
     val satAbbr = stringResource(R.string.label_sat_abbr)
     val text = buildString {
         append("GPS · ")
@@ -313,46 +329,15 @@ private fun GpsChip(satCount: Int, onRoad: Boolean, modifier: Modifier = Modifie
         append(satAbbr)
         if (onRoad) append(" · ").append(stringResource(R.string.label_on_road))
     }
-    InfoChip(text = text, modifier = modifier)
-}
-
-/**
- * Top-right chip showing current weather conditions, or "offline" when unavailable.
- *
- * @param weather Current weather snapshot, or null when offline.
- */
-@Composable
-private fun WeatherChip(weather: WeatherInfo?, modifier: Modifier = Modifier) {
-    val text = if (weather == null) {
-        stringResource(R.string.label_wx_offline)
-    } else {
-        val rain = if (weather.rain) stringResource(R.string.label_wx_rain_yes)
-                   else stringResource(R.string.label_wx_rain_no)
-        "${weather.tempC}°C · ${weather.humPct}% · $rain"
-    }
-    InfoChip(text = text, modifier = modifier)
-}
-
-/**
- * Compact chip showing the remaining driving range derived from the fuel model.
- *
- * Displays [label_fuel_range] + formatted km when range is available, or
- * [label_range_estimating] when the fuel/consumption data is not yet sufficient.
- *
- * @param remainingRangeKm Raw remaining-range kilometres from [RecordingMetrics], or null.
- */
-@Composable
-private fun RangeChip(remainingRangeKm: Double?, modifier: Modifier = Modifier) {
-    val text = when (val chipState = rangeChipState(remainingRangeKm)) {
-        is RangeChipState.Estimating -> stringResource(R.string.label_range_estimating)
-        is RangeChipState.Value ->
-            "${stringResource(R.string.label_fuel_range)} ${chipState.km} ${stringResource(R.string.unit_km)}"
-    }
-    InfoChip(text = text, modifier = modifier)
+    InfoChip(text = text, contentColor = tint, modifier = modifier)
 }
 
 @Composable
-private fun InfoChip(text: String, modifier: Modifier = Modifier) {
+private fun InfoChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    contentColor: Color = MotoTracker.colors.text,
+) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
@@ -362,7 +347,7 @@ private fun InfoChip(text: String, modifier: Modifier = Modifier) {
         Text(
             text = text,
             style = MotoTracker.typography.label,
-            color = MotoTracker.colors.text,
+            color = contentColor,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
         )
     }

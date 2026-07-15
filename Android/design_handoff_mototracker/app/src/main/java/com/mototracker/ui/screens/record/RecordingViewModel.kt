@@ -284,6 +284,25 @@ class RecordingViewModel @Inject constructor(
                 _uiState.update { it.copy(gpsSatCount = c.usedInFix) }
             }
         }
+
+        // K7: Start GNSS immediately so the sat-count chip is live in Idle before the
+        // rider taps Start (location permission not required; degrades to count=0 if denied).
+        rideLocationCollector.startGnss()
+    }
+
+    /**
+     * Stops the GNSS satellite listener when the Recording screen is destroyed and no ride
+     * is in progress.
+     *
+     * The GNSS listener is stopped only when the phase is [RecordingPhase.Idle] — if a ride
+     * is active or paused, the service-owned GNSS stream must not be interrupted.
+     */
+    override fun onCleared() {
+        super.onCleared()
+        val phase = _uiState.value.phase
+        if (phase != RecordingPhase.Recording && phase != RecordingPhase.Paused) {
+            rideLocationCollector.stopGnss()
+        }
     }
 
     /**

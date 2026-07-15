@@ -10,6 +10,7 @@ import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.GnssSatelliteCount
 import com.mototracker.data.location.GnssStatusClient
+import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.local.entity.BikeStatus
@@ -72,7 +73,7 @@ import org.junit.Test
  * [tryEmitSatCount].
  */
 private class FakeRideLocationCollector : RideLocationCollector(
-    locationClient = object : com.mototracker.data.location.LocationClient {
+    locationClient = object : LocationClient {
         override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
     },
     gnssStatusClient = object : GnssStatusClient {
@@ -94,6 +95,11 @@ private class FakeRideLocationCollector : RideLocationCollector(
     override val satelliteCounts: SharedFlow<GnssSatelliteCount> = _fakeSatFlow.asSharedFlow()
     override fun start(intervalMs: Long) {}
     override fun stop() {}
+
+    var startGnssCallCount = 0
+    var stopGnssCallCount = 0
+    override fun startGnss() { startGnssCallCount++ }
+    override fun stopGnss() { stopGnssCallCount++ }
 
     /** Emits a sample to [samples] immediately (non-suspending). Returns false if no collectors yet. */
     fun tryEmit(sample: LocationSample): Boolean = _fakeFlow.tryEmit(sample)
@@ -1438,6 +1444,66 @@ class RecordingViewModelTest {
         elev = 100.0, fuel = 0.0, synced = false, wxJson = null,
         pathJson = null, speedJson = null, elevProfileJson = null, notes = null,
     )
+
+    // ── K7: GNSS in Idle ─────────────────────────────────────────────────────
+
+    @Test
+    fun `startGnss is called on VM init while Idle`() = runTest(testDispatcher) {
+        val fakeCollector = FakeRideLocationCollector()
+        buildViewModel(rideLocationCollector = fakeCollector)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(
+            "startGnss() should have been called once on init, but was called ${fakeCollector.startGnssCallCount} time(s)",
+            fakeCollector.startGnssCallCount >= 1,
+        )
+    }
+
+    @Test
+    fun `emitted GnssSatelliteCount flows into gpsSatCount`() = runTest(testDispatcher) {
+        val fakeCollector = FakeRideLocationCollector()
+        val vm = buildViewModel(rideLocationCollector = fakeCollector)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        fakeCollector.tryEmitSatCount(GnssSatelliteCount(usedInFix = 7, total = 10))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            "gpsSatCount should reflect the emitted usedInFix value",
+            7,
+            vm.uiState.value.gpsSatCount,
+        )
+    }
+
+    @Test
+    fun `GNSS flow that closes with SecurityException leaves gpsSatCount at zero`() =
+        runTest(testDispatcher) {
+            // A GnssStatusClient whose flow immediately throws SecurityException.
+            // RideLocationCollector.startGnss() catches it; the satellite-count SharedFlow
+            // never emits → the VM's gpsSatCount stays at 0, and no crash propagates.
+            val securityExceptionClient = object : GnssStatusClient {
+                override fun satelliteCounts() = flow<GnssSatelliteCount> {
+                    throw SecurityException("ACCESS_FINE_LOCATION not granted")
+                }
+            }
+            val collectorWithSecEx = RideLocationCollector(
+                locationClient = object : LocationClient {
+                    override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
+                },
+                gnssStatusClient = securityExceptionClient,
+                scope = CoroutineScope(SupervisorJob() + testDispatcher),
+            )
+
+            val vm = buildViewModel(rideLocationCollector = collectorWithSecEx)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                "gpsSatCount should be 0 when the GNSS flow closes with SecurityException",
+                0,
+                vm.uiState.value.gpsSatCount,
+            )
+        }
+
+    // ────────────────────────────────────────────────────────────────────────
 
     private fun noOpAutoUpdateUseCase() = AutoUpdateBikeConsumptionUseCase(
         bikeRepository = FakeBikeRepository(),

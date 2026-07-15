@@ -79,6 +79,21 @@ open class RideLocationCollector(
                 // Location permission revoked mid-session; collector stays alive and restartable.
             }
         }
+        startGnss()
+    }
+
+    /**
+     * Begins collecting GNSS satellite status from [gnssStatusClient], emitting snapshots
+     * on [satelliteCounts].
+     *
+     * Idempotent — a second call while GNSS collection is already active is a no-op.
+     * Call this in the Recording screen's Idle phase so the satellite count is live before
+     * the rider taps Start (K7). Degrades gracefully when location permission is denied —
+     * [AndroidGnssStatusClient] catches [SecurityException] and closes the flow; the count
+     * stays at its last emitted value (0 on a fresh start).
+     */
+    open fun startGnss() {
+        if (gnssCollectionJob?.isActive == true) return
         gnssCollectionJob = scope.launch {
             try {
                 gnssStatusClient.satelliteCounts().collect { count ->
@@ -99,6 +114,18 @@ open class RideLocationCollector(
     open fun stop() {
         collectionJob?.cancel()
         collectionJob = null
+        gnssCollectionJob?.cancel()
+        gnssCollectionJob = null
+    }
+
+    /**
+     * Cancels the GNSS collection job only, leaving GPS collection running.
+     *
+     * Used by [com.mototracker.ui.screens.record.RecordingViewModel] on screen exit when
+     * a recording is not active — the service-owned GPS stream must not be interrupted, but
+     * the Idle-phase GNSS listener is no longer needed.
+     */
+    open fun stopGnss() {
         gnssCollectionJob?.cancel()
         gnssCollectionJob = null
     }

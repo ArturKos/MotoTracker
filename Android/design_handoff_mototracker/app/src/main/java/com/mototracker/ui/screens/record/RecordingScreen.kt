@@ -264,7 +264,6 @@ fun RecordingContent(
                     } else {
                         RecordingControlRow(
                             phase = state.phase,
-                            hasFuelTank = state.metrics.tankCapacityL != null,
                             onEvent = onEvent,
                         )
                     }
@@ -828,22 +827,19 @@ private fun SmallMetricTile(
 /**
  * Compact icon-button control strip driven by [RecordingControls.forPhase].
  *
- * The visible controls depend on both [phase] and whether the current bike has a fuel tank
- * ([hasFuelTank]): the fill-to-full button only appears during Recording and Paused when a tank
- * is configured; it is never shown in Idle. Each icon carries a contentDescription string
- * resource for a11y and Compose-UI test discovery.
+ * Idle → [START]. Recording → [PAUSE, STOP, FILL_TO_FULL]. Paused → [RESUME, STOP, FILL_TO_FULL].
+ * FILL_TO_FULL is always shown in Recording and Paused (unconditional — H2). Each icon carries a
+ * contentDescription string resource for a11y and Compose-UI test discovery.
  *
- * @param phase       Current recording phase from [RecordingUiState].
- * @param hasFuelTank True when the current bike has a tank capacity configured.
- * @param onEvent     Callback for dispatching [RecordingEvent]s to the ViewModel.
+ * @param phase   Current recording phase from [RecordingUiState].
+ * @param onEvent Callback for dispatching [RecordingEvent]s to the ViewModel.
  */
 @Composable
 private fun RecordingControlRow(
     phase: RecordingPhase,
-    hasFuelTank: Boolean,
     onEvent: (RecordingEvent) -> Unit,
 ) {
-    val controls = RecordingControls.forPhase(phase, hasFuelTank)
+    val controls = RecordingControls.forPhase(phase)
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,

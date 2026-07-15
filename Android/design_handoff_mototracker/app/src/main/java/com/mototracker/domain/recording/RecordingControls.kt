@@ -24,9 +24,9 @@ enum class RecordingControl {
     /**
      * Logs a fill-to-full refuel event.
      *
-     * Shown in [RecordingPhase.Recording] and [RecordingPhase.Paused] when the current bike has a
-     * tank capacity configured ([RecordingControls.forPhase] hasFuelTank = true).
-     * Never shown in [RecordingPhase.Idle].
+     * Shown in [RecordingPhase.Recording] and [RecordingPhase.Paused] unconditionally — no longer
+     * dependent on whether the current bike has a tank capacity configured. Never shown in
+     * [RecordingPhase.Idle].
      */
     FILL_TO_FULL,
 }
@@ -39,27 +39,21 @@ enum class RecordingControl {
 object RecordingControls {
 
     /**
-     * Returns the ordered list of controls to display for a given [phase] and fuel-tank presence.
+     * Returns the ordered list of controls to display for a given [phase].
      *
      * - [RecordingPhase.Idle]      → [[RecordingControl.START]] (never includes FILL_TO_FULL)
-     * - [RecordingPhase.Recording] → [PAUSE, STOP] + [FILL_TO_FULL] when [hasFuelTank] is true
-     * - [RecordingPhase.Paused]    → [RESUME, STOP] + [FILL_TO_FULL] when [hasFuelTank] is true
+     * - [RecordingPhase.Recording] → [PAUSE, STOP, FILL_TO_FULL] (unconditional)
+     * - [RecordingPhase.Paused]    → [RESUME, STOP, FILL_TO_FULL] (unconditional)
      *
-     * @param phase       Current recording lifecycle phase.
-     * @param hasFuelTank True when the current bike has a tank capacity configured.
+     * FILL_TO_FULL is always shown during Recording and Paused regardless of tank configuration.
+     * The refuel dialog handles the no-tank case with an empty, editable litres field.
+     *
+     * @param phase Current recording lifecycle phase.
      * @return Ordered control list; rendered left-to-right in the control strip.
      */
-    fun forPhase(phase: RecordingPhase, hasFuelTank: Boolean): List<RecordingControl> = when (phase) {
+    fun forPhase(phase: RecordingPhase): List<RecordingControl> = when (phase) {
         RecordingPhase.Idle -> listOf(RecordingControl.START)
-        RecordingPhase.Recording -> buildList {
-            add(RecordingControl.PAUSE)
-            add(RecordingControl.STOP)
-            if (hasFuelTank) add(RecordingControl.FILL_TO_FULL)
-        }
-        RecordingPhase.Paused -> buildList {
-            add(RecordingControl.RESUME)
-            add(RecordingControl.STOP)
-            if (hasFuelTank) add(RecordingControl.FILL_TO_FULL)
-        }
+        RecordingPhase.Recording -> listOf(RecordingControl.PAUSE, RecordingControl.STOP, RecordingControl.FILL_TO_FULL)
+        RecordingPhase.Paused -> listOf(RecordingControl.RESUME, RecordingControl.STOP, RecordingControl.FILL_TO_FULL)
     }
 }

@@ -93,6 +93,24 @@ object ScreenshotFixtures {
         currency = "PLN",
     )
 
+    /**
+     * Paused recording session without a tank configured.
+     *
+     * Used by the H2 regression guard: FILL_TO_FULL must appear in Paused unconditionally,
+     * even when [RecordingMetrics.tankCapacityL] is null.
+     */
+    val recordingPaused = RecordingUiState(
+        phase = RecordingPhase.Paused,
+        metrics = RecordingMetrics(
+            distanceKm = 35.0,
+            durationSec = 2400L,
+            currentSpeedKmh = 0.0,
+        ),
+        gpsSatCount = 9,
+        gpsOnRoad = false,
+        weather = null,
+    )
+
     /** Active recording session with typical mid-ride metrics. */
     val recordingPopulated = RecordingUiState(
         phase = RecordingPhase.Recording,

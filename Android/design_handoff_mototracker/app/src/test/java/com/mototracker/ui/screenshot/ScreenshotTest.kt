@@ -167,6 +167,61 @@ class ScreenshotTest {
         snapshot("record_recording_fuel_controls_visible")
     }
 
+    /**
+     * H2 regression guard — Recording phase, no tank configured.
+     *
+     * Proves FILL_TO_FULL (fuel-pump icon) is always displayed during Recording regardless of
+     * whether the bike has a tank capacity set. Would fail if the control were still gated on
+     * hasFuelTank. Uses [ScreenshotFixtures.recordingPopulated] which has no tankCapacityL.
+     */
+    @Test
+    @Config(sdk = [33], qualifiers = "w411dp-h891dp-xxhdpi")
+    fun record_recording_fuel_control_always_displayed() {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val fillLabel = ctx.getString(R.string.action_fill_to_full)
+        val pauseLabel = ctx.getString(R.string.btn_pause)
+        val finishLabel = ctx.getString(R.string.btn_finish)
+
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RecordingContent(state = ScreenshotFixtures.recordingPopulated)
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(pauseLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(finishLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(fillLabel).assertIsDisplayed()
+
+        snapshot("record_recording_fuel_control_always_displayed")
+    }
+
+    /**
+     * H2 regression guard — Paused phase, no tank configured.
+     *
+     * Proves FILL_TO_FULL is always displayed in Paused, alongside Resume and Stop, even when
+     * [RecordingMetrics.tankCapacityL] is null. Uses [ScreenshotFixtures.recordingPaused].
+     */
+    @Test
+    @Config(sdk = [33], qualifiers = "w411dp-h891dp-xxhdpi")
+    fun record_paused_fuel_control_always_displayed() {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val fillLabel = ctx.getString(R.string.action_fill_to_full)
+        val resumeLabel = ctx.getString(R.string.btn_resume)
+        val finishLabel = ctx.getString(R.string.btn_finish)
+
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RecordingContent(state = ScreenshotFixtures.recordingPaused)
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(resumeLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(finishLabel).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(fillLabel).assertIsDisplayed()
+
+        snapshot("record_paused_fuel_control_always_displayed")
+    }
+
     // ── Routes ────────────────────────────────────────────────────────────────
 
     @Test

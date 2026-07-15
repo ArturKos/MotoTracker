@@ -264,6 +264,23 @@ class ScreenshotTest {
         snapshot("routes_light_populated")
     }
 
+    /**
+     * L1 regression guard — route-list thumbnail render path.
+     *
+     * Renders [RoutesContent] with one card carrying a non-empty [RouteCardUi.thumbnailPathD].
+     * The captured baseline shows the accent-coloured polyline inside the thumbnail box.
+     * A regression to the empty placeholder would produce a pixel diff and fail this test.
+     */
+    @Test
+    fun routes_cockpit_thumbnail_rendered() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RoutesContent(state = ScreenshotFixtures.routesWithThumbnail)
+            }
+        }
+        snapshot("routes_cockpit_thumbnail_rendered")
+    }
+
     // ── Stats ─────────────────────────────────────────────────────────────────
 
     @Test

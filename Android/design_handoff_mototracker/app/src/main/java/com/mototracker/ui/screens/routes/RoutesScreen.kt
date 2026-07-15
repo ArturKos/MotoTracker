@@ -1,6 +1,7 @@
 package com.mototracker.ui.screens.routes
 
 import android.app.DatePickerDialog
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.ui.theme.MotoTracker
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -477,18 +483,7 @@ private fun RouteCard(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // Thumbnail placeholder (actual SVG rendering deferred — on-device 🔬)
-        Box(
-            modifier = Modifier
-                .size(width = 100.dp, height = 64.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(MotoTracker.colors.panel2)
-                .border(
-                    width = 1.dp,
-                    color = MotoTracker.colors.line,
-                    shape = RoundedCornerShape(6.dp),
-                ),
-        )
+        RouteThumbnailImage(pathD = card.thumbnailPathD)
 
         Column(modifier = Modifier.weight(1f)) {
             // Name + date row
@@ -547,6 +542,65 @@ private fun RouteCard(
                 text = if (card.synced) "✓" else stringResource(R.string.tag_queue),
                 accent = card.synced,
             )
+        }
+    }
+}
+
+/**
+ * Route mini-map thumbnail composable.
+ *
+ * Renders a 100×64 dp box with the route polyline drawn from [pathD] scaled into the box.
+ * When [pathD] is blank or parses to fewer than 2 points, shows an empty placeholder box.
+ *
+ * The 320×200 SVG viewBox emitted by [RouteThumbnail.buildPathDFromPoints] is mapped into
+ * the box dimensions with letterboxing (uniform scale, centred).
+ *
+ * @param pathD  SVG path `d` string from [RouteCardUi.thumbnailPathD]; empty = placeholder.
+ * @param modifier Standard Compose modifier.
+ */
+@Composable
+internal fun RouteThumbnailImage(
+    pathD: String,
+    modifier: Modifier = Modifier,
+) {
+    val points = remember(pathD) { RouteThumbnail.parsePathD(pathD) }
+    val strokeColor = MotoTracker.colors.accent
+
+    Box(
+        modifier = modifier
+            .size(width = 100.dp, height = 64.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MotoTracker.colors.panel2)
+            .border(
+                width = 1.dp,
+                color = MotoTracker.colors.line,
+                shape = RoundedCornerShape(6.dp),
+            ),
+    ) {
+        if (points.size >= 2) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val viewW = 320f
+                val viewH = 200f
+                val scale = minOf(size.width / viewW, size.height / viewH)
+                val offsetX = (size.width - viewW * scale) / 2f
+                val offsetY = (size.height - viewH * scale) / 2f
+
+                val path = Path()
+                points.forEachIndexed { idx, (x, y) ->
+                    val sx = offsetX + x * scale
+                    val sy = offsetY + y * scale
+                    if (idx == 0) path.moveTo(sx, sy) else path.lineTo(sx, sy)
+                }
+                drawPath(
+                    path = path,
+                    color = strokeColor,
+                    style = Stroke(
+                        width = 1.5.dp.toPx(),
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round,
+                    ),
+                )
+            }
         }
     }
 }

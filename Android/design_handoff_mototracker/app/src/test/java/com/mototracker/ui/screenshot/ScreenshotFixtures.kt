@@ -176,6 +176,51 @@ object ScreenshotFixtures {
         ),
     )
 
+    /**
+     * Representative SVG path `d` for a route thumbnail, matching the `M x y L x y …`
+     * format emitted by [com.mototracker.core.format.RouteThumbnail.buildPathDFromPoints].
+     * Used by the L1 regression screenshot guard.
+     */
+    const val sampleThumbnailPathD =
+        "M 12 100 L 40 80 L 80 60 L 120 90 L 160 45 L 200 70 L 240 55 L 280 85 L 308 110"
+
+    private val sampleRouteCardsWithThumbnail = listOf(
+        RouteCardUi(
+            id = "r1",
+            name = "Tatrzańska pętla",
+            dateDisplay = "10 Jul 2026",
+            bikeName = "Yamaha MT-07",
+            bikeSold = false,
+            distanceDisplay = "128.4 km",
+            distanceUnitLabel = "km",
+            durationDisplay = "2:07:33",
+            maxSpeedDisplay = "142 km/h",
+            thumbnailPathD = sampleThumbnailPathD,
+            synced = true,
+        ),
+        RouteCardUi(
+            id = "r2",
+            name = "Bieszczady Weekend",
+            dateDisplay = "5 Jul 2026",
+            bikeName = "Yamaha MT-07",
+            bikeSold = false,
+            distanceDisplay = "214.0 km",
+            distanceUnitLabel = "km",
+            durationDisplay = "3:42:10",
+            maxSpeedDisplay = "158 km/h",
+            thumbnailPathD = "",
+            synced = false,
+        ),
+    )
+
+    /** Routes screen with one card carrying a populated thumbnail path (L1 regression guard). */
+    val routesWithThumbnail = RoutesUiState(
+        routeCount = 2,
+        totalKmDisplay = "342.4 km",
+        distanceUnitLabel = "km",
+        cards = sampleRouteCardsWithThumbnail,
+    )
+
     /** Routes screen with representative route cards. */
     val routesPopulated = RoutesUiState(
         routeCount = 3,

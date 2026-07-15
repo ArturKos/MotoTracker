@@ -45,6 +45,39 @@ object RouteThumbnail {
     }
 
     /**
+     * Parses an SVG path `d` string as emitted by [buildPathDFromPoints] into an ordered list
+     * of (x, y) pixel coordinates in the 320×200 viewBox.
+     *
+     * Understands the `M x y L x y …` format only (no curves, no relative coordinates).
+     * Returns an empty list when [d] is blank, malformed, or contains fewer than 2 points —
+     * all of which make a route polyline meaningless.
+     *
+     * @param d SVG path `d` string, e.g. `"M 12 45 L 30 60 L …"`, or blank.
+     * @return Ordered list of (x, y) float pairs, or `emptyList()`.
+     */
+    fun parsePathD(d: String): List<Pair<Float, Float>> {
+        if (d.isBlank()) return emptyList()
+        return try {
+            val tokens = d.trim().split(Regex("\\s+"))
+            val points = mutableListOf<Pair<Float, Float>>()
+            var i = 0
+            while (i < tokens.size) {
+                when (tokens[i]) {
+                    "M", "L" -> {
+                        if (i + 2 >= tokens.size) break
+                        points.add(tokens[i + 1].toFloat() to tokens[i + 2].toFloat())
+                        i += 3
+                    }
+                    else -> i++ // skip unrecognized token defensively
+                }
+            }
+            if (points.size < 2) emptyList() else points
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
      * Builds an SVG path `d` string directly from a pre-parsed list of (lat, lng) pairs.
      *
      * Prefer [buildPathD] when starting from raw JSON. Use this overload when the list is

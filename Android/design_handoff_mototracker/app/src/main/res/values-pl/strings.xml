@@ -433,4 +433,7 @@
     <!-- Stop-recording confirmation dialog (J4) -->
     <string name="dialog_stop_ride_title">Czy na pewno zakończyć jazdę?</string>
     <string name="dialog_stop_ride_confirm">Zakończ</string>
+
+    <!-- Resume/continue a saved route (J5) -->
+    <string name="route_detail_continue">Kontynuuj trasę</string>
 </resources>

@@ -15,6 +15,7 @@ import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
@@ -138,6 +140,18 @@ private class FakeResumeStringResolver : StringResolver {
     override fun getString(resId: Int, vararg args: Any): String = getString(resId)
 }
 
+private class FakeChannelLocationClient : LocationClient {
+    private val _flow = kotlinx.coroutines.flow.MutableSharedFlow<LocationSample>(extraBufferCapacity = 16)
+    suspend fun emit(s: LocationSample) { _flow.emit(s) }
+    override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = _flow
+}
+
+private class FakeRouteBus : ResumeRouteBus {
+    private val _channel = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.BUFFERED)
+    override val requests: Flow<String> = _channel.receiveAsFlow()
+    override suspend fun request(routeId: String) { _channel.send(routeId) }
+}
+
 private class FakeResumeRefuelRepository : RefuelRepository {
     override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {}
     override fun observeRefuels(routeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> =
@@ -184,8 +198,10 @@ class RecordingViewModelResumeTest {
         store: RecordingSessionStore = FakeSessionStore(),
         routeRepo: FakeResumeRouteRepository = FakeResumeRouteRepository(),
         bikeRepository: BikeRepository = FakeResumeBikeRepository(),
+        resumeRouteBus: ResumeRouteBus = FakeRouteBus(),
+        locationClient: LocationClient = FakeResumeLocationClient(),
     ) = RecordingViewModel(
-        locationClient = FakeResumeLocationClient(),
+        locationClient = locationClient,
         leanSensorSource = FakeResumeLeanSource(),
         headingSensorSource = FakeResumeHeadingSource(),
         routeRepository = routeRepo,
@@ -200,6 +216,7 @@ class RecordingViewModelResumeTest {
         stringResolver = FakeResumeStringResolver(),
         sessionStore = store,
         refuelRepository = FakeResumeRefuelRepository(),
+        resumeRouteBus = resumeRouteBus,
     )
 
     // ── Startup detection ────────────────────────────────────────────────────
@@ -426,5 +443,160 @@ class RecordingViewModelResumeTest {
                 vm.uiState.value.resumableSession,
             )
             assertEquals(RecordingPhase.Idle, vm.uiState.value.phase)
+        }
+
+    // ── J5 ResumeRoute bus ───────────────────────────────────────────────────
+
+    /** Builds a Route with a two-point path so RouteResumeSeed can parse it. */
+    private fun makeTestRoute(
+        id: String = "route-j5",
+        name: String = "Alpine Ride",
+        km: Double = 100.0,
+        durSec: Long = 3600L,
+        dateEpochMs: Long = 1_700_000_000_000L,
+    ) = Route(
+        id = id, name = name, dateEpochMs = dateEpochMs,
+        bikeId = null, km = km, durSec = durSec,
+        avg = km / (durSec / 3600.0), max = 140.0, lean = 25.0,
+        elev = 200.0, fuel = 5.0, synced = true, wxJson = null,
+        pathJson = """[{"lat":50.0,"lng":20.0},{"lat":50.1,"lng":20.1}]""",
+        speedJson = null, elevProfileJson = null, notes = null,
+    )
+
+    @Test
+    fun `bus request while Idle transitions phase to Paused with correct activeRouteId`() =
+        runTest(testDispatcher) {
+            val bus = FakeRouteBus()
+            val routeRepo = FakeResumeRouteRepository().apply { saved += makeTestRoute() }
+            val vm = buildVm(routeRepo = routeRepo, resumeRouteBus = bus)
+            testDispatcher.scheduler.runCurrent()
+
+            bus.request("route-j5")
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(RecordingPhase.Paused, vm.uiState.value.phase)
+            assertEquals("route-j5", vm.uiState.value.activeRouteId)
+        }
+
+    @Test
+    fun `bus request while Idle restores metrics from route`() =
+        runTest(testDispatcher) {
+            val bus = FakeRouteBus()
+            val route = makeTestRoute(km = 88.8, durSec = 7200L)
+            val routeRepo = FakeResumeRouteRepository().apply { saved += route }
+            val vm = buildVm(routeRepo = routeRepo, resumeRouteBus = bus)
+            testDispatcher.scheduler.runCurrent()
+
+            bus.request(route.id)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val metrics = vm.uiState.value.metrics
+            assertEquals(88.8, metrics.distanceKm, 0.01)
+            assertEquals(7200L, metrics.durationSec)
+        }
+
+    @Test
+    fun `bus request while Idle rebuilds trackPoints`() =
+        runTest(testDispatcher) {
+            val bus = FakeRouteBus()
+            val routeRepo = FakeResumeRouteRepository().apply { saved += makeTestRoute() }
+            val vm = buildVm(routeRepo = routeRepo, resumeRouteBus = bus)
+            testDispatcher.scheduler.runCurrent()
+
+            bus.request("route-j5")
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val pts = vm.uiState.value.trackPoints
+            assertEquals(2, pts.size)
+            assertEquals(50.0, pts[0].lat, 0.0001)
+            assertEquals(50.1, pts[1].lat, 0.0001)
+        }
+
+    @Test
+    fun `bus request while Recording is ignored (guard)`() =
+        runTest(testDispatcher) {
+            val bus = FakeRouteBus()
+            val routeRepo = FakeResumeRouteRepository().apply { saved += makeTestRoute() }
+            val vm = buildVm(routeRepo = routeRepo, resumeRouteBus = bus)
+            testDispatcher.scheduler.runCurrent()
+
+            vm.onEvent(RecordingEvent.Start)
+            testDispatcher.scheduler.runCurrent()
+            assertEquals(RecordingPhase.Recording, vm.uiState.value.phase)
+
+            bus.request("route-j5")
+            // Use runCurrent() — advanceUntilIdle() would hang because the active ticker loop
+            // keeps rescheduling itself with delay(1000), preventing idle.
+            testDispatcher.scheduler.runCurrent()
+
+            // Phase must remain Recording; the bus request must be a no-op
+            assertEquals(RecordingPhase.Recording, vm.uiState.value.phase)
+            vm.onEvent(RecordingEvent.Pause)
+        }
+
+    @Test
+    fun `bus request while already Paused is ignored (guard)`() =
+        runTest(testDispatcher) {
+            val bus = FakeRouteBus()
+            val routeRepo = FakeResumeRouteRepository().apply { saved += makeTestRoute() }
+            val vm = buildVm(routeRepo = routeRepo, resumeRouteBus = bus)
+            testDispatcher.scheduler.runCurrent()
+
+            vm.onEvent(RecordingEvent.Start)
+            vm.onEvent(RecordingEvent.Pause)
+            testDispatcher.scheduler.runCurrent()
+            assertEquals(RecordingPhase.Paused, vm.uiState.value.phase)
+
+            // A second bus request should be ignored while already in Paused (activeRouteId is null)
+            bus.request("route-j5")
+            // runCurrent() processes the bus delivery coroutine without advancing time into ticker delays
+            testDispatcher.scheduler.runCurrent()
+
+            // doStart() sets activeRouteId to the pending UUID; the bus guard must not overwrite it
+            // with "route-j5" — verify the phase is still Paused and the bus routeId was not applied.
+            assertEquals(RecordingPhase.Paused, vm.uiState.value.phase)
+            assertTrue(
+                "activeRouteId must not be the bus routeId when guard fires",
+                vm.uiState.value.activeRouteId != "route-j5",
+            )
+        }
+
+    @Test
+    fun `after bus resume + Finish, route saved with original id, name, and dateEpochMs`() =
+        runTest(testDispatcher) {
+            val bus = FakeRouteBus()
+            val originalDate = 1_700_000_000_000L
+            val route = makeTestRoute(
+                id = "route-resume-save",
+                name = "Mountain Pass",
+                dateEpochMs = originalDate,
+            )
+            val routeRepo = FakeResumeRouteRepository().apply { saved += route }
+            val locationClient = FakeChannelLocationClient()
+            val vm = buildVm(
+                routeRepo = routeRepo,
+                resumeRouteBus = bus,
+                locationClient = locationClient,
+            )
+            testDispatcher.scheduler.runCurrent()
+
+            // Trigger resume via bus
+            bus.request(route.id)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(RecordingPhase.Paused, vm.uiState.value.phase)
+
+            // Emit one location sample to extend the track
+            locationClient.emit(LocationSample(50.2, 20.2, 15.0, 110.0, 90f, 5000L))
+            testDispatcher.scheduler.runCurrent()
+
+            // Finish
+            vm.onEvent(RecordingEvent.Finish)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // The route should be saved (using INSERT-OR-REPLACE semantics) with same id/name/date
+            val saved = routeRepo.saved.lastOrNull { it.id == "route-resume-save" }
+            assertNotNull("route must be saved with the original id", saved)
+            assertEquals("Mountain Pass", saved!!.name)
+            assertEquals(originalDate, saved.dateEpochMs)
         }
 }

@@ -189,6 +189,12 @@ fun MotoApp(
                 RouteDetailScreen(
                     onToast = showToast,
                     onDeleted = { navController.popBackStack() },
+                    onNavigateToRecord = {
+                        navController.navigate(MotoDestination.RECORD.route) {
+                            launchSingleTop = true
+                            popUpTo(MotoDestination.RECORD.route) { saveState = false }
+                        }
+                    },
                 )
             }
             composable(

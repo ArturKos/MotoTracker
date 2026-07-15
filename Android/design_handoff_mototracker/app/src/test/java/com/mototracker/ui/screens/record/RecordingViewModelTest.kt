@@ -18,6 +18,7 @@ import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
@@ -169,6 +170,11 @@ private class FakeStringResolver : StringResolver {
         else -> "stub_string_$resId"
     }
     override fun getString(resId: Int, vararg args: Any): String = getString(resId)
+}
+
+private class FakeResumeRouteBus : ResumeRouteBus {
+    override val requests: kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.flow {}
+    override suspend fun request(routeId: String) {}
 }
 
 private class FakeRefuelRepository(
@@ -1374,5 +1380,6 @@ class RecordingViewModelTest {
         stringResolver = stringResolver,
         sessionStore = sessionStore,
         refuelRepository = refuelRepository,
+        resumeRouteBus = FakeResumeRouteBus(),
     )
 }

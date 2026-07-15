@@ -463,4 +463,7 @@
     <!-- Stop-recording confirmation dialog (J4) -->
     <string name="dialog_stop_ride_title">End ride?</string>
     <string name="dialog_stop_ride_confirm">End</string>
+
+    <!-- Resume/continue a saved route (J5) -->
+    <string name="route_detail_continue">Continue route</string>
 </resources>

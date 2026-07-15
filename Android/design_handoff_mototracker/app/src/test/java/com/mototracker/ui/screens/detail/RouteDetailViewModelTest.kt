@@ -18,6 +18,7 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.domain.fuel.RefuelEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,12 @@ import org.junit.Test
 // ─────────────────────────────────────────────────────────────────────────────
 // Fakes
 // ─────────────────────────────────────────────────────────────────────────────
+
+private class FakeDetailResumeRouteBus : ResumeRouteBus {
+    val sentIds = mutableListOf<String>()
+    override val requests: kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.flow {}
+    override suspend fun request(routeId: String) { sentIds += routeId }
+}
 
 private class FakeRouteRepository(stored: Route? = null) : RouteRepository {
     private val _flow = MutableStateFlow(stored)
@@ -257,6 +264,7 @@ class RouteDetailViewModelTest {
         fakeRouteRepo: FakeRouteRepository? = null,
         refuelRepo: FakeRefuelRepository = FakeRefuelRepository(),
         timeProvider: TimeProvider = FakeTimeProvider(),
+        resumeRouteBus: ResumeRouteBus = FakeDetailResumeRouteBus(),
     ): RouteDetailViewModel {
         val routeRepo = fakeRouteRepo ?: FakeRouteRepository(stored = route)
         return RouteDetailViewModel(
@@ -269,6 +277,7 @@ class RouteDetailViewModelTest {
             gpsCorrectionRepository = correctionRepo,
             refuelRepository = refuelRepo,
             timeProvider = timeProvider,
+            resumeRouteBus = resumeRouteBus,
         )
     }
 
@@ -971,6 +980,7 @@ class RouteDetailViewModelTest {
             gpsCorrectionRepository = FakeGpsCorrectionRepository(),
             refuelRepository = FakeRefuelRepository(),
             timeProvider = FakeTimeProvider(),
+            resumeRouteBus = FakeDetailResumeRouteBus(),
         )
         vmNoRoute.uiState.test {
             val s = awaitItem(); if (s.loading) awaitItem()
@@ -1228,6 +1238,7 @@ class RouteDetailViewModelTest {
             gpsCorrectionRepository = FakeGpsCorrectionRepository(),
             refuelRepository = FakeRefuelRepository(),
             timeProvider = FakeTimeProvider(),
+            resumeRouteBus = FakeDetailResumeRouteBus(),
         )
         vmNoRoute.uiState.test {
             val s = awaitItem(); if (s.loading) awaitItem()
@@ -1346,6 +1357,60 @@ class RouteDetailViewModelTest {
             vm.deleteRefuel(1L)
             val updated = awaitItem()
             assertTrue("refuels should be empty after delete", updated.refuels.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── J5 continueRoute ──────────────────────────────────────────────────────
+
+    @Test
+    fun `continueRoute sends routeId to bus`() = runTest {
+        val route = makeRoute(id = "route-continue-me")
+        val fakeBus = FakeDetailResumeRouteBus()
+        val vm = buildVm(routeId = route.id, route = route, resumeRouteBus = fakeBus)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.continueRoute()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, fakeBus.sentIds.size)
+        assertEquals("route-continue-me", fakeBus.sentIds.first())
+    }
+
+    @Test
+    fun `continueRoute emits ResumeRoute navigation event`() = runTest {
+        val route = makeRoute(id = "route-nav-me")
+        val vm = buildVm(routeId = route.id, route = route)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.events.test {
+            vm.continueRoute()
+            val event = awaitItem()
+            assertTrue("Event must be ResumeRoute", event is RouteDetailEvent.ResumeRoute)
+            assertEquals("route-nav-me", (event as RouteDetailEvent.ResumeRoute).routeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `continueRoute is no-op before route loads`() = runTest {
+        val fakeBus = FakeDetailResumeRouteBus()
+        val vm = buildVm(routeId = "nonexistent", route = null, resumeRouteBus = fakeBus)
+        vm.uiState.test {
+            val s = awaitItem(); if (s.loading) awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.continueRoute()
+            testDispatcher.scheduler.advanceUntilIdle()
+            expectNoEvents()
+            assertTrue("no-op: bus must not receive request when route not loaded", fakeBus.sentIds.isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }

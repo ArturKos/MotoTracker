@@ -8,8 +8,10 @@ import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.recording.ChannelResumeRouteBus
 import com.mototracker.data.recording.DataStoreRecordingSessionStore
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.BikeRepositoryImpl
 import com.mototracker.data.repository.RouteRepository
@@ -86,4 +88,9 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindBleWaveSource(impl: AndroidBleWaveSource): BleWaveSource
+
+    /** Binds [ChannelResumeRouteBus] as the [ResumeRouteBus] singleton (J5). */
+    @Binds
+    @Singleton
+    abstract fun bindResumeRouteBus(impl: ChannelResumeRouteBus): ResumeRouteBus
 }

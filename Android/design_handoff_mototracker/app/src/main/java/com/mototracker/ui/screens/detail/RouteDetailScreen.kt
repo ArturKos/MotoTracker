@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.IosShare
@@ -86,10 +87,12 @@ import kotlinx.coroutines.flow.collectLatest
  * in this Composable so no storage permission is required on any API level (works on API 28).
  * Map tiles and chart Canvas rendering are on-device-only concerns (🔬).
  *
- * @param modifier   Standard Compose modifier.
- * @param viewModel  Hilt-injected [RouteDetailViewModel].
- * @param onToast    Called with a localised message string whenever an action completes.
- * @param onDeleted  Called after the route is permanently deleted (navigate away).
+ * @param modifier             Standard Compose modifier.
+ * @param viewModel            Hilt-injected [RouteDetailViewModel].
+ * @param onToast              Called with a localised message string whenever an action completes.
+ * @param onDeleted            Called after the route is permanently deleted (navigate away).
+ * @param onNavigateToRecord   Called when the rider requests to continue the route, so the host
+ *                             navigates to the RECORD tab (J5).
  */
 @Composable
 fun RouteDetailScreen(
@@ -97,6 +100,7 @@ fun RouteDetailScreen(
     viewModel: RouteDetailViewModel = hiltViewModel(),
     onToast: (String) -> Unit = {},
     onDeleted: () -> Unit = {},
+    onNavigateToRecord: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showExportSheet by remember { mutableStateOf(false) }
@@ -147,6 +151,7 @@ fun RouteDetailScreen(
                 }
                 is RouteDetailEvent.RefuelAdded -> onToast(refuelAddedMsg)
                 is RouteDetailEvent.RefuelDeleted -> onToast(refuelDeletedMsg)
+                is RouteDetailEvent.ResumeRoute -> onNavigateToRecord()
             }
         }
     }
@@ -164,6 +169,7 @@ fun RouteDetailScreen(
         onDeleteRoute = { viewModel.deleteRoute() },
         onAddRefuel = { litres, pricePerL -> viewModel.addRefuel(litres, pricePerL) },
         onDeleteRefuel = { id -> viewModel.deleteRefuel(id) },
+        onContinueRoute = { viewModel.continueRoute() },
         mapFullscreen = mapFullscreen,
         onToggleMapFullscreen = { mapFullscreen = !mapFullscreen },
         mapSlot = {
@@ -212,6 +218,7 @@ fun RouteDetailScreen(
  * @param onDeleteRoute          Called when the user confirms the delete-route dialog.
  * @param onAddRefuel            Called with (litres, pricePerL) when a refuel event is confirmed (G5).
  * @param onDeleteRefuel         Called with the refuel event id when the user confirms deletion (G5).
+ * @param onContinueRoute        Called when the rider taps "Continue route" to append to this route (J5).
  * @param mapSlot                Composable rendered in the inline map slot; in production this is
  *                               [OsmTrackMap], in Roborazzi tests a static placeholder Box is used.
  * @param fullscreenMapSlot      Composable rendered inside the fullscreen Dialog overlay; in
@@ -234,6 +241,7 @@ fun RouteDetailContent(
     onDeleteRoute: () -> Unit = {},
     onAddRefuel: (litres: Double, pricePerL: Double) -> Unit = { _, _ -> },
     onDeleteRefuel: (id: Long) -> Unit = {},
+    onContinueRoute: () -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     fullscreenMapSlot: @Composable () -> Unit = {},
     mapFullscreen: Boolean = false,
@@ -256,6 +264,7 @@ fun RouteDetailContent(
             onDeleteRoute = onDeleteRoute,
             onAddRefuel = onAddRefuel,
             onDeleteRefuel = onDeleteRefuel,
+            onContinueRoute = onContinueRoute,
             mapSlot = mapSlot,
             fullscreenMapSlot = fullscreenMapSlot,
             mapFullscreen = mapFullscreen,
@@ -321,6 +330,7 @@ private fun DetailContent(
     onDeleteRoute: () -> Unit = {},
     onAddRefuel: (litres: Double, pricePerL: Double) -> Unit = { _, _ -> },
     onDeleteRefuel: (id: Long) -> Unit = {},
+    onContinueRoute: () -> Unit = {},
     mapSlot: @Composable () -> Unit = {},
     fullscreenMapSlot: @Composable () -> Unit = {},
     mapFullscreen: Boolean = false,
@@ -512,6 +522,27 @@ private fun DetailContent(
                 onAddRefuel = { showAddRefuelDialog = true },
                 onDeleteRefuel = { id -> deleteRefuelId = id },
             )
+        }
+
+        item {
+            OutlinedButton(
+                onClick = onContinueRoute,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MotoTracker.colors.accent,
+                ),
+            ) {
+                Icon(
+                    Icons.Filled.FiberManualRecord,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.route_detail_continue),
+                    style = MotoTracker.typography.label,
+                )
+            }
         }
 
         item {

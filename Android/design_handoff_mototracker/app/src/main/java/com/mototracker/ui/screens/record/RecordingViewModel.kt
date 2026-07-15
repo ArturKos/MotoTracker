@@ -17,6 +17,7 @@ import com.mototracker.domain.fuel.FuelConsumptionCalculator
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
+import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
@@ -27,6 +28,7 @@ import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.naming.PartOfDay
 import com.mototracker.domain.naming.RouteNameComposer
 import com.mototracker.domain.recording.RecordingEngine
+import com.mototracker.domain.recording.RouteResumeSeed
 import com.mototracker.ui.map.GeoCoord
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
@@ -90,6 +92,7 @@ import javax.inject.Inject
  * @param stringResolver    Resolves localized string resources for the composed route name.
  * @param sessionStore      Durable storage for the in-progress recording session snapshot (B20).
  * @param refuelRepository  Persistence for per-route refuel events (G5).
+ * @param resumeRouteBus    App-scoped bus for receiving "continue existing route" requests (J5).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -109,6 +112,7 @@ class RecordingViewModel @Inject constructor(
     private val stringResolver: StringResolver,
     private val sessionStore: RecordingSessionStore,
     private val refuelRepository: RefuelRepository,
+    private val resumeRouteBus: ResumeRouteBus,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -144,6 +148,15 @@ class RecordingViewModel @Inject constructor(
 
     /** In-memory buffer of refuel events logged before the route row exists (G5). */
     private val pendingRefuels = mutableListOf<PendingRefuel>()
+
+    /** True while the session is a continuation of a previously saved route (J5). */
+    private var resumingExistingRoute: Boolean = false
+
+    /** Original name of the route being continued; used by [doFinish] to skip renaming (J5). */
+    private var existingRouteName: String = ""
+
+    /** Original start timestamp of the route being continued; preserved on save (J5). */
+    private var existingRouteDateEpochMs: Long = 0L
 
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
@@ -222,6 +235,11 @@ class RecordingViewModel @Inject constructor(
             }
         }
 
+        // J5: React to "continue an existing route" requests from the Route Detail bus.
+        viewModelScope.launch {
+            resumeRouteBus.requests.collect { routeId -> doResumeRoute(routeId) }
+        }
+
         // F2: Always-on lean collector — liveLeanDeg updates regardless of phase so the
         // rider can see the tilt bar before starting a ride.  Engine and logger are only
         // fed while actively Recording.
@@ -267,6 +285,7 @@ class RecordingViewModel @Inject constructor(
                 _uiState.update { it.copy(showStopConfirmDialog = false) }
                 doFinish()
             }
+            is RecordingEvent.ResumeRoute -> viewModelScope.launch { doResumeRoute(event.routeId) }
         }
     }
 
@@ -341,31 +360,43 @@ class RecordingViewModel @Inject constructor(
 
             val result = engine.buildRoutePayload()
 
-            // Compose a sensible default name from part-of-day + optional reverse geocoding.
-            val startMs = if (recordingStartMs > 0L) recordingStartMs else timeProvider.nowEpochMs()
-            val pod = RouteNameComposer.partOfDay(startMs, ZoneId.systemDefault())
-            val rideLabelResId = when (pod) {
-                PartOfDay.MORNING   -> R.string.route_name_ride_morning
-                PartOfDay.AFTERNOON -> R.string.route_name_ride_afternoon
-                PartOfDay.EVENING   -> R.string.route_name_ride_evening
-                PartOfDay.NIGHT     -> R.string.route_name_ride_night
-            }
-            val rideLabel = stringResolver.getString(rideLabelResId)
-            val routeName = if (!offline) {
-                val pts = TrackGeometry.parsePathJson(result.pathJson)
-                val sampled = sampleEvenly(pts, maxCount = 5)
-                val areas = sampled.map { pt ->
-                    try { reverseGeocoder.areaName(pt.lat, pt.lon) } catch (_: Exception) { null }
+            // J5: When continuing an existing route, keep its original name and start time.
+            val isResume = resumingExistingRoute
+            resumingExistingRoute = false
+
+            val routeName: String
+            val dateEpochMs: Long
+            if (isResume) {
+                routeName = existingRouteName
+                dateEpochMs = existingRouteDateEpochMs
+            } else {
+                // Compose a sensible default name from part-of-day + optional reverse geocoding.
+                val startMs = if (recordingStartMs > 0L) recordingStartMs else timeProvider.nowEpochMs()
+                val pod = RouteNameComposer.partOfDay(startMs, ZoneId.systemDefault())
+                val rideLabelResId = when (pod) {
+                    PartOfDay.MORNING   -> R.string.route_name_ride_morning
+                    PartOfDay.AFTERNOON -> R.string.route_name_ride_afternoon
+                    PartOfDay.EVENING   -> R.string.route_name_ride_evening
+                    PartOfDay.NIGHT     -> R.string.route_name_ride_night
                 }
-                val area = RouteNameComposer.dominantArea(areas)
-                if (area != null) {
-                    val template = stringResolver.getString(R.string.route_name_with_area)
-                    RouteNameComposer.compose(rideLabel, area, template)
+                val rideLabel = stringResolver.getString(rideLabelResId)
+                routeName = if (!offline) {
+                    val pts = TrackGeometry.parsePathJson(result.pathJson)
+                    val sampled = sampleEvenly(pts, maxCount = 5)
+                    val areas = sampled.map { pt ->
+                        try { reverseGeocoder.areaName(pt.lat, pt.lon) } catch (_: Exception) { null }
+                    }
+                    val area = RouteNameComposer.dominantArea(areas)
+                    if (area != null) {
+                        val template = stringResolver.getString(R.string.route_name_with_area)
+                        RouteNameComposer.compose(rideLabel, area, template)
+                    } else {
+                        rideLabel
+                    }
                 } else {
                     rideLabel
                 }
-            } else {
-                rideLabel
+                dateEpochMs = timeProvider.nowEpochMs()
             }
 
             val routeId = pendingRouteId ?: UUID.randomUUID().toString()
@@ -373,7 +404,7 @@ class RecordingViewModel @Inject constructor(
             val route = Route(
                 id = routeId,
                 name = routeName,
-                dateEpochMs = timeProvider.nowEpochMs(),
+                dateEpochMs = dateEpochMs,
                 bikeId = settings.currentBikeId,
                 km = result.metrics.distanceKm,
                 durSec = result.metrics.durationSec,
@@ -450,6 +481,45 @@ class RecordingViewModel @Inject constructor(
         pendingRouteId = null
         _uiState.update { it.copy(resumableSession = null, activeRouteId = null) }
         viewModelScope.launch { sessionStore.clear() }
+    }
+
+    /**
+     * Restores engine state from an existing saved route so the rider can append to it (J5).
+     *
+     * Guard: no-op unless the current phase is [RecordingPhase.Idle] with no pending
+     * resumable session, preventing state clobbering during an active or paused ride.
+     *
+     * Sets phase to [RecordingPhase.Paused] so the rider must tap Resume explicitly;
+     * live GPS continuation is an on-device concern (🔬).
+     *
+     * @param routeId UUID of the saved route to continue.
+     */
+    private suspend fun doResumeRoute(routeId: String) {
+        val state = _uiState.value
+        if (state.phase != RecordingPhase.Idle || state.resumableSession != null) return
+        val route = routeRepository.getById(routeId) ?: return
+
+        val seed = RouteResumeSeed.fromRoute(route)
+        engine.restore(seed)
+        engine.updateFuelConfig(currentBikeConsumption, currentBikeTankCapacity)
+
+        pendingRouteId = routeId
+        recordingStartMs = route.dateEpochMs
+        resumingExistingRoute = true
+        existingRouteName = route.name
+        existingRouteDateEpochMs = route.dateEpochMs
+
+        val trackPoints = seed.pathPoints.map { (lat, lng) -> GeoCoord(lat, lng) }
+        _uiState.update {
+            it.copy(
+                phase = RecordingPhase.Paused,
+                metrics = engine.snapshot(),
+                trackPoints = trackPoints,
+                resumableSession = null,
+                activeRouteId = routeId,
+            )
+        }
+        startLocationUpdates()
     }
 
     /**

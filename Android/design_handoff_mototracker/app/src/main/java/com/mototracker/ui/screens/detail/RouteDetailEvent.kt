@@ -53,4 +53,14 @@ sealed interface RouteDetailEvent {
 
     /** A refuel event was deleted (G5). The Composable may show a brief toast. */
     data object RefuelDeleted : RouteDetailEvent
+
+    /**
+     * The rider requested to continue this route from the detail screen (J5).
+     *
+     * The [ResumeRouteBus] request has already been sent; the Composable should navigate
+     * to the RECORD tab so the user can tap Resume to begin recording.
+     *
+     * @param routeId UUID of the route to continue.
+     */
+    data class ResumeRoute(val routeId: String) : RouteDetailEvent
 }

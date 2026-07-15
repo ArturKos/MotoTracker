@@ -12,6 +12,7 @@ import com.mototracker.core.format.RouteWeather
 import com.mototracker.core.format.UnitFormatter
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.local.entity.BikeStatus
+import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
@@ -70,6 +71,8 @@ import kotlin.math.roundToInt
  * @param gpsCorrectionRepository  Manages the OSRM GPS road-correction queue.
  * @param refuelRepository         Source and sink for per-route refuel event ledger (G5).
  * @param timeProvider             Wall-clock source for new refuel event timestamps.
+ * @param resumeRouteBus           App-scoped bus for routing continue-route requests to
+ *                                 RecordingViewModel (J5).
  */
 @HiltViewModel
 class RouteDetailViewModel @Inject constructor(
@@ -82,6 +85,7 @@ class RouteDetailViewModel @Inject constructor(
     private val gpsCorrectionRepository: GpsCorrectionRepository,
     private val refuelRepository: RefuelRepository,
     private val timeProvider: TimeProvider,
+    private val resumeRouteBus: ResumeRouteBus,
 ) : ViewModel() {
 
     private val routeId: String = savedStateHandle["routeId"] ?: ""
@@ -312,6 +316,24 @@ class RouteDetailViewModel @Inject constructor(
                 pricePerL = pricePerL,
             )
             _events.send(RouteDetailEvent.RefuelAdded)
+        }
+    }
+
+    /**
+     * Sends a continue-route request via [ResumeRouteBus] and emits [RouteDetailEvent.ResumeRoute]
+     * so the Composable navigates to the RECORD tab (J5).
+     *
+     * The RecordingViewModel will receive the bus request and restore engine state from the
+     * stored route, placing the session in [com.mototracker.ui.screens.record.RecordingPhase.Paused]
+     * so the rider must tap Resume to start accumulating new GPS data.
+     *
+     * No-op when the route has not yet loaded.
+     */
+    fun continueRoute() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            resumeRouteBus.request(route.id)
+            _events.send(RouteDetailEvent.ResumeRoute(route.id))
         }
     }
 

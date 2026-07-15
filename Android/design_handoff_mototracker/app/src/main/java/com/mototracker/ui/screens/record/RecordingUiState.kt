@@ -131,6 +131,18 @@ sealed class RecordingEvent {
      * User dismissed the stop-confirmation dialog — recording continues unchanged (J4).
      */
     data object DismissStopDialog : RecordingEvent()
+
+    /**
+     * Requests continuation of an existing saved route (J5).
+     *
+     * Dispatched either by the route-detail bus listener in [RecordingViewModel.init]
+     * or directly via [RecordingViewModel.onEvent] for testing purposes.
+     * Ignored unless the current phase is [RecordingPhase.Idle] with no pending
+     * resumable session.
+     *
+     * @param routeId UUID of the saved route to continue.
+     */
+    data class ResumeRoute(val routeId: String) : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

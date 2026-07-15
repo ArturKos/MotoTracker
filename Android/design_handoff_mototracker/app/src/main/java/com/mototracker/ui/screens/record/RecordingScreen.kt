@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -218,60 +219,66 @@ fun RecordingContent(
 
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // ── Tiles — fills remaining space; scrollable fallback so nothing clips ─
-            Column(
+            // ── Tiles — fills remaining space; adaptive sizing primary, scroll fallback ─
+            BoxWithConstraints(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .background(MotoTracker.colors.bg)
-                    .padding(horizontal = 8.dp),
+                    .background(MotoTracker.colors.bg),
             ) {
-                // ── Compact chip row: GPS sat-count · weather · wind rose ──────────
-                Row(
-                    modifier = Modifier
+                val sizing = RecordLayoutSizing.forHeight(maxHeight.value.toInt())
+                Column(
+                    Modifier
                         .fillMaxWidth()
-                        .padding(top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp),
                 ) {
-                    GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
-                    Spacer(Modifier.weight(1f))
-                    WeatherChip(weather = state.weather)
-                    Spacer(Modifier.width(8.dp))
-                    WindRose(headingDeg = displayHeadingDeg)
-                }
-                Spacer(Modifier.height(8.dp))
-                SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg)
-                Spacer(Modifier.height(6.dp))
-                DistanceAltitudeFuelRow(state)
-                FuelTankRow(state = state)
-                Spacer(Modifier.height(6.dp))
-                LeanRow(state = state, currentLeanDeg = displayLeanDeg)
-                Spacer(Modifier.height(6.dp))
-                TimersRow(state)
-                Spacer(Modifier.height(12.dp))
-                if (locationPermDenied && state.phase == RecordingPhase.Idle) {
-                    PermissionDeniedBanner(
-                        text = stringResource(R.string.perm_location_denied),
-                        onRetry = { onEvent(RecordingEvent.Start) },
+                    // ── Compact chip row: GPS sat-count · weather · wind rose ──────────
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
+                        Spacer(Modifier.weight(1f))
+                        WeatherChip(weather = state.weather)
+                        Spacer(Modifier.width(8.dp))
+                        WindRose(headingDeg = displayHeadingDeg)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg, sizing = sizing)
+                    Spacer(Modifier.height(sizing.rowSpacingDp.dp))
+                    DistanceAltitudeFuelRow(state = state, sizing = sizing)
+                    FuelTankRow(state = state, sizing = sizing)
+                    Spacer(Modifier.height(sizing.rowSpacingDp.dp))
+                    LeanRow(state = state, currentLeanDeg = displayLeanDeg)
+                    Spacer(Modifier.height(sizing.rowSpacingDp.dp))
+                    TimersRow(state = state, sizing = sizing)
+                    Spacer(Modifier.height((sizing.rowSpacingDp * 2).dp))
+                    if (locationPermDenied && state.phase == RecordingPhase.Idle) {
+                        PermissionDeniedBanner(
+                            text = stringResource(R.string.perm_location_denied),
+                            onRetry = { onEvent(RecordingEvent.Start) },
+                        )
+                    } else {
+                        RecordingControlRow(
+                            phase = state.phase,
+                            hasFuelTank = state.metrics.tankCapacityL != null,
+                            onEvent = onEvent,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.hint_pause_handlebar),
+                        style = MotoTracker.typography.bodySmall,
+                        color = MotoTracker.colors.dim,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
                     )
-                } else {
-                    RecordingControlRow(
-                        phase = state.phase,
-                        hasFuelTank = state.metrics.tankCapacityL != null,
-                        onEvent = onEvent,
-                    )
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.hint_pause_handlebar),
-                    style = MotoTracker.typography.bodySmall,
-                    color = MotoTracker.colors.dim,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                )
             }
         }
 
@@ -394,20 +401,29 @@ private fun WindRose(headingDeg: Float, modifier: Modifier = Modifier) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SpeedAndTimeRow(state: RecordingUiState, headingDeg: Float) {
+private fun SpeedAndTimeRow(state: RecordingUiState, headingDeg: Float, sizing: RecordSizing) {
     Row(
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        SpeedTile(speedKmh = state.metrics.currentSpeedKmh, modifier = Modifier.weight(1f).fillMaxHeight())
-        CompassDial(headingDeg = headingDeg, modifier = Modifier.weight(1f).fillMaxHeight())
+        SpeedTile(
+            speedKmh = state.metrics.currentSpeedKmh,
+            speedFontSp = sizing.speedFontSp,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        CompassDial(
+            headingDeg = headingDeg,
+            compassDiameterDp = sizing.compassDiameterDp,
+            bigNumberFontSp = sizing.bigNumberFontSp,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
     }
 }
 
 @Composable
-private fun SpeedTile(speedKmh: Double, modifier: Modifier = Modifier) {
+private fun SpeedTile(speedKmh: Double, speedFontSp: Int, modifier: Modifier = Modifier) {
     MetricTile(modifier = modifier) {
         Text(
             text = stringResource(R.string.tile_speed),
@@ -416,7 +432,7 @@ private fun SpeedTile(speedKmh: Double, modifier: Modifier = Modifier) {
         )
         Text(
             text = String.format(Locale.US, "%.0f", speedKmh),
-            style = MotoTracker.typography.recordSpeed,
+            style = MotoTracker.typography.recordSpeed.copy(fontSize = speedFontSp.sp),
             color = MotoTracker.colors.accent,
             fontWeight = FontWeight.Bold,
         )
@@ -468,7 +484,7 @@ private fun TimeTile(durationSec: Long, modifier: Modifier = Modifier) {
  * @param state Current recording UI state; reads [RecordingMetrics.durationSec] and [RecordingMetrics.movingSec].
  */
 @Composable
-private fun TimersRow(state: RecordingUiState) {
+private fun TimersRow(state: RecordingUiState, sizing: RecordSizing) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -481,7 +497,7 @@ private fun TimersRow(state: RecordingUiState) {
             )
             Text(
                 text = formatHms(state.metrics.durationSec),
-                style = MotoTracker.typography.bigCardNumber,
+                style = MotoTracker.typography.bigCardNumber.copy(fontSize = sizing.bigNumberFontSp.sp),
                 color = MotoTracker.colors.text,
             )
         }
@@ -493,7 +509,7 @@ private fun TimersRow(state: RecordingUiState) {
             )
             Text(
                 text = formatHms(state.metrics.movingSec),
-                style = MotoTracker.typography.bigCardNumber,
+                style = MotoTracker.typography.bigCardNumber.copy(fontSize = sizing.bigNumberFontSp.sp),
                 color = MotoTracker.colors.text,
             )
         }
@@ -512,7 +528,7 @@ private fun TimersRow(state: RecordingUiState) {
  * @param state Current recording UI state.
  */
 @Composable
-private fun FuelTankRow(state: RecordingUiState) {
+private fun FuelTankRow(state: RecordingUiState, sizing: RecordSizing) {
     val metrics = state.metrics
     if (metrics.tankCapacityL == null) return
 
@@ -528,6 +544,7 @@ private fun FuelTankRow(state: RecordingUiState) {
                 label = stringResource(R.string.label_fuel_remaining),
                 value = String.format(Locale.US, "%.1f", remaining),
                 unit = stringResource(R.string.unit_fuel_short),
+                valueFontSp = sizing.bigNumberFontSp,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -537,6 +554,7 @@ private fun FuelTankRow(state: RecordingUiState) {
                 label = stringResource(R.string.label_fuel_range),
                 value = String.format(Locale.US, "%.0f", range),
                 unit = stringResource(R.string.unit_km),
+                valueFontSp = sizing.bigNumberFontSp,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -547,6 +565,7 @@ private fun FuelTankRow(state: RecordingUiState) {
                 label = stringResource(R.string.label_fuel_cost),
                 value = "%.2f".format(cost),
                 unit = state.currency,
+                valueFontSp = sizing.bigNumberFontSp,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -565,7 +584,7 @@ private fun FuelTankRow(state: RecordingUiState) {
 }
 
 @Composable
-private fun DistanceAltitudeFuelRow(state: RecordingUiState) {
+private fun DistanceAltitudeFuelRow(state: RecordingUiState, sizing: RecordSizing) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -574,18 +593,21 @@ private fun DistanceAltitudeFuelRow(state: RecordingUiState) {
             label = stringResource(R.string.tile_distance),
             value = String.format(Locale.US, "%.1f", state.metrics.distanceKm),
             unit = stringResource(R.string.unit_km),
+            valueFontSp = sizing.bigNumberFontSp,
             modifier = Modifier.weight(1f),
         )
         SmallMetricTile(
             label = stringResource(R.string.tile_altitude),
             value = String.format(Locale.US, "%.0f", state.metrics.altitudeM),
             unit = stringResource(R.string.unit_meters_asl),
+            valueFontSp = sizing.bigNumberFontSp,
             modifier = Modifier.weight(1f),
         )
         SmallMetricTile(
             label = stringResource(R.string.tile_fuel),
             value = String.format(Locale.US, "%.1f", state.metrics.fuelL),
             unit = stringResource(R.string.unit_fuel_short),
+            valueFontSp = sizing.bigNumberFontSp,
             modifier = Modifier.weight(1f),
         )
     }
@@ -617,7 +639,12 @@ private fun LeanRow(state: RecordingUiState, currentLeanDeg: Double) {
  * @param modifier   Standard Compose modifier applied to the enclosing [MetricTile].
  */
 @Composable
-private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
+private fun CompassDial(
+    headingDeg: Float,
+    compassDiameterDp: Int,
+    bigNumberFontSp: Int,
+    modifier: Modifier = Modifier,
+) {
     val normalised = CompassMath.normalizeHeading(headingDeg)
     val cardinal = CompassMath.cardinal(headingDeg)
 
@@ -649,11 +676,11 @@ private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
             color = MotoTracker.colors.dim,
         )
         Box(
-            Modifier.size(72.dp),
+            Modifier.size(compassDiameterDp.dp),
             contentAlignment = Alignment.Center,
         ) {
             // Inner Box rotates with the heading so the rose + N/E/S/W labels turn together.
-            Box(Modifier.size(68.dp).rotate(normalised)) {
+            Box(Modifier.size((compassDiameterDp - 4).dp).rotate(normalised)) {
                 Canvas(Modifier.fillMaxSize()) {
                     val cx = size.width / 2
                     val cy = size.height / 2
@@ -736,7 +763,7 @@ private fun CompassDial(headingDeg: Float, modifier: Modifier = Modifier) {
         }
         Text(
             text = String.format(Locale.US, "%.0f°", normalised),
-            style = MotoTracker.typography.bigCardNumber,
+            style = MotoTracker.typography.bigCardNumber.copy(fontSize = bigNumberFontSp.sp),
             color = MotoTracker.colors.text,
         )
         Text(
@@ -773,6 +800,7 @@ private fun SmallMetricTile(
     value: String,
     unit: String,
     modifier: Modifier = Modifier,
+    valueFontSp: Int = 30,
 ) {
     MetricTile(modifier = modifier) {
         Text(
@@ -782,7 +810,7 @@ private fun SmallMetricTile(
         )
         Text(
             text = value,
-            style = MotoTracker.typography.bigCardNumber,
+            style = MotoTracker.typography.bigCardNumber.copy(fontSize = valueFontSp.sp),
             color = MotoTracker.colors.text,
         )
         Text(

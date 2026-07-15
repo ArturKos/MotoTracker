@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.ui.navigation.MotoApp
+import com.mototracker.ui.screens.terms.TermsScreen
 import com.mototracker.ui.state.AppScreen
 import com.mototracker.ui.state.StartupDecision
 import com.mototracker.ui.theme.MotoTracker
@@ -60,14 +61,21 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                     is StartupDecision.Ready -> {
-                        MotoApp(
-                            startAtMain = decision.startScreen == AppScreen.MAIN,
-                            sessionExpired = decision.sessionExpired,
-                            onSignIn = appViewModel::signIn,
-                            onContinueAsGuest = appViewModel::continueAsGuest,
-                            recordingActive = recordingActive,
-                            syncState = syncState,
-                        )
+                        if (!decision.termsAccepted) {
+                            TermsScreen(
+                                onAccept = appViewModel::acceptTerms,
+                                onDecline = { finishAndRemoveTask() },
+                            )
+                        } else {
+                            MotoApp(
+                                startAtMain = decision.startScreen == AppScreen.MAIN,
+                                sessionExpired = decision.sessionExpired,
+                                onSignIn = appViewModel::signIn,
+                                onContinueAsGuest = appViewModel::continueAsGuest,
+                                recordingActive = recordingActive,
+                                syncState = syncState,
+                            )
+                        }
                     }
                 }
             }

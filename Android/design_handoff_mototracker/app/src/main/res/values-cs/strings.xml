@@ -418,4 +418,12 @@
     <string name="dialog_refuel_confirm">Uložit</string>
     <string name="toast_refuel_added">Tankování uloženo</string>
     <string name="toast_refuel_deleted">Tankování smazáno</string>
+
+    <!-- Podmínky použití při prvním spuštění (J2) -->
+    <string name="terms_title">Podmínky použití</string>
+    <string name="terms_lead">Před použitím aplikace si přečtěte následující podmínky.</string>
+    <string name="terms_no_liability">Autor nenese žádnou odpovědnost za používání této aplikace, včetně nehod, škod nebo dopravních přestupků vzniklých v důsledku jejího používání.</string>
+    <string name="terms_no_riding">Aplikaci nelze obsluhovat za jízdy. Používejte ji pouze při stojícím vozidle.</string>
+    <string name="terms_accept">Přijmout</string>
+    <string name="terms_decline">Odmítnout</string>
 </resources>

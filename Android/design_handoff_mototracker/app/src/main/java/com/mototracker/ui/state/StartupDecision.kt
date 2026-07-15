@@ -20,11 +20,15 @@ sealed interface StartupDecision {
      * @param authed          Whether the user is currently authenticated with a valid session.
      * @param sessionExpired  True when [AuthState.AUTHED] is persisted but no session cookie is
      *                        present — the Login screen shows a re-login notice.
+     * @param termsAccepted   Whether the user has accepted the first-launch terms/disclaimer.
+     *                        Defaults to `true` so existing call sites that do not supply this
+     *                        argument continue to compile unchanged.
      */
     data class Ready(
         val startScreen: AppScreen,
         val authed: Boolean,
         val sessionExpired: Boolean = false,
+        val termsAccepted: Boolean = true,
     ) : StartupDecision
 }
 

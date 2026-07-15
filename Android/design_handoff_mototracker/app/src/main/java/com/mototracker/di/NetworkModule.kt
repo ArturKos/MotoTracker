@@ -4,6 +4,8 @@ import com.mototracker.core.time.SystemTimeProvider
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.auth.AuthStateStore
 import com.mototracker.data.auth.DataStoreAuthStateStore
+import com.mototracker.data.terms.DataStoreTermsAcceptanceStore
+import com.mototracker.data.terms.TermsAcceptanceStore
 import com.mototracker.data.network.AndroidNetworkMonitor
 import com.mototracker.data.network.DataStoreSessionStore
 import com.mototracker.data.network.GpsCorrectionClient
@@ -51,6 +53,11 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindAuthStateStore(impl: DataStoreAuthStateStore): AuthStateStore
+
+    /** Binds [DataStoreTermsAcceptanceStore] as the [TermsAcceptanceStore] singleton. */
+    @Binds
+    @Singleton
+    abstract fun bindTermsAcceptanceStore(impl: DataStoreTermsAcceptanceStore): TermsAcceptanceStore
 
     /** Binds [HttpGpStrackClient] as the [GpStrackClient] singleton. */
     @Binds

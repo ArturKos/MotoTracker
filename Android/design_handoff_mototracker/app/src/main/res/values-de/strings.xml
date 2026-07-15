@@ -418,4 +418,12 @@
     <string name="dialog_refuel_confirm">Speichern</string>
     <string name="toast_refuel_added">Tankstopp gespeichert</string>
     <string name="toast_refuel_deleted">Tankstopp gelöscht</string>
+
+    <!-- Nutzungsbedingungen beim ersten Start (J2) -->
+    <string name="terms_title">Nutzungsbedingungen</string>
+    <string name="terms_lead">Bitte lies die folgenden Bedingungen, bevor du die App verwendest.</string>
+    <string name="terms_no_liability">Der Autor übernimmt keinerlei Verantwortung für die Nutzung dieser App, einschließlich Unfälle, Schäden oder Verkehrsverstöße, die aus der Nutzung resultieren.</string>
+    <string name="terms_no_riding">Die App darf während der Fahrt nicht bedient werden. Verwende sie nur bei stehendem Fahrzeug.</string>
+    <string name="terms_accept">Akzeptieren</string>
+    <string name="terms_decline">Ablehnen</string>
 </resources>

@@ -8,6 +8,7 @@ import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.SessionStore
+import com.mototracker.data.terms.TermsAcceptanceStore
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.ui.navigation.SyncState
@@ -41,6 +42,9 @@ import javax.inject.Inject
  * [authStateStore] and [sessionStore] persist the onboarding/auth choice and the server
  * session cookie so the Login screen is skipped on subsequent launches (B22).
  *
+ * [termsStore] persists the first-launch terms acceptance flag; the gate is shown until
+ * the user accepts (J2).
+ *
  * [networkMonitor], [settingsSource], and [syncRepository] are combined to derive
  * [syncState] — the live [SyncState] shown in the top-app-bar sync chip (D9).
  *
@@ -48,6 +52,7 @@ import javax.inject.Inject
  * @param recordingBridge   Source of the current recording phase for [recordingActive].
  * @param authStateStore    Persists and reads the onboarding/auth choice.
  * @param sessionStore      Persists and reads the server session cookie.
+ * @param termsStore        Persists and reads the first-launch terms acceptance flag.
  * @param networkMonitor    Observes live network connectivity for [syncState].
  * @param settingsSource    Reads offline/offlineOnly settings flags for [syncState].
  * @param syncRepository    Provides the pending sync queue count for [syncState].
@@ -58,6 +63,7 @@ class AppStateViewModel @Inject constructor(
     private val recordingBridge: CarRecordingBridge,
     private val authStateStore: AuthStateStore,
     private val sessionStore: SessionStore,
+    private val termsStore: TermsAcceptanceStore,
     private val networkMonitor: NetworkMonitor,
     private val settingsSource: AppSettingsSource,
     private val syncRepository: SyncRepository,
@@ -95,23 +101,36 @@ class AppStateViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SyncState.Offline)
 
     /**
-     * One-time startup navigation decision, updated whenever the persisted auth state or session
-     * cookie changes.
+     * One-time startup navigation decision, updated whenever the persisted auth state, session
+     * cookie, or terms acceptance flag changes.
      *
-     * Emits [StartupDecision.Loading] until both sources produce their first value, then emits
+     * Emits [StartupDecision.Loading] until all three sources produce their first value, then emits
      * [StartupDecision.Ready] with the resolved [AppScreen] start destination, current auth flag,
-     * and optional session-expired flag.
+     * optional session-expired flag, and the terms acceptance gate flag.
      */
     val startupDecision: StateFlow<StartupDecision> = combine(
         authStateStore.authState,
         sessionStore.session,
-    ) { authState, session ->
+        termsStore.accepted,
+    ) { authState, session, termsAccepted ->
         StartupDecision.Ready(
             startScreen = startScreenFor(authState, session.isAuthenticated),
             authed = authState == AuthState.AUTHED && session.isAuthenticated,
             sessionExpired = authState == AuthState.AUTHED && !session.isAuthenticated,
+            termsAccepted = termsAccepted,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, StartupDecision.Loading)
+
+    /**
+     * Persists the user's acceptance of the first-launch terms/disclaimer (J2).
+     *
+     * Called when the user taps Accept on the [com.mototracker.ui.screens.terms.TermsScreen].
+     * Declining is handled in the Activity by calling [android.app.Activity.finishAndRemoveTask];
+     * no state write is needed for decline since absent terms flag = not accepted.
+     */
+    fun acceptTerms() {
+        viewModelScope.launch { termsStore.setAccepted(true) }
+    }
 
     /**
      * Marks the user as authenticated and navigates to the main app shell.

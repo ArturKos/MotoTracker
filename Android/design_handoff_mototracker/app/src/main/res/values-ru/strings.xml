@@ -418,4 +418,12 @@
     <string name="dialog_refuel_confirm">Сохранить</string>
     <string name="toast_refuel_added">Заправка сохранена</string>
     <string name="toast_refuel_deleted">Заправка удалена</string>
+
+    <!-- Условия использования при первом запуске (J2) -->
+    <string name="terms_title">Условия использования</string>
+    <string name="terms_lead">Прочитайте следующие условия перед использованием приложения.</string>
+    <string name="terms_no_liability">Автор не несёт никакой ответственности за использование данного приложения, включая аварии, ущерб или нарушения правил дорожного движения, возникшие в результате его использования.</string>
+    <string name="terms_no_riding">Запрещено использовать приложение во время езды. Пользуйтесь им только при остановленном транспортном средстве.</string>
+    <string name="terms_accept">Принять</string>
+    <string name="terms_decline">Отклонить</string>
 </resources>

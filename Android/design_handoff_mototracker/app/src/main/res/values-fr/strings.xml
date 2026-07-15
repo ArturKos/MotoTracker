@@ -418,4 +418,12 @@
     <string name="dialog_refuel_confirm">Enregistrer</string>
     <string name="toast_refuel_added">Ravitaillement enregistré</string>
     <string name="toast_refuel_deleted">Ravitaillement supprimé</string>
+
+    <!-- Conditions d\'utilisation au premier lancement (J2) -->
+    <string name="terms_title">Conditions d\'utilisation</string>
+    <string name="terms_lead">Veuillez lire les conditions suivantes avant d\'utiliser l\'application.</string>
+    <string name="terms_no_liability">L\'auteur décline toute responsabilité quant à l\'utilisation de cette application, y compris les accidents, dommages ou infractions au code de la route résultant de son utilisation.</string>
+    <string name="terms_no_riding">L\'application ne doit pas être utilisée en conduisant. Utilisez-la uniquement véhicule à l\'arrêt.</string>
+    <string name="terms_accept">Accepter</string>
+    <string name="terms_decline">Refuser</string>
 </resources>

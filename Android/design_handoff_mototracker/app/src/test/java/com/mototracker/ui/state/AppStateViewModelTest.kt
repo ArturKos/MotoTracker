@@ -6,6 +6,7 @@ import com.mototracker.core.i18n.LocaleController
 import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.data.terms.TermsAcceptanceStore
 import com.mototracker.data.network.SessionState
 import com.mototracker.data.network.SessionStore
 import com.mototracker.data.repository.SyncRepository
@@ -80,6 +81,17 @@ private class FakeAppSettingsSource(initial: AppSettings = AppSettings()) : AppS
     override val settings: Flow<AppSettings> = _flow
 }
 
+private class FakeTermsAcceptanceStore(initial: Boolean = false) : TermsAcceptanceStore {
+    private val _accepted = MutableStateFlow(initial)
+    override val accepted: Flow<Boolean> = _accepted
+    var lastSet: Boolean? = null
+
+    override suspend fun setAccepted(accepted: Boolean) {
+        lastSet = accepted
+        _accepted.value = accepted
+    }
+}
+
 private class FakeSyncRepository(initialPending: Int = 0) : SyncRepository {
     private val _pending = MutableStateFlow(initialPending)
     fun emitPending(count: Int) { _pending.value = count }
@@ -94,6 +106,7 @@ class AppStateViewModelTest {
     private lateinit var fakeLocale: FakeLocaleController
     private lateinit var fakeAuthStore: FakeAuthStateStore
     private lateinit var fakeSessionStore: FakeSessionStore
+    private lateinit var fakeTermsStore: FakeTermsAcceptanceStore
     private lateinit var bridge: CarRecordingBridge
     private lateinit var fakeNetworkMonitor: FakeNetworkMonitor
     private lateinit var fakeSettingsSource: FakeAppSettingsSource
@@ -106,6 +119,7 @@ class AppStateViewModelTest {
         fakeLocale = FakeLocaleController()
         fakeAuthStore = FakeAuthStateStore()
         fakeSessionStore = FakeSessionStore()
+        fakeTermsStore = FakeTermsAcceptanceStore(initial = true) // accepted by default so existing tests are unaffected
         bridge = CarRecordingBridge()
         fakeNetworkMonitor = FakeNetworkMonitor(initial = true)
         fakeSettingsSource = FakeAppSettingsSource()
@@ -115,6 +129,7 @@ class AppStateViewModelTest {
             recordingBridge = bridge,
             authStateStore = fakeAuthStore,
             sessionStore = fakeSessionStore,
+            termsStore = fakeTermsStore,
             networkMonitor = fakeNetworkMonitor,
             settingsSource = fakeSettingsSource,
             syncRepository = fakeSyncRepository,

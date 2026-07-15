@@ -448,4 +448,12 @@
     <string name="dialog_refuel_confirm">Save</string>
     <string name="toast_refuel_added">Refuel saved</string>
     <string name="toast_refuel_deleted">Refuel deleted</string>
+
+    <!-- First-launch terms/disclaimer gate (J2) -->
+    <string name="terms_title">Terms of Use</string>
+    <string name="terms_lead">Please read the following terms before using the app.</string>
+    <string name="terms_no_liability">The author bears no responsibility for the use of this app, including accidents, damage, or traffic violations resulting from its use.</string>
+    <string name="terms_no_riding">The app must not be operated while riding. Use it only when the vehicle is stationary.</string>
+    <string name="terms_accept">Accept</string>
+    <string name="terms_decline">Decline</string>
 </resources>

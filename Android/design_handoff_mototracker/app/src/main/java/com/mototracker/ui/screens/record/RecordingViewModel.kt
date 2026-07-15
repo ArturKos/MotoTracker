@@ -202,7 +202,16 @@ class RecordingViewModel @Inject constructor(
         }.onEach { bs ->
             currentBikeConsumption = bs.consumption
             currentBikeTankCapacity = bs.tankCapacity
-            _uiState.update { it.copy(fuelPricePerL = bs.fuelPricePerL, currency = bs.currency) }
+            // I2: Feed the resolved fuel config into the engine reactively so remaining-fuel/range
+            // and the icon colour are correct regardless of whether this emits before or after doStart().
+            engine.updateFuelConfig(bs.consumption, bs.tankCapacity)
+            _uiState.update {
+                it.copy(
+                    metrics = engine.snapshot(),
+                    fuelPricePerL = bs.fuelPricePerL,
+                    currency = bs.currency,
+                )
+            }
         }.launchIn(viewModelScope)
 
         // B20: Detect an unfinished session from a previous process lifetime.

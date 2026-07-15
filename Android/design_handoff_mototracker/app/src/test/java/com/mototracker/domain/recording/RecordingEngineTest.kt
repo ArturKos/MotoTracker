@@ -352,6 +352,50 @@ class RecordingEngineTest {
         assertEquals(originalSnap.remainingRangeKm!!, restoredSnap.remainingRangeKm!!, 0.001)
     }
 
+    // ── updateFuelConfig (I2) ────────────────────────────────────────────────
+
+    @Test
+    fun `updateFuelConfig changes consumption and tankCapacityL without resetting accumulators`() {
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = 10.0)
+        // Drive ~111 km, anchor to full, then drive a bit more
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0))
+        engine.fillToFull()
+        engine.onLocation(sample(lat = 1.1, lng = 0.0))
+
+        val snapBefore = engine.snapshot()
+        val distBefore = snapBefore.distanceKm
+        val distSinceFull = snapBefore.distanceSinceFullKm
+        assertTrue("distanceSinceFullKm should be > 0 after driving past fill", distSinceFull > 0.0)
+
+        engine.updateFuelConfig(fuelLper100km = 6.0, tankCapacityL = 20.0)
+
+        val snapAfter = engine.snapshot()
+        // Accumulators untouched
+        assertEquals(distBefore, snapAfter.distanceKm, 0.001)
+        assertEquals(distSinceFull, snapAfter.distanceSinceFullKm, 0.001)
+        // Remaining fuel reflects the new capacity and new consumption rate
+        val expectedFuelUsed = distSinceFull * 6.0 / 100.0
+        val expectedRemaining = (20.0 - expectedFuelUsed).coerceAtLeast(0.0)
+        assertEquals(expectedRemaining, snapAfter.remainingFuelL!!, 0.01)
+        assertEquals(20.0, snapAfter.tankCapacityL!!, 0.001)
+    }
+
+    @Test
+    fun `updateFuelConfig with null tankCapacityL leaves remaining fields null`() {
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = 17.0)
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0))
+
+        engine.updateFuelConfig(fuelLper100km = 5.0, tankCapacityL = null)
+
+        val snap = engine.snapshot()
+        assertNull(snap.tankCapacityL)
+        assertNull(snap.remainingFuelL)
+        assertNull(snap.remainingRangeKm)
+        assertFalse(snap.lowFuel)
+    }
+
     // ── Moving-time accumulation (E5) ────────────────────────────────────────
 
     @Test

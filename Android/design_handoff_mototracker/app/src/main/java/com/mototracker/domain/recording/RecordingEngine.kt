@@ -215,6 +215,23 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     }
 
     /**
+     * Updates the fuel-model constants without disturbing any accumulated session state.
+     *
+     * Unlike [reset], this method only overwrites [sessionFuelLper100km] and [tankCapacityL];
+     * [fillAnchorKm], [distanceKm], and all other accumulators are left completely untouched.
+     * This allows the live fuel estimate to be recomputed reactively whenever the bike
+     * configuration resolves or changes — including after recording has already started.
+     *
+     * @param fuelLper100km New consumption constant in L/100km.
+     * @param tankCapacityL New tank capacity in litres; null when the bike has no capacity set
+     *                      (remaining-fuel feature inert).
+     */
+    fun updateFuelConfig(fuelLper100km: Double, tankCapacityL: Double?) {
+        sessionFuelLper100km = fuelLper100km
+        this.tankCapacityL = tankCapacityL
+    }
+
+    /**
      * Anchors the tank to full at the current odometer reading.
      *
      * After this call [snapshot] will report [RecordingMetrics.distanceSinceFullKm] as 0.0

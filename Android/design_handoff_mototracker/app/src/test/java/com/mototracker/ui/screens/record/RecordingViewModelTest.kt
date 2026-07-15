@@ -3,6 +3,8 @@ package com.mototracker.ui.screens.record
 import app.cash.turbine.test
 import com.mototracker.R
 import com.mototracker.core.resource.StringResolver
+import com.mototracker.domain.fuel.FuelRangeColor
+import com.mototracker.domain.fuel.FuelRangeIndicator
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
@@ -43,6 +45,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -1034,6 +1037,108 @@ class RecordingViewModelTest {
 
         assertEquals("default currency should be PLN", "PLN", vm.uiState.value.currency)
     }
+
+    // ── I2 — reactive fuel config (grey icon fix) ────────────────────────────
+
+    @Test
+    fun `I2a bike configured before Start has tankCapacityL and GREEN icon after Start`() =
+        runTest(testDispatcher) {
+            val bike = Bike(
+                id = "bike-i2a",
+                name = "MT-07",
+                year = 2022,
+                plate = "MT 07",
+                status = BikeStatus.ACTIVE,
+                tankCapacityL = 15.0,
+                consumptionLper100km = 6.0,
+            )
+            val vm = buildViewModel(
+                settings = AppSettings(currentBikeId = "bike-i2a"),
+                bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            )
+            advanceTimeBy(300L) // allow combine flow to resolve bike data before Start
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(200L)
+
+            val metrics = vm.uiState.value.metrics
+            assertNotNull("tankCapacityL should be non-null when bike has it configured", metrics.tankCapacityL)
+            assertEquals(15.0, metrics.tankCapacityL!!, 0.001)
+            assertNotNull("remainingRangeKm should be non-null after Start", metrics.remainingRangeKm)
+            val fraction = metrics.remainingFuelL!! / metrics.tankCapacityL!!
+            val color = FuelRangeIndicator.colorFor(fraction, metrics.remainingRangeKm)
+            assertEquals("icon should be GREEN at session start with full tank", FuelRangeColor.GREEN, color)
+            vm.onEvent(RecordingEvent.Pause)
+        }
+
+    @Test
+    fun `I2b timing race — bike data resolves after Start and metrics recompute to non-null remaining`() =
+        runTest(testDispatcher) {
+            val bikeFlow = MutableStateFlow<List<Bike>>(emptyList())
+            val vm = buildViewModel(
+                settings = AppSettings(currentBikeId = "bike-race"),
+                bikeRepository = object : BikeRepository {
+                    override fun observeAll(): kotlinx.coroutines.flow.Flow<List<Bike>> = bikeFlow
+                    override suspend fun addBike(bike: Bike) {}
+                    override suspend fun deleteAll() {}
+                },
+            )
+            advanceTimeBy(200L)
+            vm.onEvent(RecordingEvent.Start) // Start BEFORE bike data resolves
+            advanceTimeBy(200L)
+
+            assertNull(
+                "tankCapacityL should be null before bike data resolves",
+                vm.uiState.value.metrics.tankCapacityL,
+            )
+
+            // Bike data resolves AFTER recording has started
+            bikeFlow.value = listOf(
+                Bike(
+                    id = "bike-race",
+                    name = "Late Bike",
+                    year = 2022,
+                    plate = "LATE",
+                    status = BikeStatus.ACTIVE,
+                    tankCapacityL = 15.0,
+                    consumptionLper100km = 6.0,
+                ),
+            )
+            advanceTimeBy(300L)
+
+            val metrics = vm.uiState.value.metrics
+            assertNotNull("tankCapacityL should be non-null after bike data resolves", metrics.tankCapacityL)
+            assertNotNull("remainingRangeKm should be non-null after bike data resolves", metrics.remainingRangeKm)
+            vm.onEvent(RecordingEvent.Pause)
+        }
+
+    @Test
+    fun `I2c bike with null tankCapacityL — metrics stay null and colorFor returns UNKNOWN`() =
+        runTest(testDispatcher) {
+            val bike = Bike(
+                id = "bike-notank",
+                name = "No Tank Bike",
+                year = 2021,
+                plate = "NT 001",
+                status = BikeStatus.ACTIVE,
+                tankCapacityL = null,
+                consumptionLper100km = 5.0,
+            )
+            val vm = buildViewModel(
+                settings = AppSettings(currentBikeId = "bike-notank"),
+                bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            )
+            advanceTimeBy(300L)
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(200L)
+
+            val metrics = vm.uiState.value.metrics
+            assertNull("tankCapacityL should be null when bike has no tank configured", metrics.tankCapacityL)
+            val fraction = if (metrics.tankCapacityL != null && metrics.remainingFuelL != null)
+                metrics.remainingFuelL!! / metrics.tankCapacityL!! else null
+            val color = FuelRangeIndicator.colorFor(fraction, metrics.remainingRangeKm)
+            assertEquals("icon should be UNKNOWN when no tank configured", FuelRangeColor.UNKNOWN, color)
+            vm.onEvent(RecordingEvent.Pause)
+        }
 
     // ── H4 — real-fuel consumption resolution ────────────────────────────────
 

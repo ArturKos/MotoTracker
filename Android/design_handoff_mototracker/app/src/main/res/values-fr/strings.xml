@@ -351,6 +351,7 @@
     <string name="action_fill_to_full">Faire le plein</string>
     <string name="label_fuel_remaining">Restant</string>
     <string name="label_fuel_range">Autonomie</string>
+    <string name="label_range_estimating">calcul de l\'autonomie</string>
     <string name="warn_low_fuel">⚠ Carburant faible</string>
 
     <!-- Minuterie de temps en mouvement (E5) -->

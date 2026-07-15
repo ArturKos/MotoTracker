@@ -381,6 +381,7 @@
     <string name="action_fill_to_full">Fill to full</string>
     <string name="label_fuel_remaining">Remaining</string>
     <string name="label_fuel_range">Range</string>
+    <string name="label_range_estimating">estimating range</string>
     <string name="warn_low_fuel">⚠ Low fuel</string>
 
     <!-- Moving-time timer (E5) -->

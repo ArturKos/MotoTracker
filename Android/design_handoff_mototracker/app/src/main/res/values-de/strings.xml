@@ -351,6 +351,7 @@
     <string name="action_fill_to_full">Volltanken</string>
     <string name="label_fuel_remaining">Restmenge</string>
     <string name="label_fuel_range">Reichweite</string>
+    <string name="label_range_estimating">Reichweite wird berechnet</string>
     <string name="warn_low_fuel">⚠ Wenig Kraftstoff</string>
 
     <!-- Fahrzeitanzeige (E5) -->

@@ -351,6 +351,7 @@
     <string name="action_fill_to_full">Zatankuj do pełna</string>
     <string name="label_fuel_remaining">Zostało</string>
     <string name="label_fuel_range">Zasięg</string>
+    <string name="label_range_estimating">szacowanie zasięgu jazdy</string>
     <string name="warn_low_fuel">⚠ Mało paliwa</string>
 
     <!-- Licznik czasu w ruchu (E5) -->

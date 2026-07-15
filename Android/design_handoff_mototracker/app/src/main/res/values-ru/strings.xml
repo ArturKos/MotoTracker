@@ -351,6 +351,7 @@
     <string name="action_fill_to_full">Заправить полный бак</string>
     <string name="label_fuel_remaining">Остаток</string>
     <string name="label_fuel_range">Запас хода</string>
+    <string name="label_range_estimating">расчёт запаса хода</string>
     <string name="warn_low_fuel">⚠ Мало топлива</string>
 
     <!-- Таймер времени в движении (E5) -->

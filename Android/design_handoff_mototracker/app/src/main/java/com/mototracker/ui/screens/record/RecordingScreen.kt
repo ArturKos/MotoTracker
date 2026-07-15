@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -54,7 +53,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -237,18 +235,20 @@ fun RecordingContent(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 8.dp),
                 ) {
-                    // ── Compact chip row: GPS sat-count · weather · wind rose ──────────
+                    // ── Compact chip row: GPS sat-count (left) · range · weather ─────
+                    // WindRose removed — E6 compass tile already shows heading.
+                    // No separate sync/offline chip was present in this row (verified).
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
+                        RangeChip(remainingRangeKm = state.metrics.remainingRangeKm)
                         Spacer(Modifier.weight(1f))
                         WeatherChip(weather = state.weather)
-                        Spacer(Modifier.width(8.dp))
-                        WindRose(headingDeg = displayHeadingDeg)
                     }
                     Spacer(Modifier.height(8.dp))
                     SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg, sizing = sizing)
@@ -333,6 +333,24 @@ private fun WeatherChip(weather: WeatherInfo?, modifier: Modifier = Modifier) {
     InfoChip(text = text, modifier = modifier)
 }
 
+/**
+ * Compact chip showing the remaining driving range derived from the fuel model.
+ *
+ * Displays [label_fuel_range] + formatted km when range is available, or
+ * [label_range_estimating] when the fuel/consumption data is not yet sufficient.
+ *
+ * @param remainingRangeKm Raw remaining-range kilometres from [RecordingMetrics], or null.
+ */
+@Composable
+private fun RangeChip(remainingRangeKm: Double?, modifier: Modifier = Modifier) {
+    val text = when (val chipState = rangeChipState(remainingRangeKm)) {
+        is RangeChipState.Estimating -> stringResource(R.string.label_range_estimating)
+        is RangeChipState.Value ->
+            "${stringResource(R.string.label_fuel_range)} ${chipState.km} ${stringResource(R.string.unit_km)}"
+    }
+    InfoChip(text = text, modifier = modifier)
+}
+
 @Composable
 private fun InfoChip(text: String, modifier: Modifier = Modifier) {
     Surface(
@@ -347,56 +365,6 @@ private fun InfoChip(text: String, modifier: Modifier = Modifier) {
             color = MotoTracker.colors.text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
         )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Wind rose
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Small wind-rose / heading indicator rotated to reflect the current GPS bearing.
- *
- * @param headingDeg GPS bearing in degrees (0–360, 0 = North).
- */
-@Composable
-private fun WindRose(headingDeg: Float, modifier: Modifier = Modifier) {
-    val accent = MotoTracker.colors.accent
-    val dim = MotoTracker.colors.dim
-
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(MotoTracker.colors.panel.copy(alpha = 0.85f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(
-            Modifier
-                .size(36.dp)
-                .rotate(headingDeg),
-        ) {
-            val cx = size.width / 2
-            val cy = size.height / 2
-            val r = size.minDimension / 2
-
-            // North arrow (accent colour)
-            drawLine(
-                color = accent,
-                start = Offset(cx, cy),
-                end = Offset(cx, cy - r),
-                strokeWidth = 3.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-            // South arrow (dim colour)
-            drawLine(
-                color = dim,
-                start = Offset(cx, cy),
-                end = Offset(cx, cy + r * 0.7f),
-                strokeWidth = 2.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
     }
 }
 

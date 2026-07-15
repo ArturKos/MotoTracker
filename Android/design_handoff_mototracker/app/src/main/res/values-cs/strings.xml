@@ -351,6 +351,7 @@
     <string name="action_fill_to_full">Natankovat plnou nádrž</string>
     <string name="label_fuel_remaining">Zbývá</string>
     <string name="label_fuel_range">Dojezd</string>
+    <string name="label_range_estimating">odhadování dojezdu</string>
     <string name="warn_low_fuel">⚠ Málo paliva</string>
 
     <!-- Časovač pohybu (E5) -->

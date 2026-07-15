@@ -170,6 +170,9 @@ private class FakeRefuelRepository(initialRefuels: List<RefuelEvent> = emptyList
         deleted += id
         _flow.value = _flow.value.filter { it.id != id }
     }
+
+    override fun observeAllForBike(bikeId: String): Flow<List<RefuelEvent>> =
+        MutableStateFlow(emptyList())
 }
 
 private class FakeTimeProvider(private val nowMs: Long = 9_000_000L) : TimeProvider {

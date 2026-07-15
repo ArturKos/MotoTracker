@@ -53,4 +53,20 @@ interface RefuelEventDao {
      */
     @Query("DELETE FROM refuel_event WHERE routeId = :routeId")
     suspend fun deleteForRoute(routeId: String)
+
+    /**
+     * Returns a live stream of all refuel events for routes assigned to [bikeId],
+     * ordered by route date (ascending) then event time (ascending).
+     *
+     * Used to build the odometer-ordered fuel-fill ledger for consumption calculation (H4).
+     *
+     * @param bikeId UUID of the bike whose route refuels should be returned.
+     */
+    @Query("""
+        SELECT re.* FROM refuel_event re
+        INNER JOIN routes r ON r.id = re.routeId
+        WHERE r.bikeId = :bikeId
+        ORDER BY r.dateEpochMs ASC, re.epochMs ASC
+    """)
+    fun observeForBikeRoutes(bikeId: String): Flow<List<RefuelEventEntity>>
 }

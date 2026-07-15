@@ -36,4 +36,16 @@ interface RefuelRepository {
      * @param id Primary key of the event to remove.
      */
     suspend fun deleteRefuel(id: Long)
+
+    /**
+     * Returns a live stream of all refuel events for routes assigned to [bikeId],
+     * ordered by route date then event time (both ascending).
+     *
+     * Used to build the odometer-ordered fuel-fill ledger for
+     * [com.mototracker.domain.fuel.FuelConsumptionCalculator] (H4). Re-emits whenever
+     * a refuel event or the parent route row changes.
+     *
+     * @param bikeId UUID of the bike.
+     */
+    fun observeAllForBike(bikeId: String): Flow<List<RefuelEvent>>
 }

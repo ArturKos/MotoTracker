@@ -43,6 +43,9 @@ class RefuelRepositoryImpl @Inject constructor(
         dao.deleteById(id)
     }
 
+    override fun observeAllForBike(bikeId: String): Flow<List<RefuelEvent>> =
+        dao.observeForBikeRoutes(bikeId).map { entities -> entities.map { it.toDomain() } }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private fun RefuelEventEntity.toDomain() = RefuelEvent(

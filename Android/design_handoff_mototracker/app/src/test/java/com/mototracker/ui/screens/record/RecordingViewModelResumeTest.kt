@@ -143,6 +143,8 @@ private class FakeResumeRefuelRepository : RefuelRepository {
     override fun observeRefuels(routeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> =
         kotlinx.coroutines.flow.MutableStateFlow(emptyList())
     override suspend fun deleteRefuel(id: Long) {}
+    override fun observeAllForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> =
+        kotlinx.coroutines.flow.MutableStateFlow(emptyList())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -45,6 +45,9 @@ class RefuelRepositoryImplTest {
             store.removeAll { it.routeId == routeId }
             _flow.value = store.toList()
         }
+
+        override fun observeForBikeRoutes(bikeId: String): Flow<List<RefuelEventEntity>> =
+            kotlinx.coroutines.flow.flowOf(emptyList())
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

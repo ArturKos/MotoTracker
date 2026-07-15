@@ -69,9 +69,16 @@ private class FakeHeadingSensorSource(
     override val headings: Flow<Float> = headingFlow
 }
 
-private class FakeRouteRepository : RouteRepository {
+private class FakeRouteRepository(
+    initialRoutes: List<Route> = emptyList(),
+) : RouteRepository {
     val saved = mutableListOf<Route>()
     private val allFlow = MutableStateFlow<List<Route>>(emptyList())
+
+    init {
+        saved.addAll(initialRoutes)
+        allFlow.value = initialRoutes
+    }
 
     override suspend fun save(route: Route) {
         saved += route
@@ -161,13 +168,17 @@ private class FakeStringResolver : StringResolver {
     override fun getString(resId: Int, vararg args: Any): String = getString(resId)
 }
 
-private class FakeRefuelRepository : RefuelRepository {
+private class FakeRefuelRepository(
+    private val refuelsByBike: Map<String, List<RefuelEvent>> = emptyMap(),
+) : RefuelRepository {
     val added = mutableListOf<RefuelEvent>()
     override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {
         added += RefuelEvent(id = (added.size + 1).toLong(), routeId = routeId, epochMs = epochMs, litres = litres, pricePerL = pricePerL)
     }
     override fun observeRefuels(routeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> = MutableStateFlow(emptyList())
     override suspend fun deleteRefuel(id: Long) {}
+    override fun observeAllForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<RefuelEvent>> =
+        MutableStateFlow(refuelsByBike[bikeId] ?: emptyList())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1021,7 +1032,116 @@ class RecordingViewModelTest {
         assertEquals("default currency should be PLN", "PLN", vm.uiState.value.currency)
     }
 
+    // ── H4 — real-fuel consumption resolution ────────────────────────────────
+
+    @Test
+    fun `H4 consumption resolved from ledger when 2+ fills exist`() = runTest(testDispatcher) {
+        // Two routes for the bike: 300km each.
+        // Refuels: route-1 end = 15L (anchor), route-2 end = 12L (top-up after 300km).
+        // Ledger fills: FuelFill(300, 15), FuelFill(600, 12)
+        // expected = 12 / (600 - 300) * 100 = 4.0 L/100km
+        val bikeId = "bike-h4"
+        val bike = Bike(
+            id = bikeId, name = "MT-07", year = 2022, plate = "AA001",
+            status = com.mototracker.data.local.entity.BikeStatus.ACTIVE,
+            tankCapacityL = 17.0, consumptionLper100km = null,
+        )
+        val route1 = makeTestRoute(id = "r1", bikeId = bikeId, km = 300.0, dateEpochMs = 1000L)
+        val route2 = makeTestRoute(id = "r2", bikeId = bikeId, km = 300.0, dateEpochMs = 2000L)
+        val refuels = listOf(
+            RefuelEvent(id = 1, routeId = "r1", epochMs = 1100L, litres = 15.0, pricePerL = 6.0),
+            RefuelEvent(id = 2, routeId = "r2", epochMs = 2100L, litres = 12.0, pricePerL = 6.0),
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = bikeId),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            routeRepository = FakeRouteRepository(listOf(route1, route2)),
+            refuelRepository = FakeRefuelRepository(mapOf(bikeId to refuels)),
+        )
+        advanceTimeBy(300L)
+
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+
+        // With tankCapacity=17 and consumption=4.0: remainingRangeKm = 17/4*100 = 425
+        val remaining = vm.uiState.value.metrics.remainingRangeKm
+        assertNotNull("remainingRangeKm should be non-null with tank configured", remaining)
+        assertEquals("consumption from ledger should be 4.0 → range=425km", 425.0, remaining!!, 1.0)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `H4 consumption falls back to configured when ledger insufficient`() = runTest(testDispatcher) {
+        // One route with one refuel — only 1 fill, not enough for tank-to-tank.
+        // Falls back to configured 7.0 L/100km.
+        val bikeId = "bike-h4-cfg"
+        val bike = Bike(
+            id = bikeId, name = "CB500F", year = 2020, plate = "BB002",
+            status = com.mototracker.data.local.entity.BikeStatus.ACTIVE,
+            tankCapacityL = 17.0, consumptionLper100km = 7.0,
+        )
+        val route1 = makeTestRoute(id = "r1b", bikeId = bikeId, km = 300.0, dateEpochMs = 1000L)
+        val refuels = listOf(
+            RefuelEvent(id = 1, routeId = "r1b", epochMs = 1100L, litres = 15.0, pricePerL = 6.0),
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = bikeId),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            routeRepository = FakeRouteRepository(listOf(route1)),
+            refuelRepository = FakeRefuelRepository(mapOf(bikeId to refuels)),
+        )
+        advanceTimeBy(300L)
+
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+
+        // With tankCapacity=17 and consumption=7.0: remainingRangeKm = 17/7*100 ≈ 242.86
+        val remaining = vm.uiState.value.metrics.remainingRangeKm
+        assertNotNull("remainingRangeKm should be non-null with tank configured", remaining)
+        assertEquals("configured consumption 7.0 → range≈242.86km", 17.0 / 7.0 * 100.0, remaining!!, 1.0)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
+    @Test
+    fun `H4 consumption defaults to 5-0 when both ledger and configured are absent`() = runTest(testDispatcher) {
+        // No routes, no configured consumption → ultimate default 5.0.
+        val bikeId = "bike-h4-def"
+        val bike = Bike(
+            id = bikeId, name = "NoFuel", year = 2021, plate = "CC003",
+            status = com.mototracker.data.local.entity.BikeStatus.ACTIVE,
+            tankCapacityL = 17.0, consumptionLper100km = null,
+        )
+        val vm = buildViewModel(
+            settings = AppSettings(currentBikeId = bikeId),
+            bikeRepository = FakeBikeRepository(bikes = listOf(bike)),
+            routeRepository = FakeRouteRepository(),
+            refuelRepository = FakeRefuelRepository(),
+        )
+        advanceTimeBy(300L)
+
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+
+        // With tankCapacity=17 and consumption=5.0 (default): remainingRangeKm = 17/5*100 = 340
+        val remaining = vm.uiState.value.metrics.remainingRangeKm
+        assertNotNull("remainingRangeKm should be non-null with tank configured", remaining)
+        assertEquals("default consumption 5.0 → range=340km", 340.0, remaining!!, 1.0)
+        vm.onEvent(RecordingEvent.Pause)
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private fun makeTestRoute(
+        id: String,
+        bikeId: String?,
+        km: Double,
+        dateEpochMs: Long,
+    ) = Route(
+        id = id, name = "Test Route", dateEpochMs = dateEpochMs, bikeId = bikeId,
+        km = km, durSec = 3600L, avg = km / 1.0, max = 120.0, lean = 30.0,
+        elev = 100.0, fuel = 0.0, synced = false, wxJson = null,
+        pathJson = null, speedJson = null, elevProfileJson = null, notes = null,
+    )
 
     private fun buildViewModel(
         online: Boolean = true,

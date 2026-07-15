@@ -9,8 +9,11 @@ import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
+import com.mototracker.domain.fuel.FuelConsumptionCalculator
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
@@ -28,6 +31,7 @@ import com.mototracker.ui.map.GeoCoord
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -38,7 +42,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -84,6 +91,7 @@ import javax.inject.Inject
  * @param sessionStore      Durable storage for the in-progress recording session snapshot (B20).
  * @param refuelRepository  Persistence for per-route refuel events (G5).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
     private val locationClient: LocationClient,
@@ -155,16 +163,42 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             carBridge.commands.collect { event -> onEvent(event) }
         }
-        // Track the current bike's fuel properties so doStart() passes the right values to the engine.
-        // Also resolves fuelPricePerL and currency for the live fuel-cost readout (G2).
-        combine(settingsSource.settings, bikeRepository.observeAll()) { s, bikes ->
+        // H4: Resolve per-bike fuel consumption from the refuel ledger; fall back to the
+        // configured L/100km value, then to 5.0 when neither is available.
+        // Also threads fuelPricePerL and currency into uiState for the live cost readout (G2).
+        combine(
+            settingsSource.settings,
+            bikeRepository.observeAll(),
+            routeRepository.observeSummaries(),
+        ) { s, bikes, summaries ->
             val bike = bikes.find { it.id == s.currentBikeId }
-            BikeSnapshot(
-                consumption = bike?.consumptionLper100km ?: 5.0,
-                tankCapacity = bike?.tankCapacityL,
-                fuelPricePerL = bike?.fuelPricePerL,
+            BikeData(
+                bikeId = s.currentBikeId,
+                bike = bike,
+                bikeSummaries = summaries
+                    .filter { it.bikeId == s.currentBikeId }
+                    .sortedBy { it.dateEpochMs },
                 currency = s.currency,
             )
+        }.flatMapLatest { bd ->
+            val refuelsFlow = bd.bikeId?.let { refuelRepository.observeAllForBike(it) }
+                ?: flowOf(emptyList())
+            refuelsFlow.map { refuels ->
+                val routeRefuelMap = refuels.groupBy { it.routeId }
+                val ledgerInput = bd.bikeSummaries.map { r ->
+                    r.km to (routeRefuelMap[r.id] ?: emptyList())
+                }
+                val fills = FuelConsumptionCalculator.fillsFromLedger(ledgerInput)
+                BikeSnapshot(
+                    consumption = FuelConsumptionCalculator.consumptionLper100km(
+                        fills,
+                        bd.bike?.consumptionLper100km,
+                    ) ?: 5.0,
+                    tankCapacity = bd.bike?.tankCapacityL,
+                    fuelPricePerL = bd.bike?.fuelPricePerL,
+                    currency = bd.currency,
+                )
+            }
         }.onEach { bs ->
             currentBikeConsumption = bs.consumption
             currentBikeTankCapacity = bs.tankCapacity
@@ -515,5 +549,13 @@ private data class BikeSnapshot(
     val consumption: Double,
     val tankCapacity: Double?,
     val fuelPricePerL: Double?,
+    val currency: String,
+)
+
+/** Intermediate holder produced by the 3-way combine before refuels are fetched (H4). */
+private data class BikeData(
+    val bikeId: String?,
+    val bike: Bike?,
+    val bikeSummaries: List<RouteSummaryModel>,
     val currency: String,
 )

@@ -70,12 +70,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.domain.fuel.FuelCostCalculator
+import com.mototracker.domain.fuel.FuelRangeColor
+import com.mototracker.domain.fuel.FuelRangeIndicator
 import com.mototracker.domain.recording.RecordingControl
 import com.mototracker.domain.recording.RecordingControls
+import com.mototracker.domain.recording.RecordingMetrics
 import com.mototracker.service.RecordingService
 import com.mototracker.ui.permissions.AppFeaturePermission
 import com.mototracker.ui.permissions.PermissionDeniedBanner
 import com.mototracker.ui.permissions.rememberFeaturePermission
+import com.mototracker.ui.theme.FuelDangerRed
 import com.mototracker.ui.theme.MotoTracker
 import java.util.Locale
 import kotlin.math.cos
@@ -264,6 +268,7 @@ fun RecordingContent(
                     } else {
                         RecordingControlRow(
                             phase = state.phase,
+                            metrics = state.metrics,
                             onEvent = onEvent,
                         )
                     }
@@ -825,18 +830,36 @@ private fun SmallMetricTile(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Maps a [FuelRangeColor] band to the corresponding Compose [Color] for the fuel icon tint.
+ *
+ * GREEN → accent (theme primary), YELLOW → accent2 (theme warning hue),
+ * RED → [FuelDangerRed] (fixed across themes), UNKNOWN → dim (neutral grey).
+ */
+@Composable
+private fun fuelRangeTint(color: FuelRangeColor): androidx.compose.ui.graphics.Color = when (color) {
+    FuelRangeColor.GREEN   -> MotoTracker.colors.accent
+    FuelRangeColor.YELLOW  -> MotoTracker.colors.accent2
+    FuelRangeColor.RED     -> FuelDangerRed
+    FuelRangeColor.UNKNOWN -> MotoTracker.colors.dim
+}
+
+/**
  * Compact icon-button control strip driven by [RecordingControls.forPhase].
  *
  * Idle → [START]. Recording → [PAUSE, STOP, FILL_TO_FULL]. Paused → [RESUME, STOP, FILL_TO_FULL].
  * FILL_TO_FULL is always shown in Recording and Paused (unconditional — H2). Each icon carries a
  * contentDescription string resource for a11y and Compose-UI test discovery.
  *
+ * The fuel icon (FILL_TO_FULL) is tinted by remaining fuel via [FuelRangeIndicator] (H3).
+ *
  * @param phase   Current recording phase from [RecordingUiState].
+ * @param metrics Live recording metrics used to derive the fuel-icon tint colour.
  * @param onEvent Callback for dispatching [RecordingEvent]s to the ViewModel.
  */
 @Composable
 private fun RecordingControlRow(
     phase: RecordingPhase,
+    metrics: RecordingMetrics,
     onEvent: (RecordingEvent) -> Unit,
 ) {
     val controls = RecordingControls.forPhase(phase)
@@ -897,15 +920,23 @@ private fun RecordingControlRow(
                         contentDescription = stringResource(R.string.btn_finish),
                     )
                 }
-                RecordingControl.FILL_TO_FULL -> OutlinedIconButton(
-                    onClick = { onEvent(RecordingEvent.ShowRefuelDialog) },
-                    modifier = Modifier.size(52.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.LocalGasStation,
-                        contentDescription = stringResource(R.string.action_fill_to_full),
-                        tint = MotoTracker.colors.accent,
+                RecordingControl.FILL_TO_FULL -> {
+                    val fraction = metrics.tankCapacityL
+                        ?.takeIf { it > 0.0 }
+                        ?.let { cap -> metrics.remainingFuelL?.let { it / cap } }
+                    val fuelIconTint = fuelRangeTint(
+                        FuelRangeIndicator.colorFor(fraction, metrics.remainingRangeKm)
                     )
+                    OutlinedIconButton(
+                        onClick = { onEvent(RecordingEvent.ShowRefuelDialog) },
+                        modifier = Modifier.size(52.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocalGasStation,
+                            contentDescription = stringResource(R.string.action_fill_to_full),
+                            tint = fuelIconTint,
+                        )
+                    }
                 }
             }
         }

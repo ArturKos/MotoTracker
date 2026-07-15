@@ -60,6 +60,9 @@ data class MotoColors(
 internal val OnAccentFixed = Color(0xFF05100E)
 internal val OnAccent2Fixed = Color(0xFF1A0A05)
 
+/** Fixed danger-red for the fuel-range indicator RED band. Constant across all three themes. */
+internal val FuelDangerRed = Color(0xFFFF3B30)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // COCKPIT raw tokens
 // ─────────────────────────────────────────────────────────────────────────────

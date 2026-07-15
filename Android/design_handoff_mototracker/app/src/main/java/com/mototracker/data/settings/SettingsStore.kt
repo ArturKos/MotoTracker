@@ -79,4 +79,12 @@ interface SettingsStore : WritableSettingsSource {
      * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
      */
     suspend fun setCurrency(currency: String) {}
+
+    /**
+     * Persists the BLE waves (pomachania) enabled flag.
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setWavesEnabled(value: Boolean) {}
 }

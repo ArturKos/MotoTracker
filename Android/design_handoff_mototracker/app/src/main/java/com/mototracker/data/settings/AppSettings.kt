@@ -28,6 +28,10 @@ package com.mototracker.data.settings
  * @param osrmBaseUrl         Base URL of the OSRM map-matching instance used for GPS road-correction.
  *                            No Settings-screen UI yet (B13); persisted for A10 infrastructure.
  * @param currency            ISO 4217 currency code used for fuel cost display, e.g. "PLN" or "EUR".
+ * @param wavesEnabled        Whether the BLE "waves" (pomachania) feature is active.
+ *                            When `false`, [com.mototracker.service.RecordingService] skips
+ *                            BLE advertise/scan and the Riders waves section is hidden.
+ *                            Defaults to `true` to preserve the existing always-on behaviour.
  */
 data class AppSettings(
     val offline: Boolean = false,
@@ -50,4 +54,5 @@ data class AppSettings(
     val debugLoggingEnabled: Boolean = false,
     val osrmBaseUrl: String = "http://192.168.1.142:5001",
     val currency: String = "PLN",
+    val wavesEnabled: Boolean = true,
 )

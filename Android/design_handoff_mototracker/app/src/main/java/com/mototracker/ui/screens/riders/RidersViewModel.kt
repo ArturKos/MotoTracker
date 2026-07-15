@@ -99,6 +99,7 @@ class RidersViewModel @Inject constructor(
             feedAvailable = feedAvailable,
             feed = feed.map { it.toUi() },
             waves = waves.map { it.toUi() },
+            wavesEnabled = settings.wavesEnabled,
         )
     }
 

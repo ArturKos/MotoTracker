@@ -80,6 +80,7 @@ sealed interface RidersEvent {
  * @param feedAvailable  `true` when online AND offline-only mode is off — gates the feed section.
  * @param feed           Live-feed event rows; only shown when [feedAvailable] is `true`.
  * @param waves          Bluetooth wave rows (from DB — empty until BT is real, 🔬).
+ * @param wavesEnabled   `true` when the BLE waves setting is on; hides the waves section when `false`.
  */
 data class RidersUiState(
     val members: List<GroupMemberUi> = emptyList(),
@@ -87,4 +88,5 @@ data class RidersUiState(
     val feedAvailable: Boolean = false,
     val feed: List<FeedEventUi> = emptyList(),
     val waves: List<WaveUi> = emptyList(),
+    val wavesEnabled: Boolean = true,
 )

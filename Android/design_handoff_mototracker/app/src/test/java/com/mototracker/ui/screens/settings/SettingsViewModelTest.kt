@@ -64,6 +64,7 @@ private class FakeSettingsStore(
     var lastBcOrigin: String? = null
     var lastBcSocial: String? = null
     var lastCurrency: String? = null
+    var lastWavesEnabled: Boolean? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -86,6 +87,7 @@ private class FakeSettingsStore(
     override suspend fun setBcSocial(social: String) { lastBcSocial = social; _flow.value = _flow.value.copy(bcSocial = social) }
     override suspend fun setDebugLoggingEnabled(value: Boolean) { _flow.value = _flow.value.copy(debugLoggingEnabled = value) }
     override suspend fun setCurrency(currency: String) { lastCurrency = currency; _flow.value = _flow.value.copy(currency = currency) }
+    override suspend fun setWavesEnabled(value: Boolean) { lastWavesEnabled = value; _flow.value = _flow.value.copy(wavesEnabled = value) }
 }
 
 private class FakeBikeRepository : BikeRepository {
@@ -861,6 +863,47 @@ class SettingsViewModelTest {
         vm.uiState.test {
             val state = awaitItem()
             assertEquals("EUR", state.currency)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── wavesEnabled (J3) ─────────────────────────────────────────────────────
+
+    @Test
+    fun `wavesEnabled defaults to true in initial uiState`() {
+        assertTrue(vm.uiState.value.wavesEnabled)
+    }
+
+    @Test
+    fun `setWavesEnabled false persists to store and emits false in uiState`() = runTest {
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.setWavesEnabled(false)
+            val state = awaitItem()
+            assertFalse(state.wavesEnabled)
+            assertEquals(false, store.lastWavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setWavesEnabled true persists to store and emits true in uiState`() = runTest {
+        store.emit(AppSettings(wavesEnabled = false))
+        vm.uiState.test {
+            awaitItem() // consume current false state
+            vm.setWavesEnabled(true)
+            val state = awaitItem()
+            assertTrue(state.wavesEnabled)
+            assertEquals(true, store.lastWavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `store emit wavesEnabled=false propagates to uiState`() = runTest {
+        store.emit(AppSettings(wavesEnabled = false))
+        vm.uiState.test {
+            assertFalse(awaitItem().wavesEnabled)
             cancelAndIgnoreRemainingEvents()
         }
     }

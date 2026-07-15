@@ -241,6 +241,7 @@ fun SettingsScreen(
         onClearLogs = viewModel::clearRideLogs,
         onAutoPause = viewModel::setAutoPause,
         onKeepScreenOn = viewModel::setKeepScreenOn,
+        onWavesEnabled = viewModel::setWavesEnabled,
         onExportBackup = { exportLauncher.launch("mototracker-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
         onOpenHelp = onOpenHelp,
@@ -278,6 +279,7 @@ fun SettingsScreen(
  * @param onClearLogs          Called when the user taps Clear ride logs.
  * @param onAutoPause          Called when the Auto-pause switch changes.
  * @param onKeepScreenOn       Called when the Keep-screen-on switch changes.
+ * @param onWavesEnabled       Called when the BLE waves (pomachania) switch changes.
  * @param onOpenHelp           Called when the user taps the Help row; navigates to the Help screen.
  * @param modifier             Standard Compose modifier.
  */
@@ -309,6 +311,7 @@ fun SettingsContent(
     onClearLogs: () -> Unit = {},
     onAutoPause: (Boolean) -> Unit = {},
     onKeepScreenOn: (Boolean) -> Unit = {},
+    onWavesEnabled: (Boolean) -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
     onOpenHelp: () -> Unit = {},
@@ -485,6 +488,12 @@ fun SettingsContent(
                     item {
                         SectionDivider()
                         SectionHeader(title = stringResource(R.string.section_broadcast))
+                        LabeledSwitch(
+                            label = stringResource(R.string.settings_waves_enabled),
+                            desc = stringResource(R.string.settings_waves_enabled_desc),
+                            checked = state.wavesEnabled,
+                            onChecked = onWavesEnabled,
+                        )
                         BroadcastSection(
                             state = state,
                             onSave = onSaveBroadcastProfile,

@@ -201,30 +201,33 @@ fun RidersContent(
         item { Spacer(Modifier.height(20.dp)) }
 
         // ── WAVES section ──────────────────────────────────────────────────────
-        item {
-            SectionHeader(
-                title = stringResource(R.string.riders_waves_title).uppercase(),
-                badge = if (wavesEnabled) stringResource(R.string.label_works_offline) else null,
-                badgeAccent = MotoTracker.colors.accent,
-            )
-        }
+        // Hidden entirely when the waves setting is disabled in Settings.
+        if (state.wavesEnabled) {
+            item {
+                SectionHeader(
+                    title = stringResource(R.string.riders_waves_title).uppercase(),
+                    badge = if (wavesEnabled) stringResource(R.string.label_works_offline) else null,
+                    badgeAccent = MotoTracker.colors.accent,
+                )
+            }
 
-        when {
-            !wavesEnabled -> {
-                item {
-                    PermissionDeniedBanner(
-                        text = stringResource(R.string.perm_bt_rationale),
-                        onRetry = onRequestWaves,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
+            when {
+                !wavesEnabled -> {
+                    item {
+                        PermissionDeniedBanner(
+                            text = stringResource(R.string.perm_bt_rationale),
+                            onRetry = onRequestWaves,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
                 }
-            }
-            state.waves.isEmpty() -> {
-                item { Spacer(Modifier.height(8.dp)) }
-            }
-            else -> {
-                items(state.waves) { wave ->
-                    WaveRow(wave = wave)
+                state.waves.isEmpty() -> {
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
+                else -> {
+                    items(state.waves) { wave ->
+                        WaveRow(wave = wave)
+                    }
                 }
             }
         }

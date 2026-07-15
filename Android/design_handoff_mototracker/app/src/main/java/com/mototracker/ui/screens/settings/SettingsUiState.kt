@@ -77,6 +77,8 @@ data class SyncQueueItemUi(
  * @param rideLogUsedBytes     Diagnostics: total bytes consumed by ride-log files in
  *                             external storage; 0 when logging is disabled or no logs exist.
  * @param currency             ISO 4217 currency code used for fuel cost display, e.g. "PLN".
+ * @param wavesEnabled         Whether the BLE waves (pomachania) feature is enabled.
+ *                             When `false`, the Settings toggle is off and no BLE advertise/scan occurs.
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -104,4 +106,5 @@ data class SettingsUiState(
     val debugLoggingEnabled: Boolean = false,
     val rideLogUsedBytes: Long = 0L,
     val currency: String = "PLN",
+    val wavesEnabled: Boolean = true,
 )

@@ -318,6 +318,9 @@
     <!-- État de diffusion BLE (B21) -->
     <string name="ble_unsupported">Saluts Bluetooth non pris en charge sur cet appareil</string>
     <string name="ble_scanning_riders">Recherche de pilotes à proximité…</string>
+    <!-- Paramètre activer/désactiver les saluts BLE (J3) -->
+    <string name="settings_waves_enabled">Saluts (Bluetooth)</string>
+    <string name="settings_waves_enabled_desc">Diffuser votre trajet aux pilotes à proximité</string>
 
     <!-- Avis de session expirée sur l\'écran de connexion (B22) -->
     <string name="login_session_expired">Session expirée — veuillez vous reconnecter</string>

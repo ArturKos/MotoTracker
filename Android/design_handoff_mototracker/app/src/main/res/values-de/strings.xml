@@ -318,6 +318,9 @@
     <!-- BLE-Wellen-Sendestatus (B21) -->
     <string name="ble_unsupported">Bluetooth-Winken auf diesem Gerät nicht unterstützt</string>
     <string name="ble_scanning_riders">Suche nach Fahrern in der Nähe…</string>
+    <!-- BLE-Wellen-Einstellung aktivieren/deaktivieren (J3) -->
+    <string name="settings_waves_enabled">Winken (Bluetooth)</string>
+    <string name="settings_waves_enabled_desc">Fahrt an Fahrer in der Nähe senden</string>
 
     <!-- Hinweis auf abgelaufene Sitzung im Anmeldebildschirm (B22) -->
     <string name="login_session_expired">Sitzung abgelaufen — bitte erneut anmelden</string>

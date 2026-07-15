@@ -341,6 +341,39 @@ class RidersViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    // ── wavesEnabled (J3) ─────────────────────────────────────────────────────
+
+    @Test
+    fun `wavesEnabled defaults to true when settings emit default AppSettings`() = runTest {
+        val vm = buildVm(settingsSource = FakeSettingsSource(AppSettings()))
+        vm.uiState.test {
+            assertTrue(awaitItem().wavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `wavesEnabled is false when settings emit wavesEnabled=false`() = runTest {
+        val source = FakeSettingsSource(AppSettings(wavesEnabled = false))
+        val vm = buildVm(settingsSource = source)
+        vm.uiState.test {
+            assertFalse(awaitItem().wavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `wavesEnabled reacts to settings update`() = runTest {
+        val source = FakeSettingsSource(AppSettings(wavesEnabled = true))
+        val vm = buildVm(settingsSource = source)
+        vm.uiState.test {
+            assertTrue(awaitItem().wavesEnabled)
+            source.emit(AppSettings(wavesEnabled = false))
+            assertFalse(awaitItem().wavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

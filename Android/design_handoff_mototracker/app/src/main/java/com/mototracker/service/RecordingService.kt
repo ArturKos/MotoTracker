@@ -87,6 +87,7 @@ class RecordingService : Service() {
         serviceScope.launch {
             val shortId = getOrCreateShortId()
             val settings = settingsStore.settings.first()
+            if (!settings.wavesEnabled) return@launch
             val bikes = bikeRepository.observeAll().first()
             val bikeName = bikes.firstOrNull { it.id == settings.currentBikeId }?.name ?: ""
             val payload = WavePayload(shortId = shortId, nick = settings.bcName, bike = bikeName)

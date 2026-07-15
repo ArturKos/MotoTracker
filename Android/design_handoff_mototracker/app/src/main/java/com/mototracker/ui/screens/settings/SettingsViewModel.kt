@@ -180,6 +180,7 @@ class SettingsViewModel @Inject constructor(
             debugLoggingEnabled = settings.debugLoggingEnabled,
             rideLogUsedBytes = rideLogUsedBytes,
             currency = settings.currency,
+            wavesEnabled = settings.wavesEnabled,
         )
     }
 
@@ -365,6 +366,11 @@ class SettingsViewModel @Inject constructor(
     /** Persists the keep-screen-on preference. */
     fun setKeepScreenOn(value: Boolean) {
         viewModelScope.launch { settingsStore.setKeepScreenOn(value) }
+    }
+
+    /** Persists the BLE waves (pomachania) enabled flag. */
+    fun setWavesEnabled(value: Boolean) {
+        viewModelScope.launch { settingsStore.setWavesEnabled(value) }
     }
 
     /** Persists the diagnostic ride-logging enabled flag. */

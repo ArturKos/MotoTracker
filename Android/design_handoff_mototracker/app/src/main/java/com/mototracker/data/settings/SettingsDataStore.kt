@@ -49,6 +49,7 @@ class SettingsDataStore @Inject constructor(
         val DEBUG_LOGGING_ENABLED = booleanPreferencesKey("debug_logging_enabled")
         val OSRM_BASE_URL = stringPreferencesKey("osrm_base_url")
         val CURRENCY = stringPreferencesKey("currency")
+        val WAVES_ENABLED = booleanPreferencesKey("waves_enabled")
     }
 
     private val defaults = AppSettings()
@@ -76,6 +77,7 @@ class SettingsDataStore @Inject constructor(
             debugLoggingEnabled = prefs[Keys.DEBUG_LOGGING_ENABLED] ?: defaults.debugLoggingEnabled,
             osrmBaseUrl = prefs[Keys.OSRM_BASE_URL] ?: defaults.osrmBaseUrl,
             currency = prefs[Keys.CURRENCY] ?: defaults.currency,
+            wavesEnabled = prefs[Keys.WAVES_ENABLED] ?: defaults.wavesEnabled,
         )
     }
 
@@ -184,5 +186,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the ISO 4217 currency code used for fuel cost display. */
     override suspend fun setCurrency(currency: String) {
         dataStore.edit { it[Keys.CURRENCY] = currency }
+    }
+
+    /** Persists the BLE waves (pomachania) enabled flag. */
+    override suspend fun setWavesEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.WAVES_ENABLED] = value }
     }
 }

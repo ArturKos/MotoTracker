@@ -8,6 +8,8 @@ import com.mototracker.domain.fuel.FuelRangeColor
 import com.mototracker.domain.fuel.FuelRangeIndicator
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
+import com.mototracker.data.location.GnssSatelliteCount
+import com.mototracker.data.location.GnssStatusClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.local.entity.BikeStatus
@@ -62,13 +64,17 @@ import org.junit.Test
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Fake [RideLocationCollector] backed by a controllable [MutableSharedFlow].
+ * Fake [RideLocationCollector] backed by controllable [MutableSharedFlow]s.
  *
- * [start] and [stop] are no-ops; emit samples directly via [tryEmit].
+ * [start] and [stop] are no-ops; emit samples via [tryEmit] and satellite counts via
+ * [tryEmitSatCount].
  */
 private class FakeRideLocationCollector : RideLocationCollector(
     locationClient = object : com.mototracker.data.location.LocationClient {
         override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
+    },
+    gnssStatusClient = object : GnssStatusClient {
+        override fun satelliteCounts(): kotlinx.coroutines.flow.Flow<GnssSatelliteCount> = flow {}
     },
     scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
 ) {
@@ -77,12 +83,21 @@ private class FakeRideLocationCollector : RideLocationCollector(
         extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
+    private val _fakeSatFlow = MutableSharedFlow<GnssSatelliteCount>(
+        replay = 1,
+        extraBufferCapacity = 0,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
     override val samples: SharedFlow<LocationSample> = _fakeFlow.asSharedFlow()
+    override val satelliteCounts: SharedFlow<GnssSatelliteCount> = _fakeSatFlow.asSharedFlow()
     override fun start(intervalMs: Long) {}
     override fun stop() {}
 
     /** Emits a sample to [samples] immediately (non-suspending). Returns false if no collectors yet. */
     fun tryEmit(sample: LocationSample): Boolean = _fakeFlow.tryEmit(sample)
+
+    /** Emits a satellite count to [satelliteCounts] immediately (non-suspending). */
+    fun tryEmitSatCount(count: GnssSatelliteCount): Boolean = _fakeSatFlow.tryEmit(count)
 }
 
 private class FakeLeanSensorSource(
@@ -999,6 +1014,41 @@ class RecordingViewModelTest {
                 "LEAN tag should not be logged in Idle",
                 logger.logCalls.any { it.first == "LEAN" },
             )
+        }
+
+    // ── L2 — GPS satellite count from GNSS status ────────────────────────────
+
+    @Test
+    fun `gpsSatCount in uiState reflects usedInFix from rideLocationCollector satelliteCounts`() =
+        runTest(testDispatcher) {
+            val collector = FakeRideLocationCollector()
+            val vm = buildViewModel(rideLocationCollector = collector)
+            advanceTimeBy(100L) // let viewModelScope start collecting
+
+            collector.tryEmitSatCount(GnssSatelliteCount(usedInFix = 7, total = 12))
+            advanceTimeBy(100L)
+
+            assertEquals(
+                "gpsSatCount should be updated to usedInFix value",
+                7,
+                vm.uiState.value.gpsSatCount,
+            )
+        }
+
+    @Test
+    fun `gpsSatCount updates when a new count is emitted — uses latest usedInFix`() =
+        runTest(testDispatcher) {
+            val collector = FakeRideLocationCollector()
+            val vm = buildViewModel(rideLocationCollector = collector)
+            advanceTimeBy(100L)
+
+            collector.tryEmitSatCount(GnssSatelliteCount(usedInFix = 4, total = 9))
+            advanceTimeBy(50L)
+            assertEquals(4, vm.uiState.value.gpsSatCount)
+
+            collector.tryEmitSatCount(GnssSatelliteCount(usedInFix = 11, total = 14))
+            advanceTimeBy(50L)
+            assertEquals(11, vm.uiState.value.gpsSatCount)
         }
 
     // ── G2 — fuel price per litre + currency in uiState ─────────────────────

@@ -267,6 +267,14 @@ class RecordingViewModel @Inject constructor(
                 _uiState.update { it.copy(liveHeadingDeg = deg) }
             }
         }
+
+        // L2: Always-on GNSS satellite count — gpsSatCount updates regardless of phase so
+        // the GPS chip shows real satellite count whenever the GNSS subsystem is active.
+        viewModelScope.launch {
+            rideLocationCollector.satelliteCounts.collect { c ->
+                _uiState.update { it.copy(gpsSatCount = c.usedInFix) }
+            }
+        }
     }
 
     /**

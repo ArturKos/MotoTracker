@@ -7,25 +7,30 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 /**
- * Process-scoped owner of the GPS location stream.
+ * Process-scoped owner of the GPS location stream and GNSS satellite status.
  *
  * Decoupled from any ViewModel or Activity lifecycle so that GPS acquisition
  * survives screen-off, Doze, and process-death-relaunch when hosted inside
  * [com.mototracker.service.RecordingService].
  *
- * The [samples] SharedFlow is permanently live for the process lifetime; [start] and [stop]
- * only control the upstream [LocationClient] subscription, not the flow itself.
+ * The [samples] and [satelliteCounts] SharedFlows are permanently live for the process
+ * lifetime; [start] and [stop] only control the upstream subscriptions, not the flows.
  *
- * @param locationClient Upstream GPS source (real on-device or fake in tests).
- * @param scope          Long-lived coroutine scope; in production backed by [SupervisorJob] +
- *                       [kotlinx.coroutines.Dispatchers.Default].
+ * @param locationClient   Upstream GPS source (real on-device or fake in tests).
+ * @param scope            Long-lived coroutine scope; in production backed by [SupervisorJob] +
+ *                         [kotlinx.coroutines.Dispatchers.Default].
+ * @param gnssStatusClient Upstream GNSS satellite status source (real on-device or fake in tests).
  */
 open class RideLocationCollector(
     private val locationClient: LocationClient,
     private val scope: CoroutineScope,
+    private val gnssStatusClient: GnssStatusClient = object : GnssStatusClient {
+        override fun satelliteCounts() = emptyFlow<GnssSatelliteCount>()
+    },
 ) {
 
     private val _samples = MutableSharedFlow<LocationSample>(
@@ -37,13 +42,29 @@ open class RideLocationCollector(
     /** Hot stream of GPS location samples. Collectors receive only samples emitted after they subscribe. */
     open val samples: SharedFlow<LocationSample> = _samples.asSharedFlow()
 
-    private var collectionJob: Job? = null
+    private val _satelliteCounts = MutableSharedFlow<GnssSatelliteCount>(
+        replay = 1,
+        extraBufferCapacity = 0,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     /**
-     * Begins collecting GPS updates from [locationClient] and emitting them on [samples].
+     * Hot stream of GNSS satellite count snapshots.
+     *
+     * New subscribers immediately receive the most recently emitted value (replay=1).
+     * On-device only (🔬) — satellite count requires a real GNSS fix.
+     */
+    open val satelliteCounts: SharedFlow<GnssSatelliteCount> = _satelliteCounts.asSharedFlow()
+
+    private var collectionJob: Job? = null
+    private var gnssCollectionJob: Job? = null
+
+    /**
+     * Begins collecting GPS updates from [locationClient] and GNSS status from
+     * [gnssStatusClient], emitting them on [samples] and [satelliteCounts] respectively.
      *
      * Idempotent — a second call while a collection is already active is a no-op and does
-     * not spawn a duplicate upstream subscription.
+     * not spawn duplicate upstream subscriptions.
      *
      * @param intervalMs Minimum time between GPS updates in milliseconds.
      */
@@ -58,16 +79,27 @@ open class RideLocationCollector(
                 // Location permission revoked mid-session; collector stays alive and restartable.
             }
         }
+        gnssCollectionJob = scope.launch {
+            try {
+                gnssStatusClient.satelliteCounts().collect { count ->
+                    _satelliteCounts.emit(count)
+                }
+            } catch (_: SecurityException) {
+                // ACCESS_FINE_LOCATION revoked; GNSS stream closes cleanly.
+            }
+        }
     }
 
     /**
-     * Cancels the GPS collection job.
+     * Cancels both the GPS and GNSS collection jobs.
      *
-     * Does not cancel [scope] or close [samples]; [start] can resume collection later without
-     * recreating the collector.
+     * Does not cancel [scope] or close [samples] / [satelliteCounts]; [start] can resume
+     * collection later without recreating the collector.
      */
     open fun stop() {
         collectionJob?.cancel()
         collectionJob = null
+        gnssCollectionJob?.cancel()
+        gnssCollectionJob = null
     }
 }

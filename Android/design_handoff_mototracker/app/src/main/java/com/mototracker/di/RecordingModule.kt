@@ -4,8 +4,10 @@ import com.mototracker.core.resource.ContextStringResolver
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.data.bluetooth.AndroidBleWaveSource
 import com.mototracker.data.bluetooth.BleWaveSource
+import com.mototracker.data.location.AndroidGnssStatusClient
 import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
+import com.mototracker.data.location.GnssStatusClient
 import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.location.RideLocationCollector
@@ -99,6 +101,11 @@ abstract class RecordingModule {
     @Singleton
     abstract fun bindResumeRouteBus(impl: ChannelResumeRouteBus): ResumeRouteBus
 
+    /** Binds [AndroidGnssStatusClient] as the [GnssStatusClient] singleton (L2). */
+    @Binds
+    @Singleton
+    abstract fun bindGnssStatusClient(impl: AndroidGnssStatusClient): GnssStatusClient
+
     companion object {
 
         /**
@@ -112,8 +119,10 @@ abstract class RecordingModule {
         @Singleton
         fun provideRideLocationCollector(
             locationClient: LocationClient,
+            gnssStatusClient: GnssStatusClient,
         ): RideLocationCollector = RideLocationCollector(
             locationClient = locationClient,
+            gnssStatusClient = gnssStatusClient,
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         )
     }

@@ -6,6 +6,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.Looper
 import com.mototracker.domain.recording.LocationSample
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -63,11 +64,17 @@ class FusedLocationClientImpl @Inject constructor(
         }
 
         try {
+            // Use the Looper-taking overload so GPS callbacks are delivered on the main
+            // Looper regardless of which thread collects this flow. Without an explicit
+            // Looper, Android binds delivery to the calling thread's Looper; pool threads
+            // on Dispatchers.Default have none, causing silent loss of all GPS updates
+            // (L3 regression, BACKLOG M1).
             locationManager.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
                 intervalMs,
                 0f,
                 listener,
+                Looper.getMainLooper(),
             )
             awaitClose { locationManager.removeUpdates(listener) }
         } catch (e: SecurityException) {

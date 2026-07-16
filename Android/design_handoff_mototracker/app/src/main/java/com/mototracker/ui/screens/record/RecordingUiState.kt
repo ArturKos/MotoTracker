@@ -47,6 +47,13 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  *                          regardless of recording phase.  Null until the first reading.
  *                          Used to animate the lean bar in Idle so the rider can orient the
  *                          phone before starting (F2).
+ * @param liveSpeedKmh      Live GPS speed in km/h, populated regardless of recording phase
+ *                          from the raw GPS sample so the Idle cockpit shows a real-time
+ *                          readout before the ride starts (M2).  Null until the first fix.
+ * @param liveAltitudeM     Live GPS altitude in metres above sea level, populated regardless
+ *                          of recording phase from the raw GPS sample so the Idle cockpit
+ *                          shows a real-time readout before the ride starts (M2).
+ *                          Null until the first fix.
  * @param fuelPricePerL        Fuel price per litre from the current bike's configuration; null when
  *                             the bike has no price set.  Used to compute the running fuel cost
  *                             displayed in the fuel readout (G2).
@@ -71,6 +78,8 @@ data class RecordingUiState(
     val activeRouteId: String? = null,
     val liveHeadingDeg: Float? = null,
     val liveLeanDeg: Double? = null,
+    val liveSpeedKmh: Double? = null,
+    val liveAltitudeM: Double? = null,
     val fuelPricePerL: Double? = null,
     val currency: String = "PLN",
     val showRefuelDialog: Boolean = false,

@@ -1503,6 +1503,108 @@ class RecordingViewModelTest {
             )
         }
 
+    // ── M2 — live speed/altitude in Idle before recording ────────────────────
+
+    @Test
+    fun `M2a GPS sample in Idle updates liveSpeedKmh and liveAltitudeM without advancing engine`() =
+        runTest(testDispatcher) {
+            val collector = FakeRideLocationCollector()
+            val vm = buildViewModel(rideLocationCollector = collector)
+            advanceTimeBy(100L) // let init coroutines subscribe
+
+            // Phase must be Idle; engine must be pristine.
+            assertEquals(RecordingPhase.Idle, vm.uiState.value.phase)
+            assertNull("liveSpeedKmh should be null before any fix", vm.uiState.value.liveSpeedKmh)
+            assertNull("liveAltitudeM should be null before any fix", vm.uiState.value.liveAltitudeM)
+
+            collector.tryEmit(
+                LocationSample(
+                    lat = 53.43, lng = 14.55,
+                    speedMps = 13.89, // 50 km/h
+                    altitudeM = 123.0,
+                    bearingDeg = 90f,
+                    timeMs = 1_000L,
+                ),
+            )
+            advanceTimeBy(100L)
+
+            assertEquals(
+                "liveSpeedKmh should be speedMps * 3.6 = 50.0",
+                50.004, // 13.89 * 3.6
+                vm.uiState.value.liveSpeedKmh ?: -1.0,
+                0.01,
+            )
+            assertEquals(
+                "liveAltitudeM should match the sample altitude",
+                123.0,
+                vm.uiState.value.liveAltitudeM ?: -1.0,
+                0.001,
+            )
+            // Engine must NOT have been advanced — distance and track stay at zero/empty.
+            assertEquals(
+                "distanceKm must stay 0 in Idle (engine not fed)",
+                0.0,
+                vm.uiState.value.metrics.distanceKm,
+                0.0,
+            )
+            assertTrue(
+                "trackPoints must stay empty in Idle (engine not fed)",
+                vm.uiState.value.trackPoints.isEmpty(),
+            )
+        }
+
+    @Test
+    fun `M2b after Start GPS samples advance the engine and still update live fields`() =
+        runTest(testDispatcher) {
+            val collector = FakeRideLocationCollector()
+            val vm = buildViewModel(rideLocationCollector = collector)
+            advanceTimeBy(100L)
+
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(100L) // let location collectors subscribe
+
+            // Emit two samples separated by ~111 km (1 degree latitude ≈ 111 km).
+            collector.tryEmit(
+                LocationSample(
+                    lat = 0.0, lng = 0.0,
+                    speedMps = 20.0, altitudeM = 50.0,
+                    bearingDeg = 0f, timeMs = 1_000L,
+                ),
+            )
+            collector.tryEmit(
+                LocationSample(
+                    lat = 1.0, lng = 0.0,
+                    speedMps = 25.0, altitudeM = 75.0,
+                    bearingDeg = 0f, timeMs = 2_000L,
+                ),
+            )
+            advanceTimeBy(200L)
+
+            // Engine must be advanced — distance > 0, trackPoints non-empty.
+            assertTrue(
+                "distanceKm should be > 0 after GPS samples during Recording",
+                vm.uiState.value.metrics.distanceKm > 0.0,
+            )
+            assertTrue(
+                "trackPoints should be non-empty after GPS samples during Recording",
+                vm.uiState.value.trackPoints.isNotEmpty(),
+            )
+            // Live fields should also reflect the latest sample.
+            assertEquals(
+                "liveSpeedKmh should be 25.0 * 3.6 = 90.0 from latest sample",
+                90.0,
+                vm.uiState.value.liveSpeedKmh ?: -1.0,
+                0.001,
+            )
+            assertEquals(
+                "liveAltitudeM should be 75.0 from latest sample",
+                75.0,
+                vm.uiState.value.liveAltitudeM ?: -1.0,
+                0.001,
+            )
+            vm.onEvent(RecordingEvent.Pause)
+        }
+
     // ────────────────────────────────────────────────────────────────────────
 
     private fun noOpAutoUpdateUseCase() = AutoUpdateBikeConsumptionUseCase(

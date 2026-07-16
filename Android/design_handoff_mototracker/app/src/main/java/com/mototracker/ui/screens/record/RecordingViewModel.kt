@@ -288,19 +288,44 @@ class RecordingViewModel @Inject constructor(
         // K7: Start GNSS immediately so the sat-count chip is live in Idle before the
         // rider taps Start (location permission not required; degrades to count=0 if denied).
         rideLocationCollector.startGnss()
+
+        // M2: Always-on GPS sample collector — liveSpeedKmh and liveAltitudeM mirror the
+        // latest raw GPS sample regardless of recording phase so the Idle cockpit shows a
+        // real-time speed/altitude readout before the ride starts.  The engine is NOT
+        // advanced here; startLocationUpdates() owns the engine-feeding path exclusively.
+        // During Recording both collectors subscribe concurrently to the same SharedFlow —
+        // this is supported; the live fields simply reflect the latest raw sample.
+        viewModelScope.launch {
+            rideLocationCollector.samples.collect { sample ->
+                _uiState.update {
+                    it.copy(
+                        liveSpeedKmh = sample.speedMps * 3.6,
+                        liveAltitudeM = sample.altitudeM,
+                    )
+                }
+            }
+        }
+
+        // M2: Start the GPS subscription alongside GNSS so speed/altitude are live in Idle.
+        // start() is idempotent; doStart()'s defensive start() and the service's start() are
+        // both unaffected.
+        rideLocationCollector.start()
     }
 
     /**
-     * Stops the GNSS satellite listener when the Recording screen is destroyed and no ride
+     * Stops the GPS and GNSS streams when the Recording screen is destroyed and no ride
      * is in progress.
      *
-     * The GNSS listener is stopped only when the phase is [RecordingPhase.Idle] — if a ride
-     * is active or paused, the service-owned GNSS stream must not be interrupted.
+     * Both [RideLocationCollector.stop] (GPS subscription) and [RideLocationCollector.stopGnss]
+     * (GNSS satellite listener) are called when phase is [RecordingPhase.Idle].  If a ride is
+     * active or paused the service-owned streams must not be interrupted, so this is a no-op
+     * then (M2 + K7).
      */
     override fun onCleared() {
         super.onCleared()
         val phase = _uiState.value.phase
         if (phase != RecordingPhase.Recording && phase != RecordingPhase.Paused) {
+            rideLocationCollector.stop()
             rideLocationCollector.stopGnss()
         }
     }

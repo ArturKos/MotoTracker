@@ -366,7 +366,7 @@ private fun SpeedAndTimeRow(state: RecordingUiState, headingDeg: Float, sizing: 
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         SpeedTile(
-            speedKmh = state.metrics.currentSpeedKmh,
+            speedKmh = state.liveSpeedKmh ?: state.metrics.currentSpeedKmh,
             speedFontSp = sizing.speedFontSp,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
@@ -555,7 +555,7 @@ private fun DistanceAltitudeFuelRow(state: RecordingUiState, sizing: RecordSizin
         )
         SmallMetricTile(
             label = stringResource(R.string.tile_altitude),
-            value = String.format(Locale.US, "%.0f", state.metrics.altitudeM),
+            value = String.format(Locale.US, "%.0f", state.liveAltitudeM ?: state.metrics.altitudeM),
             unit = stringResource(R.string.unit_meters_asl),
             valueFontSp = sizing.bigNumberFontSp,
             modifier = Modifier.weight(1f),

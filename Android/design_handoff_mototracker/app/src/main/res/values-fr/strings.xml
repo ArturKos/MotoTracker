@@ -444,4 +444,12 @@
     <string name="share_card_stat_distance">Distance</string>
     <string name="share_card_stat_duration">Durée</string>
     <string name="share_card_stat_top_speed">Vitesse max.</string>
+
+    <!-- Battery-optimization exemption prompt (O1) -->
+    <string name="battery_opt_dialog_title">Autoriser l\'activité en arrière-plan</string>
+    <string name="battery_opt_dialog_body">Pour continuer l\'enregistrement avec l\'écran éteint, exempte l\'app de l\'optimisation de la batterie.</string>
+    <string name="battery_opt_action_enable">Autoriser</string>
+    <string name="battery_opt_action_not_now">Pas maintenant</string>
+    <string name="battery_opt_settings_label">Activité en arrière-plan sans restriction</string>
+    <string name="battery_opt_emui_hint">Sur Huawei/EMUI, active aussi le démarrage automatique dans la gestion des applications.</string>
 </resources>

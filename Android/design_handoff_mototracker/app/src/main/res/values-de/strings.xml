@@ -444,4 +444,12 @@
     <string name="share_card_stat_distance">Strecke</string>
     <string name="share_card_stat_duration">Dauer</string>
     <string name="share_card_stat_top_speed">Spitzentempo</string>
+
+    <!-- Battery-optimization exemption prompt (O1) -->
+    <string name="battery_opt_dialog_title">Hintergrundaktivität erlauben</string>
+    <string name="battery_opt_dialog_body">Damit die Aufzeichnung bei ausgeschaltetem Bildschirm weiterläuft, nimm die App von der Akku-Optimierung aus.</string>
+    <string name="battery_opt_action_enable">Erlauben</string>
+    <string name="battery_opt_action_not_now">Nicht jetzt</string>
+    <string name="battery_opt_settings_label">Uneingeschränkte Hintergrundaktivität</string>
+    <string name="battery_opt_emui_hint">Auf Huawei/EMUI auch Auto-Start in der App-Verwaltung aktivieren.</string>
 </resources>

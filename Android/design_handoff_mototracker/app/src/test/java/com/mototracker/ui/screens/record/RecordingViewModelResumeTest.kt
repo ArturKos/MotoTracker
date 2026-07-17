@@ -28,6 +28,8 @@ import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.data.settings.SettingsStore
+import com.mototracker.domain.battery.BatteryOptimizationChecker
 import com.mototracker.domain.recording.LocationSample
 import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.domain.recording.RecordingEngineState
@@ -257,6 +259,30 @@ class RecordingViewModelResumeTest {
         resumeRouteBus = resumeRouteBus,
         autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
         weatherClient = FakeResumeWeatherClient(),
+        batteryOptimizationChecker = object : BatteryOptimizationChecker {
+            override fun isIgnoringBatteryOptimizations() = true
+        },
+        settingsStore = object : SettingsStore {
+            override val settings: kotlinx.coroutines.flow.Flow<AppSettings> = MutableStateFlow(AppSettings())
+            override suspend fun setOffline(value: Boolean) {}
+            override suspend fun setAutoSync(value: Boolean) {}
+            override suspend fun setOfflineOnly(value: Boolean) {}
+            override suspend fun setGpsCorrect(value: Boolean) {}
+            override suspend fun setCurrentBikeId(bikeId: String?) {}
+            override suspend fun setUnits(units: String) {}
+            override suspend fun setTheme(theme: String) {}
+            override suspend fun setAccent(accent: String) {}
+            override suspend fun setLang(lang: String) {}
+            override suspend fun setAutoPause(value: Boolean) {}
+            override suspend fun setKeepScreenOn(value: Boolean) {}
+            override suspend fun setAndroidAutoEnabled(value: Boolean) {}
+            override suspend fun setBcName(name: String) {}
+            override suspend fun setBcPhone(phone: String) {}
+            override suspend fun setBcOrigin(origin: String) {}
+            override suspend fun setBcSocial(social: String) {}
+            override suspend fun setDebugLoggingEnabled(value: Boolean) {}
+            override suspend fun setServerAddress(address: String) {}
+        },
     )
 
     // ── Startup detection ────────────────────────────────────────────────────

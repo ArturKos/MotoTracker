@@ -65,6 +65,9 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param showStopConfirmDialog `true` when the stop-confirmation dialog should be visible (J4).
  *                              Recording continues untouched while the dialog is open; only
  *                              [RecordingEvent.ConfirmStop] leads to an actual finish and save.
+ * @param showBatteryOptPrompt  `true` when the battery-optimization exemption dialog should be
+ *                              shown (O1). Set before recording starts when the app is not exempt
+ *                              and the user has not yet dismissed the prompt.
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -86,6 +89,7 @@ data class RecordingUiState(
     val refuelDialogLitres: Double = 0.0,
     val refuelDialogPricePerL: Double? = null,
     val showStopConfirmDialog: Boolean = false,
+    val showBatteryOptPrompt: Boolean = false,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */
@@ -152,6 +156,20 @@ sealed class RecordingEvent {
      * @param routeId UUID of the saved route to continue.
      */
     data class ResumeRoute(val routeId: String) : RecordingEvent()
+
+    /**
+     * User tapped "Allow" in the battery-optimization prompt (O1).
+     *
+     * Clears the prompt; the Compose layer fires the exemption intent.
+     */
+    data object BatteryOptConfirm : RecordingEvent()
+
+    /**
+     * User tapped "Not now" in the battery-optimization prompt (O1).
+     *
+     * Persists the dismissed flag and clears the prompt so it is not shown again.
+     */
+    data object BatteryOptDismiss : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

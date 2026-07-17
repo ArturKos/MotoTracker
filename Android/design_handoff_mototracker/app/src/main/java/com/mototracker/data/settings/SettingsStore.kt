@@ -87,4 +87,12 @@ interface SettingsStore : WritableSettingsSource {
      * Test fakes that implement [SettingsStore] are not required to override this.
      */
     suspend fun setWavesEnabled(value: Boolean) {}
+
+    /**
+     * Persists the battery-optimization prompt dismissed flag (O1).
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setBatteryPromptDismissed(value: Boolean) {}
 }

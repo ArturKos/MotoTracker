@@ -32,6 +32,9 @@ package com.mototracker.data.settings
  *                            When `false`, [com.mototracker.service.RecordingService] skips
  *                            BLE advertise/scan and the Riders waves section is hidden.
  *                            Defaults to `true` to preserve the existing always-on behaviour.
+ * @param batteryPromptDismissed Whether the user has dismissed the battery-optimization exemption
+ *                               prompt (O1). When `true`, the prompt is never shown again even if
+ *                               the app is not yet exempt.
  */
 data class AppSettings(
     val offline: Boolean = false,
@@ -55,4 +58,5 @@ data class AppSettings(
     val osrmBaseUrl: String = "http://192.168.1.142:5001",
     val currency: String = "PLN",
     val wavesEnabled: Boolean = true,
+    val batteryPromptDismissed: Boolean = false,
 )

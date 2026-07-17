@@ -224,6 +224,36 @@ private class FakeResumeRouteBus : ResumeRouteBus {
     override suspend fun request(routeId: String) {}
 }
 
+private class FakeBatteryOptimizationChecker(
+    private val exempt: Boolean = true,
+) : com.mototracker.domain.battery.BatteryOptimizationChecker {
+    override fun isIgnoringBatteryOptimizations(): Boolean = exempt
+}
+
+private class FakeSettingsStore(
+    settings: AppSettings = AppSettings(),
+) : com.mototracker.data.settings.SettingsStore {
+    override val settings: kotlinx.coroutines.flow.Flow<AppSettings> = MutableStateFlow(settings)
+    override suspend fun setOffline(value: Boolean) {}
+    override suspend fun setAutoSync(value: Boolean) {}
+    override suspend fun setOfflineOnly(value: Boolean) {}
+    override suspend fun setGpsCorrect(value: Boolean) {}
+    override suspend fun setCurrentBikeId(bikeId: String?) {}
+    override suspend fun setUnits(units: String) {}
+    override suspend fun setTheme(theme: String) {}
+    override suspend fun setAccent(accent: String) {}
+    override suspend fun setLang(lang: String) {}
+    override suspend fun setAutoPause(value: Boolean) {}
+    override suspend fun setKeepScreenOn(value: Boolean) {}
+    override suspend fun setAndroidAutoEnabled(value: Boolean) {}
+    override suspend fun setBcName(name: String) {}
+    override suspend fun setBcPhone(phone: String) {}
+    override suspend fun setBcOrigin(origin: String) {}
+    override suspend fun setBcSocial(social: String) {}
+    override suspend fun setDebugLoggingEnabled(value: Boolean) {}
+    override suspend fun setServerAddress(address: String) {}
+}
+
 private class FakeWeatherClient(
     private val result: Result<WeatherSnapshot> = Result.success(
         WeatherSnapshot(tempC = 20, humidity = 65, rain = false),
@@ -1632,6 +1662,9 @@ class RecordingViewModelTest {
         bikeRepository: BikeRepository = FakeBikeRepository(),
         refuelRepository: RefuelRepository = FakeRefuelRepository(),
         weatherClient: WeatherClient = FakeWeatherClient(),
+        batteryOptimizationChecker: com.mototracker.domain.battery.BatteryOptimizationChecker =
+            FakeBatteryOptimizationChecker(exempt = true),
+        settingsStore: com.mototracker.data.settings.SettingsStore = FakeSettingsStore(settings),
     ) = RecordingViewModel(
         rideLocationCollector = rideLocationCollector,
         leanSensorSource = leanSensorSource,
@@ -1651,5 +1684,7 @@ class RecordingViewModelTest {
         resumeRouteBus = FakeResumeRouteBus(),
         autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
         weatherClient = weatherClient,
+        batteryOptimizationChecker = batteryOptimizationChecker,
+        settingsStore = settingsStore,
     )
 }

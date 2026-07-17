@@ -2,6 +2,7 @@ package com.mototracker.ui.screens.settings
 
 import android.content.Intent
 import android.text.format.Formatter
+import com.mototracker.data.battery.BatteryOptimizationIntents
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
@@ -244,6 +245,14 @@ fun SettingsScreen(
         onAutoPause = viewModel::setAutoPause,
         onKeepScreenOn = viewModel::setKeepScreenOn,
         onWavesEnabled = viewModel::setWavesEnabled,
+        onOpenBatterySettings = {
+            try {
+                ctx.startActivity(BatteryOptimizationIntents.requestIgnoreIntent(ctx.packageName))
+            } catch (_: Exception) {
+                try { ctx.startActivity(BatteryOptimizationIntents.oemAutoLaunchIntent(ctx, ctx.packageName)) }
+                catch (_: Exception) { /* no fallback available */ }
+            }
+        },
         onExportBackup = { exportLauncher.launch("mototracker-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
         onOpenHelp = onOpenHelp,
@@ -282,6 +291,8 @@ fun SettingsScreen(
  * @param onAutoPause          Called when the Auto-pause switch changes.
  * @param onKeepScreenOn       Called when the Keep-screen-on switch changes.
  * @param onWavesEnabled       Called when the BLE waves (pomachania) switch changes.
+ * @param onOpenBatterySettings Called when the user taps the battery-optimization row (O1);
+ *                              opens the system battery-optimization settings.
  * @param onOpenHelp           Called when the user taps the Help row; navigates to the Help screen.
  * @param modifier             Standard Compose modifier.
  */
@@ -314,6 +325,7 @@ fun SettingsContent(
     onAutoPause: (Boolean) -> Unit = {},
     onKeepScreenOn: (Boolean) -> Unit = {},
     onWavesEnabled: (Boolean) -> Unit = {},
+    onOpenBatterySettings: () -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
     onOpenHelp: () -> Unit = {},
@@ -524,6 +536,11 @@ fun SettingsContent(
                             desc = stringResource(R.string.desc_android_auto),
                             checked = state.androidAutoEnabled,
                             onChecked = onAndroidAutoEnabled,
+                        )
+                        DiagnosticsActionRow(
+                            label = stringResource(R.string.battery_opt_settings_label),
+                            enabled = true,
+                            onClick = onOpenBatterySettings,
                         )
 
                         // Diagnostics sub-group

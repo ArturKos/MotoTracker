@@ -26,7 +26,11 @@ import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
+import com.mototracker.data.battery.BatteryOptimizationIntents
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.data.settings.SettingsStore
+import com.mototracker.domain.battery.BatteryOptimizationChecker
+import com.mototracker.domain.battery.BatteryOptimizationGate
 import com.mototracker.domain.naming.PartOfDay
 import com.mototracker.domain.naming.RouteNameComposer
 import com.mototracker.domain.recording.RecordingEngine
@@ -98,6 +102,8 @@ import javax.inject.Inject
  * @param resumeRouteBus                    App-scoped bus for receiving "continue existing route" requests (J5).
  * @param autoUpdateBikeConsumptionUseCase  Refreshes bike consumption from the refuel ledger after a refuel is saved (K2).
  * @param weatherClient                     Fetches current weather once at ride start when online (K5).
+ * @param batteryOptimizationChecker        Checks whether the app is exempt from battery optimization (O1).
+ * @param settingsStore                     Write access to persisted settings, used to record prompt-dismissed (O1).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -120,6 +126,8 @@ class RecordingViewModel @Inject constructor(
     private val resumeRouteBus: ResumeRouteBus,
     private val autoUpdateBikeConsumptionUseCase: AutoUpdateBikeConsumptionUseCase,
     private val weatherClient: WeatherClient,
+    private val batteryOptimizationChecker: BatteryOptimizationChecker,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -171,12 +179,19 @@ class RecordingViewModel @Inject constructor(
     /** Guard ensuring weather is fetched at most once per ride session. */
     private var weatherFetchedForRide: Boolean = false
 
+    /**
+     * Cached value of [AppSettings.batteryPromptDismissed] kept in sync from the settings stream
+     * so [doStart] can read it synchronously without suspending (O1).
+     */
+    private var batteryPromptDismissed: Boolean = false
+
     init {
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
         // also forward the active units preference to the Android Auto bridge.
         viewModelScope.launch {
             settingsSource.settings.collect { s ->
                 currentBikeId = s.currentBikeId
+                batteryPromptDismissed = s.batteryPromptDismissed
                 _uiState.update { it.copy(gpsOnRoad = s.gpsCorrect, keepScreenOn = s.keepScreenOn) }
                 carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)
             }
@@ -351,12 +366,26 @@ class RecordingViewModel @Inject constructor(
                 doFinish()
             }
             is RecordingEvent.ResumeRoute -> viewModelScope.launch { doResumeRoute(event.routeId) }
+            is RecordingEvent.BatteryOptConfirm -> _uiState.update { it.copy(showBatteryOptPrompt = false) }
+            is RecordingEvent.BatteryOptDismiss -> doBatteryOptDismiss()
         }
     }
 
     // ── State machine ────────────────────────────────────────────────────────
 
     private fun doStart() {
+        if (BatteryOptimizationGate.shouldPrompt(
+                isExempt = batteryOptimizationChecker.isIgnoringBatteryOptimizations(),
+                promptDismissed = batteryPromptDismissed,
+            )
+        ) {
+            _uiState.update { it.copy(showBatteryOptPrompt = true) }
+            return
+        }
+        doStartRecording()
+    }
+
+    private fun doStartRecording() {
         engine.reset(fuelLper100km = currentBikeConsumption, tankCapacityL = currentBikeTankCapacity)
         rideDebugLogger.beginRide()
         recordingStartMs = timeProvider.nowEpochMs()
@@ -376,6 +405,11 @@ class RecordingViewModel @Inject constructor(
         rideLocationCollector.start()
         startTicker()
         startLocationUpdates()
+    }
+
+    private fun doBatteryOptDismiss() {
+        _uiState.update { it.copy(showBatteryOptPrompt = false) }
+        viewModelScope.launch { settingsStore.setBatteryPromptDismissed(true) }
     }
 
     private fun doPause() {

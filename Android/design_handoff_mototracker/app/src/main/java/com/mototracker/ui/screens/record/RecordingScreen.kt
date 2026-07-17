@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.data.battery.BatteryOptimizationIntents
 import com.mototracker.domain.fuel.FuelCostCalculator
 import com.mototracker.domain.fuel.FuelRangeColor
 import com.mototracker.domain.fuel.FuelRangeIndicator
@@ -226,6 +227,22 @@ fun RecordingContent(
         StopConfirmDialog(
             onConfirm = { onEvent(RecordingEvent.ConfirmStop) },
             onDismiss = { onEvent(RecordingEvent.DismissStopDialog) },
+        )
+    }
+
+    // O1: Battery-optimization exemption dialog shown before the first screen-off recording.
+    if (state.showBatteryOptPrompt) {
+        val context = LocalContext.current
+        BatteryOptPromptDialog(
+            onConfirm = {
+                onEvent(RecordingEvent.BatteryOptConfirm)
+                try {
+                    context.startActivity(
+                        BatteryOptimizationIntents.requestIgnoreIntent(context.packageName)
+                    )
+                } catch (_: Exception) { /* intent not resolvable — fail silently */ }
+            },
+            onDismiss = { onEvent(RecordingEvent.BatteryOptDismiss) },
         )
     }
 
@@ -1060,6 +1077,43 @@ private fun StopConfirmDialog(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+/**
+ * Battery-optimization exemption prompt dialog (O1).
+ *
+ * Shown before the first screen-off recording when the app is not yet exempt.
+ * "Allow" fires the system exemption intent (🔬); "Not now" persists the dismissed flag.
+ */
+@Composable
+private fun BatteryOptPromptDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.battery_opt_dialog_title)) },
+        text = { Text(stringResource(R.string.battery_opt_dialog_body)) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MotoTracker.colors.accent2,
+                    contentColor = MotoTracker.colors.onAccent2,
+                ),
+            ) {
+                Text(stringResource(R.string.battery_opt_action_enable))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.battery_opt_action_not_now),
                     color = MotoTracker.colors.dim,
                 )
             }

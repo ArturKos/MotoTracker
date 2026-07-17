@@ -50,6 +50,7 @@ class SettingsDataStore @Inject constructor(
         val OSRM_BASE_URL = stringPreferencesKey("osrm_base_url")
         val CURRENCY = stringPreferencesKey("currency")
         val WAVES_ENABLED = booleanPreferencesKey("waves_enabled")
+        val BATTERY_PROMPT_DISMISSED = booleanPreferencesKey("battery_prompt_dismissed")
     }
 
     private val defaults = AppSettings()
@@ -78,6 +79,7 @@ class SettingsDataStore @Inject constructor(
             osrmBaseUrl = prefs[Keys.OSRM_BASE_URL] ?: defaults.osrmBaseUrl,
             currency = prefs[Keys.CURRENCY] ?: defaults.currency,
             wavesEnabled = prefs[Keys.WAVES_ENABLED] ?: defaults.wavesEnabled,
+            batteryPromptDismissed = prefs[Keys.BATTERY_PROMPT_DISMISSED] ?: defaults.batteryPromptDismissed,
         )
     }
 
@@ -191,5 +193,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the BLE waves (pomachania) enabled flag. */
     override suspend fun setWavesEnabled(value: Boolean) {
         dataStore.edit { it[Keys.WAVES_ENABLED] = value }
+    }
+
+    /** Persists the battery-optimization prompt dismissed flag (O1). */
+    override suspend fun setBatteryPromptDismissed(value: Boolean) {
+        dataStore.edit { it[Keys.BATTERY_PROMPT_DISMISSED] = value }
     }
 }

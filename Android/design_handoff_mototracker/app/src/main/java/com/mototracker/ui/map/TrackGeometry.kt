@@ -1,5 +1,6 @@
 package com.mototracker.ui.map
 
+import com.mototracker.domain.recording.TrackPoint
 import org.json.JSONArray
 
 /**
@@ -49,6 +50,34 @@ object TrackGeometry {
             List(arr.length()) { i ->
                 val obj = arr.getJSONObject(i)
                 GeoCoord(lat = obj.getDouble("lat"), lon = obj.getDouble("lng"))
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Parses a JSON path string into an ordered list of [TrackPoint], preserving all
+     * available fields (lat, lng, ele, t).
+     *
+     * Tolerant of legacy JSON (`[{"lat":…,"lng":…}]`) — missing `ele` defaults to 0.0 and
+     * missing/null `t` defaults to null, so old persisted tracks decode without error.
+     *
+     * @param pathJson Serialised JSON array of point objects, or null.
+     * @return Ordered list of [TrackPoint]; empty when [pathJson] is null, blank, or malformed.
+     */
+    fun parsePathJsonFull(pathJson: String?): List<TrackPoint> {
+        if (pathJson.isNullOrBlank()) return emptyList()
+        return try {
+            val arr = JSONArray(pathJson)
+            List(arr.length()) { i ->
+                val obj = arr.getJSONObject(i)
+                TrackPoint(
+                    lat = obj.getDouble("lat"),
+                    lng = obj.getDouble("lng"),
+                    ele = obj.optDouble("ele", 0.0),
+                    t = if (obj.has("t") && !obj.isNull("t")) obj.getLong("t") else null,
+                )
             }
         } catch (_: Exception) {
             emptyList()

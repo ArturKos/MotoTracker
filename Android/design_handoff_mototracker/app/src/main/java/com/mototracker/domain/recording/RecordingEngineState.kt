@@ -21,7 +21,8 @@ package com.mototracker.domain.recording
  * @param altitudeM             Current altitude in metres from the last GPS fix.
  * @param elevGainM             Accumulated elevation gain in metres.
  * @param headingDeg            Current GPS bearing in degrees (0–360, 0 = North).
- * @param pathPoints            Ordered (lat, lng) pairs forming the GPS track.
+ * @param pathPoints            Ordered [TrackPoint] values (lat, lng, ele, t) forming the GPS track.
+ *                              Pre-N1 snapshots use ele=0.0 and t=null per backward-compat defaults.
  * @param speedOverTime         Pairs of (elapsedSec, speedKmh) for the speed-over-time chart.
  * @param elevOverDist          Pairs of (distanceKm, altitudeM) for the elevation-profile chart.
  * @param sessionFuelLper100km  Per-session fuel consumption rate in L/100km.
@@ -44,7 +45,7 @@ data class RecordingEngineState(
     val altitudeM: Double,
     val elevGainM: Double,
     val headingDeg: Float,
-    val pathPoints: List<Pair<Double, Double>>,
+    val pathPoints: List<TrackPoint>,
     val speedOverTime: List<Pair<Long, Double>>,
     val elevOverDist: List<Pair<Double, Double>>,
     val sessionFuelLper100km: Double = 5.0,

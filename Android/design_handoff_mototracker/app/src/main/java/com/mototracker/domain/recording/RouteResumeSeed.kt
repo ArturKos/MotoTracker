@@ -43,18 +43,18 @@ object RouteResumeSeed {
      * @return A fully-populated [RecordingEngineState] ready for [RecordingEngine.restore].
      */
     fun fromRoute(route: Route): RecordingEngineState {
-        val pathPoints = TrackGeometry.parsePathJson(route.pathJson)
-            .map { it.lat to it.lon }
+        val pathPoints: List<TrackPoint> = TrackGeometry.parsePathJsonFull(route.pathJson)
 
         val speedOverTime = parseSpeedJson(route.speedJson)
         val elevOverDist = parseElevJson(route.elevProfileJson)
 
         val lastPoint = pathPoints.lastOrNull()
-        val lastAlt = elevOverDist.lastOrNull()?.second
+        // Prefer the elevation-profile last entry (higher fidelity); fall back to path point's ele.
+        val lastAlt = elevOverDist.lastOrNull()?.second ?: lastPoint?.ele?.takeIf { it != 0.0 }
 
         return RecordingEngineState(
-            prevLat = lastPoint?.first,
-            prevLng = lastPoint?.second,
+            prevLat = lastPoint?.lat,
+            prevLng = lastPoint?.lng,
             prevAlt = lastAlt,
             distanceKm = route.km,
             durationSec = route.durSec,

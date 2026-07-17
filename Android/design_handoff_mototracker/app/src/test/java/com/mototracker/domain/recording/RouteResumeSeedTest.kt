@@ -121,10 +121,10 @@ class RouteResumeSeedTest {
         )
         val state = RouteResumeSeed.fromRoute(route)
         assertEquals(2, state.pathPoints.size)
-        assertEquals(52.1, state.pathPoints[0].first, 0.0001)
-        assertEquals(21.1, state.pathPoints[0].second, 0.0001)
-        assertEquals(52.2, state.pathPoints[1].first, 0.0001)
-        assertEquals(21.2, state.pathPoints[1].second, 0.0001)
+        assertEquals(52.1, state.pathPoints[0].lat, 0.0001)
+        assertEquals(21.1, state.pathPoints[0].lng, 0.0001)
+        assertEquals(52.2, state.pathPoints[1].lat, 0.0001)
+        assertEquals(21.2, state.pathPoints[1].lng, 0.0001)
     }
 
     @Test

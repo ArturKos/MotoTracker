@@ -47,8 +47,8 @@ class RecordingEngineStateTest {
         assertEquals(2, state.pathPoints.size)
         assertEquals(2, state.speedOverTime.size)
         assertEquals(2, state.elevOverDist.size)
-        assertEquals(52.0, state.pathPoints[0].first, 0.0)
-        assertEquals(52.01, state.pathPoints[1].first, 0.0)
+        assertEquals(52.0, state.pathPoints[0].lat, 0.0)
+        assertEquals(52.01, state.pathPoints[1].lat, 0.0)
     }
 
     @Test
@@ -98,8 +98,8 @@ class RecordingEngineStateTest {
         val restoredState = restored.exportState()
 
         assertEquals(2, restoredState.pathPoints.size)
-        assertEquals(53.0, restoredState.pathPoints[0].first, 0.0)
-        assertEquals(53.01, restoredState.pathPoints[1].first, 0.0)
+        assertEquals(53.0, restoredState.pathPoints[0].lat, 0.0)
+        assertEquals(53.01, restoredState.pathPoints[1].lat, 0.0)
         assertEquals(2, restoredState.speedOverTime.size)
         assertEquals(2, restoredState.elevOverDist.size)
     }
@@ -153,7 +153,7 @@ class RecordingEngineStateTest {
             altitudeM = 150.0,
             elevGainM = 250.0,
             headingDeg = 270f,
-            pathPoints = listOf(53.1234 to 14.5678, 53.1300 to 14.5700),
+            pathPoints = listOf(TrackPoint(53.1234, 14.5678), TrackPoint(53.1300, 14.5700)),
             speedOverTime = listOf(0L to 0.0, 60L to 80.0),
             elevOverDist = listOf(0.0 to 100.0, 12.34 to 150.0),
         )
@@ -216,7 +216,7 @@ class RecordingEngineStateTest {
 
     @Test
     fun `encode and decode round-trip preserves path points`() {
-        val pts = listOf(52.0 to 21.0, 52.01 to 21.01, 52.02 to 21.02)
+        val pts = listOf(TrackPoint(52.0, 21.0), TrackPoint(52.01, 21.01), TrackPoint(52.02, 21.02))
         val engineState = RecordingEngineState(
             prevLat = null, prevLng = null, prevAlt = null,
             distanceKm = 0.0, durationSec = 0L,
@@ -230,8 +230,8 @@ class RecordingEngineStateTest {
         val decoded = decode(encode(original))!!
 
         assertEquals(3, decoded.engineState.pathPoints.size)
-        assertEquals(52.0, decoded.engineState.pathPoints[0].first, 0.0)
-        assertEquals(52.02, decoded.engineState.pathPoints[2].first, 0.0)
+        assertEquals(52.0, decoded.engineState.pathPoints[0].lat, 0.0)
+        assertEquals(52.02, decoded.engineState.pathPoints[2].lat, 0.0)
     }
 
     @Test

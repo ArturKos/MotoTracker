@@ -65,7 +65,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     private var elevGainM: Double = 0.0
     private var headingDeg: Float = 0f
 
-    private val pathPoints = mutableListOf<Pair<Double, Double>>()
+    private val pathPoints = mutableListOf<TrackPoint>()
     private val speedOverTime = mutableListOf<Pair<Long, Double>>()
     private val elevOverDist = mutableListOf<Pair<Double, Double>>()
 
@@ -101,7 +101,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
             prevLng = sample.lng
             prevAlt = sample.altitudeM
 
-            pathPoints += sample.lat to sample.lng
+            pathPoints += TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs)
             speedOverTime += durationSec to speedKmh
             elevOverDist += distanceKm to sample.altitudeM
         }
@@ -323,8 +323,12 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
 
     private fun buildPathJson(): String {
         if (pathPoints.isEmpty()) return "[]"
-        return pathPoints.joinToString(separator = ",", prefix = "[", postfix = "]") {
-            """{"lat":${it.first},"lng":${it.second}}"""
+        return pathPoints.joinToString(separator = ",", prefix = "[", postfix = "]") { pt ->
+            buildString {
+                append("""{"lat":${pt.lat},"lng":${pt.lng},"ele":${pt.ele}""")
+                if (pt.t != null) append(""","t":${pt.t}""")
+                append("}")
+            }
         }
     }
 

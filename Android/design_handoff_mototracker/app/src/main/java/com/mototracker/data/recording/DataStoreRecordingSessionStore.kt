@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mototracker.domain.recording.RecordingEngineState
+import com.mototracker.domain.recording.TrackPoint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
@@ -82,8 +83,10 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
         put("elevGainM", e.elevGainM)
         put("hdgDeg", e.headingDeg.toDouble())
         put("path", JSONArray().also { arr ->
-            e.pathPoints.forEach { (lat, lng) ->
-                arr.put(JSONObject().put("lat", lat).put("lng", lng))
+            e.pathPoints.forEach { pt ->
+                val obj = JSONObject().put("lat", pt.lat).put("lng", pt.lng).put("ele", pt.ele)
+                if (pt.t != null) obj.put("t", pt.t)
+                arr.put(obj)
             }
         })
         put("spd", JSONArray().also { arr ->
@@ -143,7 +146,12 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         headingDeg = o.getDouble("hdgDeg").toFloat(),
         pathPoints = (0 until pathArr.length()).map { i ->
             val p = pathArr.getJSONObject(i)
-            p.getDouble("lat") to p.getDouble("lng")
+            TrackPoint(
+                lat = p.getDouble("lat"),
+                lng = p.getDouble("lng"),
+                ele = p.optDouble("ele", 0.0),
+                t = if (p.has("t") && !p.isNull("t")) p.getLong("t") else null,
+            )
         },
         speedOverTime = (0 until spdArr.length()).map { i ->
             val p = spdArr.getJSONObject(i)

@@ -322,8 +322,8 @@ class RecordingViewModelResumeTest {
 
         val trackPoints = vm.uiState.value.trackPoints
         assertEquals(snap.engineState.pathPoints.size, trackPoints.size)
-        assertEquals(snap.engineState.pathPoints[0].first, trackPoints[0].lat, 0.0)
-        assertEquals(snap.engineState.pathPoints[0].second, trackPoints[0].lon, 0.0)
+        assertEquals(snap.engineState.pathPoints[0].lat, trackPoints[0].lat, 0.0)
+        assertEquals(snap.engineState.pathPoints[0].lng, trackPoints[0].lon, 0.0)
     }
 
     @Test

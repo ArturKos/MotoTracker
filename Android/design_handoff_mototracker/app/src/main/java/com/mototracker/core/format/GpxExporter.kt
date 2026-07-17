@@ -46,8 +46,16 @@ object GpxExporter {
             appendLine("  <trk>")
             appendLine("    <name>$safeName</name>")
             appendLine("    <trkseg>")
-            points.forEach { (lat, lon) ->
-                appendLine("""      <trkpt lat="$lat" lon="$lon"/>""")
+            points.forEach { pt ->
+                val hasChildren = pt.ele != 0.0 || pt.t != null
+                if (hasChildren) {
+                    appendLine("""      <trkpt lat="${pt.lat}" lon="${pt.lng}">""")
+                    if (pt.ele != 0.0) appendLine("""        <ele>${pt.ele}</ele>""")
+                    if (pt.t != null) appendLine("""        <time>${ISO_8601.format(Instant.ofEpochMilli(pt.t))}</time>""")
+                    appendLine("""      </trkpt>""")
+                } else {
+                    appendLine("""      <trkpt lat="${pt.lat}" lon="${pt.lng}"/>""")
+                }
             }
             appendLine("    </trkseg>")
             appendLine("  </trk>")
@@ -77,13 +85,27 @@ object GpxExporter {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private fun parsePoints(pathJson: String?): List<Pair<Double, Double>> {
+    /** Internal representation of a parsed GPX track point, including optional elevation and timestamp. */
+    private data class GpxPoint(val lat: Double, val lng: Double, val ele: Double, val t: Long?)
+
+    /**
+     * Parses [pathJson] into an ordered list of [GpxPoint].
+     *
+     * Tolerant of legacy JSON without `ele`/`t` fields — missing `ele` defaults to 0.0 and
+     * missing/null `t` defaults to null. Never throws.
+     */
+    private fun parsePoints(pathJson: String?): List<GpxPoint> {
         if (pathJson.isNullOrBlank()) return emptyList()
         return try {
             val arr = JSONArray(pathJson)
             List(arr.length()) { i ->
                 val obj = arr.getJSONObject(i)
-                obj.getDouble("lat") to obj.getDouble("lng")
+                GpxPoint(
+                    lat = obj.getDouble("lat"),
+                    lng = obj.getDouble("lng"),
+                    ele = obj.optDouble("ele", 0.0),
+                    t = if (obj.has("t") && !obj.isNull("t")) obj.getLong("t") else null,
+                )
             }
         } catch (_: Exception) {
             emptyList()

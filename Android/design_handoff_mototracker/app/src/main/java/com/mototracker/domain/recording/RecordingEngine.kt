@@ -64,6 +64,22 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
          * accumulator or the prev* anchors.
          */
         const val MAX_PLAUSIBLE_SPEED_KMH = 300.0
+
+        /**
+         * Elapsed-seconds threshold above which a gap between two consecutive accepted moving
+         * fixes is treated as a GPS dropout (tunnel, urban canyon, phone in a bag) rather than
+         * real travel.
+         *
+         * When the gap exceeds this value the bridging haversine distance and elevation gain are
+         * NOT added to the odometer/elevation accumulators, preventing a false straight-line
+         * segment from inflating the recorded distance. The reacquired fix is still recorded as
+         * a path point and becomes the new prev* anchor so that subsequent movement accumulates
+         * correctly from the correct position.
+         *
+         * Typical GPS re-acquisition after a short tunnel takes 2–10 s; 20 s gives comfortable
+         * headroom for slower re-acquisition while still catching brief signal losses.
+         */
+        const val GPS_GAP_SEC = 20.0
     }
 
     private var prevLat: Double? = null
@@ -141,12 +157,19 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         headingDeg = sample.bearingDeg
 
         if (speedKmh >= MOVING_THRESHOLD_KMH) {
-            if (pLat != null && pLng != null) {
+            // Gap detection: a large elapsed time between two accepted moving fixes means GPS
+            // dropped out (tunnel, bag, canyon). Do NOT add the bridging distance or elevation
+            // gain for the gap — the fix IS recorded and prev* anchors advance normally so
+            // movement after reacquisition accumulates from the correct position.
+            val isDropout = pLat != null && pLng != null && pTimeMs != null &&
+                (sample.timeMs - pTimeMs) / 1000.0 > GPS_GAP_SEC
+
+            if (!isDropout && pLat != null && pLng != null) {
                 distanceKm += haversine(pLat, pLng, sample.lat, sample.lng)
             }
 
             val pAlt = prevAlt
-            if (pAlt != null && sample.altitudeM > pAlt) {
+            if (!isDropout && pAlt != null && sample.altitudeM > pAlt) {
                 elevGainM += sample.altitudeM - pAlt
             }
 

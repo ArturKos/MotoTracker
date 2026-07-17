@@ -10,6 +10,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.mototracker.domain.recording.TrackPoint
+import com.mototracker.domain.recording.TrackSegmenter
 import com.mototracker.ui.theme.MotoTracker
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -25,19 +27,24 @@ import org.osmdroid.views.overlay.Polyline
  * zoom buttons are hidden. Map lifecycle (resume/pause/detach) is tied to the
  * hosting [androidx.lifecycle.LifecycleOwner] via [DisposableEffect].
  *
+ * GPS dropouts are handled via [TrackSegmenter]: the track is split into continuous
+ * segments and one [Polyline] is drawn per segment, so no straight line appears across
+ * a tunnel or signal-loss gap. Start/end markers are placed at the overall first and last
+ * points of all segments combined.
+ *
  * Actual tile rendering and polyline drawing are on-device-only concerns (🔬).
  *
- * @param points              Ordered GPS coordinates forming the track.
+ * @param points              Ordered GPS track points forming the route.
  * @param modifier            Standard Compose modifier.
- * @param showStartEndMarkers When `true`, places default markers at the start and end points.
- *                            Ignored when [followLatest] is `true`.
+ * @param showStartEndMarkers When `true`, places default markers at the overall start and end
+ *                            points across all segments. Ignored when [followLatest] is `true`.
  * @param followLatest        When `true`, places a position marker at the last point and
  *                            centres the camera there at zoom 15. When `false`, the camera
  *                            is fitted to [TrackGeometry.bounds] of all points.
  */
 @Composable
 fun OsmTrackMap(
-    points: List<GeoCoord>,
+    points: List<TrackPoint>,
     modifier: Modifier = Modifier,
     showStartEndMarkers: Boolean = false,
     followLatest: Boolean = false,
@@ -81,35 +88,40 @@ fun OsmTrackMap(
                 return@AndroidView
             }
 
-            val geoPoints = points.map { GeoPoint(it.lat, it.lon) }
+            val allGeoPoints = points.map { GeoPoint(it.lat, it.lng) }
 
-            val polyline = Polyline(mv).apply {
-                setPoints(geoPoints)
-                outlinePaint.color = accentArgb
-                outlinePaint.strokeWidth = 8f
+            // Draw one polyline per segment so GPS dropout gaps are not connected by a straight line.
+            val segments = TrackSegmenter.split(points)
+            for (segment in segments) {
+                if (segment.isEmpty()) continue
+                val polyline = Polyline(mv).apply {
+                    setPoints(segment.map { GeoPoint(it.lat, it.lng) })
+                    outlinePaint.color = accentArgb
+                    outlinePaint.strokeWidth = 8f
+                }
+                mv.overlays.add(polyline)
             }
-            mv.overlays.add(polyline)
 
             // Overlays (markers) can be added immediately; camera positioning must wait until the
             // MapView has real dimensions (see applyCamera below).
             if (followLatest) {
                 mv.overlays.add(
                     Marker(mv).apply {
-                        position = geoPoints.last()
+                        position = allGeoPoints.last()
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     },
                 )
             } else if (showStartEndMarkers) {
                 mv.overlays.add(
                     Marker(mv).apply {
-                        position = geoPoints.first()
+                        position = allGeoPoints.first()
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     },
                 )
-                if (geoPoints.size > 1) {
+                if (allGeoPoints.size > 1) {
                     mv.overlays.add(
                         Marker(mv).apply {
-                            position = geoPoints.last()
+                            position = allGeoPoints.last()
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         },
                     )
@@ -124,11 +136,12 @@ fun OsmTrackMap(
             val applyCamera: () -> Unit = {
                 when {
                     followLatest -> {
-                        mv.controller.setCenter(geoPoints.last())
+                        mv.controller.setCenter(allGeoPoints.last())
                         mv.controller.setZoom(15.0)
                     }
-                    geoPoints.size > 1 -> {
-                        val b = TrackGeometry.bounds(points)
+                    allGeoPoints.size > 1 -> {
+                        val allGeoCoords = points.map { GeoCoord(it.lat, it.lng) }
+                        val b = TrackGeometry.bounds(allGeoCoords)
                         if (b != null) {
                             mv.zoomToBoundingBox(
                                 BoundingBox(b.north, b.east, b.south, b.west),
@@ -137,7 +150,7 @@ fun OsmTrackMap(
                         }
                     }
                     else -> {
-                        mv.controller.setCenter(geoPoints.first())
+                        mv.controller.setCenter(allGeoPoints.first())
                         mv.controller.setZoom(15.0)
                     }
                 }

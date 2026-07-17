@@ -549,12 +549,12 @@ class RecordingEngineTest {
         // Fix2 (t=1s): 6 degrees north (≈668 km) in 1 second → ~2.4M km/h — obvious teleport.
         engine.onLocation(sample(lat = 58.0, lng = 21.0, speedMps = 20.0, timeMs = 1_000L))
         assertEquals(distAfterFirst, engine.snapshot().distanceKm, 0.0001)
-        // Fix3 (t=200s): prev anchor still at (52.0, 21.0) because the teleport was dropped.
-        // Haversine(52.0→52.1) ≈ 11.1 km in 200 s → ≈200 km/h < 300 → accepted.
-        engine.onLocation(sample(lat = 52.1, lng = 21.0, speedMps = 20.0, timeMs = 200_000L))
+        // Fix3 (t=3s): 0.001° north of Fix1 in 3 s → ~133 km/h < 300 — passes outlier gate.
+        // Gap from Fix1 to Fix3: 3 s < GPS_GAP_SEC (20 s) — gap detection does NOT fire.
+        // Dist should be 52.0→52.001 ≈ 111 m, NOT the teleport distance.
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, speedMps = 20.0, timeMs = 3_000L))
         val totalDist = engine.snapshot().distanceKm
-        // Dist should be 52.0→52.1 ≈ 11.1 km, not the 52.0→58.0 teleport distance.
-        assertEquals(11.1, totalDist, 1.0)
+        assertEquals(0.111, totalDist, 0.02)
     }
 
     @Test
@@ -574,6 +574,104 @@ class RecordingEngineTest {
         // Two segments of ≈11.1 km each → ≈22.2 km total.
         assertEquals(22.2, engine.snapshot().distanceKm, 1.0)
         assertTrue("path should contain three points", engine.buildRoutePayload().pathJson.contains("\"lat\""))
+    }
+
+    // ── O2: GPS gap / dropout detection ─────────────────────────────────────
+    //
+    // All gap tests use small movements (≤0.001°, ≈111 m) or large time deltas so that
+    // the implied inter-fix speed stays well below MAX_PLAUSIBLE_SPEED_KMH (300 km/h) and
+    // the outlier gate never fires — the gap branch is the only active gate in these tests.
+    // For a 111 m step, 300 km/h requires ≥ 1.33 s; all tests use dt >> 1.33 s.
+
+    @Test
+    fun `contiguous moving fixes accumulate distance normally when gap is below threshold`() {
+        // 0.001° ≈ 111 m in 10 s → ~40 km/h — below outlier gate, below gap threshold (20 s).
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        val metrics = engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = 10_000L))
+        assertTrue("distance should accumulate for sub-gap fixes", metrics.distanceKm > 0.0)
+        assertEquals(0.111, metrics.distanceKm, 0.01)
+    }
+
+    @Test
+    fun `gap above GPS_GAP_SEC does not add bridging distance but records the reacquired point`() {
+        // 0.001° ≈ 111 m in 25 s → ~16 km/h — passes outlier gate; 25 s > GPS_GAP_SEC triggers dropout.
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        val distBefore = engine.snapshot().distanceKm
+
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        val metrics = engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = gapMs))
+
+        // Bridging distance across the dropout must NOT be added.
+        assertEquals(distBefore, metrics.distanceKm, 0.0001)
+
+        // The reacquired point IS recorded (path contains two points).
+        val pathJson = engine.buildRoutePayload().pathJson
+        val countLat = pathJson.split("\"lat\"").size - 1
+        assertEquals("two points should be in path after dropout reacquisition", 2, countLat)
+    }
+
+    @Test
+    fun `elevation gain across a gap is not accumulated`() {
+        // Same timing as the distance test; add a significant altitude jump to verify elev is skipped.
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, altitudeM = 100.0, timeMs = 0L))
+        val elevBefore = engine.snapshot().elevGainM
+
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        val metrics = engine.onLocation(sample(lat = 52.001, lng = 21.0, altitudeM = 500.0, timeMs = gapMs))
+
+        // Elevation gain across the dropout must NOT be counted.
+        assertEquals(elevBefore, metrics.elevGainM, 0.0001)
+    }
+
+    @Test
+    fun `post-gap movement accumulates correctly from the reacquired position`() {
+        // Fix1 → Fix2: large dt (dropout, no dist added).
+        // Fix2 → Fix3: small dt (contiguous, dist added).
+        // Use 0.001° steps so implied speed stays well below outlier gate (300 km/h).
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = gapMs))        // dropout — no dist
+        val distAfterGap = engine.snapshot().distanceKm
+
+        val t3 = gapMs + 10_000L  // 10 s after Fix2 — sub-threshold gap
+        engine.onLocation(sample(lat = 52.002, lng = 21.0, timeMs = t3))             // contiguous — dist added
+
+        val distAfter3 = engine.snapshot().distanceKm
+        // 52.001 → 52.002 ≈ 0.111 km should be added; the 52.0 → 52.001 gap was skipped.
+        assertTrue("post-gap fix should accumulate distance", distAfter3 > distAfterGap)
+        assertEquals(0.111, distAfter3 - distAfterGap, 0.02)
+    }
+
+    @Test
+    fun `multiple gaps each skip bridging distance independently`() {
+        // Three consecutive dropout reacquisitions — no bridging distance accumulated at all.
+        // Use large dt so each pair triggers gap detection; small distances so outlier gate does not fire.
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = gapMs))       // gap 1 — skip
+        engine.onLocation(sample(lat = 52.002, lng = 21.0, timeMs = gapMs * 2))   // gap 2 — skip
+
+        assertEquals(0.0, engine.snapshot().distanceKm, 0.0001)
+    }
+
+    @Test
+    fun `boundary just below GPS_GAP_SEC accumulates distance normally`() {
+        // dt = GPS_GAP_SEC - 0.001 s → strictly less than threshold → NOT a dropout.
+        // 0.001° in ~19.999 s → ~20 km/h — well below outlier gate.
+        val dtMs = ((RecordingEngine.GPS_GAP_SEC - 0.001) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = dtMs))
+        assertTrue("sub-threshold gap should accumulate distance", engine.snapshot().distanceKm > 0.0)
+    }
+
+    @Test
+    fun `boundary just above GPS_GAP_SEC skips bridging distance`() {
+        // dt = GPS_GAP_SEC + 0.001 s → strictly greater → dropout detected.
+        val dtMs = ((RecordingEngine.GPS_GAP_SEC + 0.001) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        val distBefore = engine.snapshot().distanceKm
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = dtMs))
+        assertEquals(distBefore, engine.snapshot().distanceKm, 0.0001)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

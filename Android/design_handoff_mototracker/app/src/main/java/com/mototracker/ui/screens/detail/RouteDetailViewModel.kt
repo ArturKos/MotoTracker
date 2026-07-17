@@ -426,9 +426,9 @@ class RouteDetailViewModel @Inject constructor(
 
         val trackPoints = when {
             effectiveView == TrackView.CORRECTED && hasCorrectedTrace ->
-                TrackGeometry.parsePathJson(route.correctedPathJson)
+                TrackGeometry.parsePathJsonFull(route.correctedPathJson)
             else ->
-                TrackGeometry.parsePathJson(route.pathJson)
+                TrackGeometry.parsePathJsonFull(route.pathJson)
         }
 
         val correctionStatusLabelRes: Int? = when (route.correctionStatus) {

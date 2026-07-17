@@ -35,6 +35,7 @@ import com.mototracker.domain.naming.PartOfDay
 import com.mototracker.domain.naming.RouteNameComposer
 import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.domain.recording.RouteResumeSeed
+import com.mototracker.domain.recording.TrackPoint
 import com.mototracker.ui.map.GeoCoord
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
@@ -572,7 +573,7 @@ class RecordingViewModel @Inject constructor(
         // G5: Restore the pending refuel buffer from the snapshot so events are not lost.
         pendingRefuels.clear()
         pendingRefuels.addAll(snap.pendingRefuels)
-        val trackPoints = snap.engineState.pathPoints.map { (lat, lng) -> GeoCoord(lat, lng) }
+        val trackPoints = snap.engineState.pathPoints
         _uiState.update {
             it.copy(
                 phase = RecordingPhase.Paused,
@@ -619,7 +620,7 @@ class RecordingViewModel @Inject constructor(
         existingRouteName = route.name
         existingRouteDateEpochMs = route.dateEpochMs
 
-        val trackPoints = seed.pathPoints.map { (lat, lng) -> GeoCoord(lat, lng) }
+        val trackPoints = seed.pathPoints
         _uiState.update {
             it.copy(
                 phase = RecordingPhase.Paused,
@@ -704,9 +705,9 @@ class RecordingViewModel @Inject constructor(
                     "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
                 )
                 val metrics = engine.onLocation(sample)
-                val coord = GeoCoord(sample.lat, sample.lng)
+                val pt = TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs)
                 _uiState.update { prev ->
-                    prev.copy(metrics = metrics, trackPoints = prev.trackPoints + coord)
+                    prev.copy(metrics = metrics, trackPoints = prev.trackPoints + pt)
                 }
                 // K5: Fetch weather once on the first GPS fix when online.
                 if (!weatherFetchedForRide) {

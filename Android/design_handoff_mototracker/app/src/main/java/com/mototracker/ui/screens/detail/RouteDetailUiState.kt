@@ -2,7 +2,7 @@ package com.mototracker.ui.screens.detail
 
 import com.mototracker.core.format.WeatherUi
 import com.mototracker.data.local.entity.CorrectionStatus
-import com.mototracker.ui.map.GeoCoord
+import com.mototracker.domain.recording.TrackPoint
 
 /**
  * Single value + unit for one stat tile on the route-detail screen.
@@ -143,7 +143,7 @@ data class RouteDetailUiState(
     val elevFill: String = "",
     val elevGainLabel: String = "",
     val thumbnailPathD: String = "",
-    val trackPoints: List<GeoCoord> = emptyList(),
+    val trackPoints: List<TrackPoint> = emptyList(),
     val meetings: List<MeetingUi> = emptyList(),
     val meetingsNone: Boolean = true,
     val queued: Boolean = false,

@@ -40,7 +40,8 @@ class RecordingEngineStateTest {
     fun `exportState captures path, speed and elev lists`() {
         val engine = RecordingEngine()
         engine.onLocation(LocationSample(52.0, 21.0, 10.0, 100.0, 0f, 1000L))
-        engine.onLocation(LocationSample(52.01, 21.01, 15.0, 105.0, 10f, 2000L))
+        // 50 s later → ~1.3 km in 49 s ≈ 96 km/h, well below the N2 outlier cap.
+        engine.onLocation(LocationSample(52.01, 21.01, 15.0, 105.0, 10f, 50_000L))
 
         val state = engine.exportState()
 
@@ -90,7 +91,8 @@ class RecordingEngineStateTest {
     fun `restore rebuilds path and chart lists`() {
         val original = RecordingEngine()
         original.onLocation(LocationSample(53.0, 14.0, 20.0, 200.0, 0f, 1000L))
-        original.onLocation(LocationSample(53.01, 14.01, 22.0, 205.0, 5f, 2000L))
+        // 50 s later → ~1.3 km in 49 s ≈ 96 km/h, well below the N2 outlier cap.
+        original.onLocation(LocationSample(53.01, 14.01, 22.0, 205.0, 5f, 50_000L))
         val state = original.exportState()
 
         val restored = RecordingEngine()
@@ -280,6 +282,53 @@ class RecordingEngineStateTest {
 
         assertNotNull(decoded)
         assertEquals(75L, decoded!!.engineState.movingSec)
+    }
+
+    // ── prevTimeMs JSON round-trip (N2) ──────────────────────────────────────
+
+    @Test
+    fun `encode and decode round-trip preserves prevTimeMs`() {
+        val engineState = RecordingEngineState(
+            prevLat = 52.0, prevLng = 21.0, prevAlt = 100.0,
+            prevTimeMs = 1_700_000_000_000L,
+            distanceKm = 5.0, durationSec = 120L,
+            currentSpeedKmh = 80.0, maxSpeedKmh = 100.0,
+            currentLeanDeg = 0.0, maxLeanDeg = 25.0,
+            altitudeM = 100.0, elevGainM = 20.0, headingDeg = 90f,
+            pathPoints = emptyList(), speedOverTime = emptyList(), elevOverDist = emptyList(),
+        )
+        val original = ActiveSessionSnapshot(engineState, 0L, null, false)
+
+        val decoded = decode(encode(original))
+
+        assertNotNull(decoded)
+        assertEquals(1_700_000_000_000L, decoded!!.engineState.prevTimeMs)
+    }
+
+    @Test
+    fun `decode defaults prevTimeMs to null when key is absent (backward compat)`() {
+        // Simulate a legacy JSON string that has no prevTimeMs field (pre-N2 snapshot).
+        val legacyJson = encode(
+            ActiveSessionSnapshot(
+                RecordingEngineState(
+                    prevLat = 52.0, prevLng = 21.0, prevAlt = 100.0,
+                    prevTimeMs = 9_999_999L,
+                    distanceKm = 5.0, durationSec = 120L,
+                    currentSpeedKmh = 0.0, maxSpeedKmh = 60.0,
+                    currentLeanDeg = 0.0, maxLeanDeg = 20.0,
+                    altitudeM = 100.0, elevGainM = 10.0, headingDeg = 0f,
+                    pathPoints = emptyList(), speedOverTime = emptyList(), elevOverDist = emptyList(),
+                ),
+                0L, null, false,
+            ),
+        ).let { json ->
+            // Remove prevTimeMs key to simulate old (pre-N2) format.
+            org.json.JSONObject(json).apply { remove("prevTimeMs") }.toString()
+        }
+
+        val decoded = decode(legacyJson)
+        assertNotNull(decoded)
+        assertNull(decoded!!.engineState.prevTimeMs)
     }
 
     @Test

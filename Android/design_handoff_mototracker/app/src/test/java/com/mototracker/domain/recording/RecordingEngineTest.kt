@@ -493,6 +493,89 @@ class RecordingEngineTest {
         assertEquals(originalMoving, restored.snapshot().movingSec)
     }
 
+    // ── N2: accuracy gate ────────────────────────────────────────────────────
+
+    @Test
+    fun `accuracy gate drops fix with accuracyM above 35m — no distance no path no maxSpeed change`() {
+        // Establish a good first fix (moving, good accuracy).
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = 20.0))
+        val distBefore = engine.snapshot().distanceKm
+        val maxSpeedBefore = engine.snapshot().maxSpeedKmh
+        // Bad-accuracy fix: far away with a huge speed that would inflate maxSpeed if accepted.
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, speedMps = 100.0, accuracyM = 35.01))
+        assertEquals(distBefore, engine.snapshot().distanceKm, 0.0001)
+        assertEquals(maxSpeedBefore, engine.snapshot().maxSpeedKmh, 0.001)
+        // Only the first (good) point should be in the track.
+        val pathJson = engine.buildRoutePayload().pathJson
+        assertTrue("only one path point should exist", pathJson.indexOf("\"lat\"") == pathJson.lastIndexOf("\"lat\""))
+    }
+
+    @Test
+    fun `accuracy gate accepts fix with accuracyM zero (unknown accuracy)`() {
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, accuracyM = 0.0))
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, accuracyM = 0.0))
+        assertTrue("distance should accumulate when accuracyM is 0", engine.snapshot().distanceKm > 0.0)
+    }
+
+    @Test
+    fun `accuracy gate accepts fix at exactly 35m boundary`() {
+        engine.onLocation(sample(lat = 52.0, lng = 21.0))
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, accuracyM = 35.0))
+        assertTrue("35.0m accuracy should be accepted (boundary inclusive)", engine.snapshot().distanceKm > 0.0)
+    }
+
+    @Test
+    fun `accuracy gate rejects fix just above 35m boundary`() {
+        engine.onLocation(sample(lat = 52.0, lng = 21.0))
+        val distBefore = engine.snapshot().distanceKm
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, accuracyM = 35.01))
+        assertEquals(distBefore, engine.snapshot().distanceKm, 0.0001)
+    }
+
+    @Test
+    fun `currentSpeedKmh reflects latest sample speed even when fix is dropped by accuracy gate`() {
+        val droppedSpeedMps = 50.0 // 180 km/h
+        engine.onLocation(sample(speedMps = droppedSpeedMps, accuracyM = 40.0))
+        assertEquals(droppedSpeedMps * 3.6, engine.snapshot().currentSpeedKmh, 0.001)
+    }
+
+    // ── N2: outlier (teleport) gate ──────────────────────────────────────────
+
+    @Test
+    fun `outlier gate drops teleport fix implying speed above 300 kmh`() {
+        // Fix1 (t=0): moving, establishes prev anchor at lat=52.0.
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = 20.0, timeMs = 0L))
+        val distAfterFirst = engine.snapshot().distanceKm
+        // Fix2 (t=1s): 6 degrees north (≈668 km) in 1 second → ~2.4M km/h — obvious teleport.
+        engine.onLocation(sample(lat = 58.0, lng = 21.0, speedMps = 20.0, timeMs = 1_000L))
+        assertEquals(distAfterFirst, engine.snapshot().distanceKm, 0.0001)
+        // Fix3 (t=200s): prev anchor still at (52.0, 21.0) because the teleport was dropped.
+        // Haversine(52.0→52.1) ≈ 11.1 km in 200 s → ≈200 km/h < 300 → accepted.
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, speedMps = 20.0, timeMs = 200_000L))
+        val totalDist = engine.snapshot().distanceKm
+        // Dist should be 52.0→52.1 ≈ 11.1 km, not the 52.0→58.0 teleport distance.
+        assertEquals(11.1, totalDist, 1.0)
+    }
+
+    @Test
+    fun `outlier gate currentSpeedKmh still updated for teleport-dropped fix`() {
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = 20.0, timeMs = 0L))
+        // Teleport with a different speed — currentSpeedKmh must still reflect it.
+        engine.onLocation(sample(lat = 58.0, lng = 21.0, speedMps = 30.0, timeMs = 1_000L))
+        assertEquals(30.0 * 3.6, engine.snapshot().currentSpeedKmh, 0.001)
+    }
+
+    @Test
+    fun `normal sequence of good fixes accumulates distance and track correctly (regression)`() {
+        // All fixes share timeMs=0 → dtSec=0 → outlier gate is never triggered (pre-N2 behaviour).
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, speedMps = 20.0))
+        engine.onLocation(sample(lat = 52.1, lng = 21.0, speedMps = 20.0))
+        engine.onLocation(sample(lat = 52.2, lng = 21.0, speedMps = 20.0))
+        // Two segments of ≈11.1 km each → ≈22.2 km total.
+        assertEquals(22.2, engine.snapshot().distanceKm, 1.0)
+        assertTrue("path should contain three points", engine.buildRoutePayload().pathJson.contains("\"lat\""))
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun sample(
@@ -501,12 +584,15 @@ class RecordingEngineTest {
         speedMps: Double = 10.0,
         altitudeM: Double = 0.0,
         bearingDeg: Float = 0f,
+        timeMs: Long = 0L,
+        accuracyM: Double = 0.0,
     ) = LocationSample(
         lat = lat,
         lng = lng,
         speedMps = speedMps,
         altitudeM = altitudeM,
         bearingDeg = bearingDeg,
-        timeMs = 0L,
+        timeMs = timeMs,
+        accuracyM = accuracyM,
     )
 }

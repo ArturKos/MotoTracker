@@ -72,6 +72,7 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
         if (e.prevLat != null) put("prevLat", e.prevLat)
         if (e.prevLng != null) put("prevLng", e.prevLng)
         if (e.prevAlt != null) put("prevAlt", e.prevAlt)
+        if (e.prevTimeMs != null) put("prevTimeMs", e.prevTimeMs)
         put("distKm", e.distanceKm)
         put("durSec", e.durationSec)
         put("movingSec", e.movingSec)
@@ -134,6 +135,7 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         prevLat = o.optDoubleOrNull("prevLat"),
         prevLng = o.optDoubleOrNull("prevLng"),
         prevAlt = o.optDoubleOrNull("prevAlt"),
+        prevTimeMs = if (o.has("prevTimeMs") && !o.isNull("prevTimeMs")) o.getLong("prevTimeMs") else null,
         distanceKm = o.getDouble("distKm"),
         durationSec = o.getLong("durSec"),
         movingSec = o.optLong("movingSec", 0L),

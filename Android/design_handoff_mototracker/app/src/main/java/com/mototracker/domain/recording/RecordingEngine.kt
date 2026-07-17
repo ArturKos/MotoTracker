@@ -44,11 +44,33 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
          * prevent parked-bike GPS jitter from polluting the recorded path and odometer.
          */
         const val MOVING_THRESHOLD_KMH = 2.0
+
+        /**
+         * Maximum acceptable horizontal accuracy in metres.
+         *
+         * A fix whose [LocationSample.accuracyM] exceeds this value is fully dropped:
+         * no distance, path point, max-speed update, altitude, or heading is applied.
+         * A value of 0.0 in [LocationSample.accuracyM] means the provider did not report
+         * accuracy (unknown) and is always accepted.
+         */
+        const val MAX_ACCURACY_M = 35.0
+
+        /**
+         * Implied-speed ceiling in km/h for the teleport-outlier gate.
+         *
+         * When two consecutive accepted moving fixes imply a ground speed above this
+         * threshold (computed via haversine distance divided by elapsed time), the newer
+         * fix is treated as a GPS teleport and fully dropped without updating any
+         * accumulator or the prev* anchors.
+         */
+        const val MAX_PLAUSIBLE_SPEED_KMH = 300.0
     }
 
     private var prevLat: Double? = null
     private var prevLng: Double? = null
     private var prevAlt: Double? = null
+    /** Timestamp of the last accepted moving fix; null until the first moving fix. */
+    private var prevTimeMs: Long? = null
 
     private var distanceKm: Double = 0.0
     private var durationSec: Long = 0L
@@ -72,22 +94,53 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     /**
      * Integrates a new GPS [sample] into the session state and returns the updated [RecordingMetrics].
      *
-     * Live display values (speed, max speed, altitude, heading) are updated on every fix.
-     * Track accumulation (distance, elevation gain, path points, chart series, and prev* anchors)
-     * is gated on [MOVING_THRESHOLD_KMH]: fixes below the threshold are silently dropped from the
-     * persisted track so that a parked bike does not accumulate jitter distance or ghost points.
+     * Processing order:
+     * 1. [currentSpeedKmh] is always updated from the sample so the live display reflects the
+     *    latest reading even when the fix is subsequently dropped.
+     * 2. **Accuracy gate** — if [LocationSample.accuracyM] is known (> 0) and exceeds
+     *    [MAX_ACCURACY_M], the fix is fully dropped; no accumulator, max-speed, altitude, heading,
+     *    or prev* anchor is touched.
+     * 3. **Outlier gate** — if the implied ground speed between the previous accepted moving fix
+     *    and this fix exceeds [MAX_PLAUSIBLE_SPEED_KMH], the fix is treated as a GPS teleport
+     *    and dropped; prev* anchors are left at the earlier point.
+     * 4. Accepted fix: [maxSpeedKmh] is bumped (after the gates so a rejected spike cannot
+     *    inflate it), altitude and heading are updated, and the existing [MOVING_THRESHOLD_KMH]
+     *    gate governs distance/elevation/path accumulation and the prev* anchors.
      */
     fun onLocation(sample: LocationSample): RecordingMetrics {
         val speedKmh = sample.speedMps * 3.6
-        currentSpeedKmh = speedKmh
-        if (speedKmh > maxSpeedKmh) maxSpeedKmh = speedKmh
 
+        // (1) Always reflect the latest speed on-screen, even for dropped fixes.
+        currentSpeedKmh = speedKmh
+
+        // (2) Accuracy gate: drop fix when accuracy is known-bad (accuracyM > 0 means known).
+        if (sample.accuracyM > 0.0 && sample.accuracyM > MAX_ACCURACY_M) {
+            return snapshot()
+        }
+
+        // Capture prev anchors once for both the outlier check and the moving-gate below.
+        val pLat = prevLat
+        val pLng = prevLng
+        val pTimeMs = prevTimeMs
+
+        // (3) Outlier gate: drop implied-teleport fixes (requires a prior accepted moving fix).
+        if (pLat != null && pLng != null && pTimeMs != null) {
+            val dtSec = (sample.timeMs - pTimeMs) / 1000.0
+            if (dtSec > 0) {
+                val impliedKmh = haversine(pLat, pLng, sample.lat, sample.lng) / dtSec * 3600.0
+                if (impliedKmh > MAX_PLAUSIBLE_SPEED_KMH) {
+                    return snapshot()
+                }
+            }
+        }
+
+        // (4) Accepted fix: bump max-speed (gates ensure rejected spikes cannot inflate it),
+        //     update live fields, then apply the moving-threshold gate for track accumulation.
+        if (speedKmh > maxSpeedKmh) maxSpeedKmh = speedKmh
         altitudeM = sample.altitudeM
         headingDeg = sample.bearingDeg
 
         if (speedKmh >= MOVING_THRESHOLD_KMH) {
-            val pLat = prevLat
-            val pLng = prevLng
             if (pLat != null && pLng != null) {
                 distanceKm += haversine(pLat, pLng, sample.lat, sample.lng)
             }
@@ -100,6 +153,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
             prevLat = sample.lat
             prevLng = sample.lng
             prevAlt = sample.altitudeM
+            prevTimeMs = sample.timeMs
 
             pathPoints += TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs)
             speedOverTime += durationSec to speedKmh
@@ -205,7 +259,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         sessionFuelLper100km = fuelLper100km
         this.tankCapacityL = tankCapacityL
         fillAnchorKm = 0.0
-        prevLat = null; prevLng = null; prevAlt = null
+        prevLat = null; prevLng = null; prevAlt = null; prevTimeMs = null
         distanceKm = 0.0; durationSec = 0L; movingSec = 0L
         currentSpeedKmh = 0.0; maxSpeedKmh = 0.0
         currentLeanDeg = 0.0; maxLeanDeg = 0.0
@@ -255,6 +309,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         prevLat = prevLat,
         prevLng = prevLng,
         prevAlt = prevAlt,
+        prevTimeMs = prevTimeMs,
         distanceKm = distanceKm,
         durationSec = durationSec,
         movingSec = movingSec,
@@ -289,6 +344,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         prevLat = state.prevLat
         prevLng = state.prevLng
         prevAlt = state.prevAlt
+        prevTimeMs = state.prevTimeMs
         distanceKm = state.distanceKm
         durationSec = state.durationSec
         movingSec = state.movingSec

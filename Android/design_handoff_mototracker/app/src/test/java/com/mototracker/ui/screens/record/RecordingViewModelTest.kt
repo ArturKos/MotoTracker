@@ -878,7 +878,8 @@ class RecordingViewModelTest {
         vm.onEvent(RecordingEvent.Start)
         advanceTimeBy(100L) // let viewModelScope start collecting
         collector.tryEmit(LocationSample(lat = 0.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 1000L))
-        collector.tryEmit(LocationSample(lat = 1.0, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 2000L))
+        // lat=0.00025 ≈ 27.8 m away in 1 second → ~100 km/h, safely below the 300 km/h outlier gate.
+        collector.tryEmit(LocationSample(lat = 0.00025, lng = 0.0, speedMps = 10.0, altitudeM = 0.0, bearingDeg = 0f, timeMs = 2000L))
         advanceTimeBy(200L)
 
         val distanceBeforeFill = vm.uiState.value.metrics.distanceSinceFullKm
@@ -1571,9 +1572,10 @@ class RecordingViewModelTest {
                     bearingDeg = 0f, timeMs = 1_000L,
                 ),
             )
+            // lat=0.00025 ≈ 27.8 m away in 1 second → ~100 km/h, safely below the 300 km/h outlier gate.
             collector.tryEmit(
                 LocationSample(
-                    lat = 1.0, lng = 0.0,
+                    lat = 0.00025, lng = 0.0,
                     speedMps = 25.0, altitudeM = 75.0,
                     bearingDeg = 0f, timeMs = 2_000L,
                 ),

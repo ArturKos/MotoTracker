@@ -9,6 +9,9 @@ package com.mototracker.domain.recording
  * @param prevLat               Latitude of the previous GPS fix, or null before the first fix.
  * @param prevLng               Longitude of the previous GPS fix, or null before the first fix.
  * @param prevAlt               Altitude of the previous GPS fix, or null before the first fix.
+ * @param prevTimeMs            Timestamp in ms of the last accepted moving fix, used by the
+ *                              outlier gate; null before the first moving fix. Defaults to null
+ *                              for backward-compatibility with pre-N2 snapshots.
  * @param distanceKm            Accumulated distance in kilometres.
  * @param durationSec           Elapsed recording time in seconds.
  * @param movingSec             Elapsed time in motion in seconds; defaults to 0 for backward-compat with older snapshots.
@@ -33,6 +36,7 @@ data class RecordingEngineState(
     val prevLat: Double?,
     val prevLng: Double?,
     val prevAlt: Double?,
+    val prevTimeMs: Long? = null,
     val distanceKm: Double,
     val durationSec: Long,
     val movingSec: Long = 0L,

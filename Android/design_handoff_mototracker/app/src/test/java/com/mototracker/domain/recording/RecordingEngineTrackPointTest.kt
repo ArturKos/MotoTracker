@@ -47,8 +47,9 @@ class RecordingEngineTrackPointTest {
         engine.onLocation(
             LocationSample(lat = 50.06, lng = 19.94, speedMps = 15.0, altitudeM = 200.0, bearingDeg = 90f, timeMs = 1_700_000_001_000L),
         )
+        // 50 s later → ~1.3 km in 50 s ≈ 94 km/h, well below the N2 outlier cap (300 km/h).
         engine.onLocation(
-            LocationSample(lat = 50.07, lng = 19.95, speedMps = 20.0, altitudeM = 210.0, bearingDeg = 95f, timeMs = 1_700_000_002_000L),
+            LocationSample(lat = 50.07, lng = 19.95, speedMps = 20.0, altitudeM = 210.0, bearingDeg = 95f, timeMs = 1_700_000_051_000L),
         )
         val pathJson = engine.buildRoutePayload().pathJson
         val points = TrackGeometry.parsePathJsonFull(pathJson)
@@ -61,7 +62,7 @@ class RecordingEngineTrackPointTest {
         assertEquals(50.07, points[1].lat, 0.0001)
         assertEquals(19.95, points[1].lng, 0.0001)
         assertEquals(210.0, points[1].ele, 0.001)
-        assertEquals(1_700_000_002_000L, points[1].t)
+        assertEquals(1_700_000_051_000L, points[1].t)
     }
 
     @Test

@@ -9,6 +9,9 @@ package com.mototracker.domain.recording
  * @param altitudeM  Altitude above sea level in metres.
  * @param bearingDeg True bearing in degrees (0–360).
  * @param timeMs     Fix timestamp in milliseconds since the Unix epoch.
+ * @param accuracyM  Horizontal accuracy radius in metres reported by the location provider.
+ *                   A value of 0.0 means the provider did not report accuracy (unknown);
+ *                   treat it as acceptable and do not reject on accuracy grounds.
  */
 data class LocationSample(
     val lat: Double,
@@ -17,4 +20,5 @@ data class LocationSample(
     val altitudeM: Double,
     val bearingDeg: Float,
     val timeMs: Long,
+    val accuracyM: Double = 0.0,
 )

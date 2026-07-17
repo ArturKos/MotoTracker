@@ -90,5 +90,6 @@ class FusedLocationClientImpl @Inject constructor(
         altitudeM = altitude,
         bearingDeg = bearing,
         timeMs = time,
+        accuracyM = if (hasAccuracy()) accuracy.toDouble() else 0.0,
     )
 }

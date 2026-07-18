@@ -81,6 +81,7 @@ data class SyncQueueItemUi(
  * @param currency             ISO 4217 currency code used for fuel cost display, e.g. "PLN".
  * @param wavesEnabled         Whether the BLE waves (pomachania) feature is enabled.
  *                             When `false`, the Settings toggle is off and no BLE advertise/scan occurs.
+ * @param coordFormat          Coordinate display format key: "dd", "dms", or "utm" (P2).
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -109,4 +110,5 @@ data class SettingsUiState(
     val rideLogUsedBytes: Long = 0L,
     val currency: String = "PLN",
     val wavesEnabled: Boolean = true,
+    val coordFormat: String = "dd",
 )

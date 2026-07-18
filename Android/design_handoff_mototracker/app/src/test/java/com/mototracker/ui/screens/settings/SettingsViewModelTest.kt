@@ -65,6 +65,7 @@ private class FakeSettingsStore(
     var lastBcSocial: String? = null
     var lastCurrency: String? = null
     var lastWavesEnabled: Boolean? = null
+    var lastCoordFormat: String? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -88,6 +89,7 @@ private class FakeSettingsStore(
     override suspend fun setDebugLoggingEnabled(value: Boolean) { _flow.value = _flow.value.copy(debugLoggingEnabled = value) }
     override suspend fun setCurrency(currency: String) { lastCurrency = currency; _flow.value = _flow.value.copy(currency = currency) }
     override suspend fun setWavesEnabled(value: Boolean) { lastWavesEnabled = value; _flow.value = _flow.value.copy(wavesEnabled = value) }
+    override suspend fun setCoordFormat(value: String) { lastCoordFormat = value; _flow.value = _flow.value.copy(coordFormat = value) }
 }
 
 private class FakeBikeRepository : BikeRepository {
@@ -904,6 +906,44 @@ class SettingsViewModelTest {
         store.emit(AppSettings(wavesEnabled = false))
         vm.uiState.test {
             assertFalse(awaitItem().wavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── coordFormat (P2) ──────────────────────────────────────────────────────
+
+    @Test
+    fun `coordFormat defaults to dd in initial uiState`() {
+        assertEquals("dd", vm.uiState.value.coordFormat)
+    }
+
+    @Test
+    fun `setCoordFormat delegates to store setCoordFormat`() = runTest {
+        vm.setCoordFormat("utm")
+        assertEquals("utm", store.lastCoordFormat)
+    }
+
+    @Test
+    fun `setCoordFormat dms delegates correctly`() = runTest {
+        vm.setCoordFormat("dms")
+        assertEquals("dms", store.lastCoordFormat)
+    }
+
+    @Test
+    fun `store emit coordFormat propagates to uiState`() = runTest {
+        store.emit(AppSettings(coordFormat = "utm"))
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals("utm", state.coordFormat)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `store emit coordFormat dms propagates to uiState`() = runTest {
+        store.emit(AppSettings(coordFormat = "dms"))
+        vm.uiState.test {
+            assertEquals("dms", awaitItem().coordFormat)
             cancelAndIgnoreRemainingEvents()
         }
     }

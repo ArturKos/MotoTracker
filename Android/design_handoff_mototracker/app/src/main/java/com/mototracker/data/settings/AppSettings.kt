@@ -35,6 +35,8 @@ package com.mototracker.data.settings
  * @param batteryPromptDismissed Whether the user has dismissed the battery-optimization exemption
  *                               prompt (O1). When `true`, the prompt is never shown again even if
  *                               the app is not yet exempt.
+ * @param coordFormat            Coordinate display format: "dd" (decimal degrees), "dms"
+ *                               (degrees/minutes/seconds), or "utm". Defaults to "dd".
  */
 data class AppSettings(
     val offline: Boolean = false,
@@ -59,4 +61,5 @@ data class AppSettings(
     val currency: String = "PLN",
     val wavesEnabled: Boolean = true,
     val batteryPromptDismissed: Boolean = false,
+    val coordFormat: String = "dd",
 )

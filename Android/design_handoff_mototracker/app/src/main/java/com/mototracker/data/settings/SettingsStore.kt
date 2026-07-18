@@ -95,4 +95,13 @@ interface SettingsStore : WritableSettingsSource {
      * Test fakes that implement [SettingsStore] are not required to override this.
      */
     suspend fun setBatteryPromptDismissed(value: Boolean) {}
+
+    /**
+     * Persists the coordinate display format (P2).
+     *
+     * Accepted values: "dd" (decimal degrees), "dms" (degrees/minutes/seconds), "utm".
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setCoordFormat(value: String) {}
 }

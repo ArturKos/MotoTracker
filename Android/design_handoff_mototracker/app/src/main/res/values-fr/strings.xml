@@ -452,4 +452,10 @@
     <string name="battery_opt_action_not_now">Pas maintenant</string>
     <string name="battery_opt_settings_label">Activité en arrière-plan sans restriction</string>
     <string name="battery_opt_emui_hint">Sur Huawei/EMUI, active aussi le démarrage automatique dans la gestion des applications.</string>
+
+    <!-- Coordinate format (P2) -->
+    <string name="label_coord_format">Format de coordonnées</string>
+    <string name="coord_format_dd">DD</string>
+    <string name="coord_format_dms">DMS</string>
+    <string name="coord_format_utm">UTM</string>
 </resources>

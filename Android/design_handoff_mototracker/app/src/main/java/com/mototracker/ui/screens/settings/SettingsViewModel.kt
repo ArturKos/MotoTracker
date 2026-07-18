@@ -182,6 +182,7 @@ class SettingsViewModel @Inject constructor(
             rideLogUsedBytes = rideLogUsedBytes,
             currency = settings.currency,
             wavesEnabled = settings.wavesEnabled,
+            coordFormat = settings.coordFormat,
         )
     }
 
@@ -385,6 +386,15 @@ class SettingsViewModel @Inject constructor(
     /** Persists the diagnostic ride-logging enabled flag. */
     fun setDebugLogging(value: Boolean) {
         viewModelScope.launch { settingsStore.setDebugLoggingEnabled(value) }
+    }
+
+    /**
+     * Persists the coordinate display format key (P2).
+     *
+     * @param key One of "dd", "dms", or "utm".
+     */
+    fun setCoordFormat(key: String) {
+        viewModelScope.launch { settingsStore.setCoordFormat(key) }
     }
 
     /**

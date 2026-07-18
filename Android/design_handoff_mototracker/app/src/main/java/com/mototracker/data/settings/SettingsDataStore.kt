@@ -51,6 +51,7 @@ class SettingsDataStore @Inject constructor(
         val CURRENCY = stringPreferencesKey("currency")
         val WAVES_ENABLED = booleanPreferencesKey("waves_enabled")
         val BATTERY_PROMPT_DISMISSED = booleanPreferencesKey("battery_prompt_dismissed")
+        val COORD_FORMAT = stringPreferencesKey("coord_format")
     }
 
     private val defaults = AppSettings()
@@ -80,6 +81,7 @@ class SettingsDataStore @Inject constructor(
             currency = prefs[Keys.CURRENCY] ?: defaults.currency,
             wavesEnabled = prefs[Keys.WAVES_ENABLED] ?: defaults.wavesEnabled,
             batteryPromptDismissed = prefs[Keys.BATTERY_PROMPT_DISMISSED] ?: defaults.batteryPromptDismissed,
+            coordFormat = prefs[Keys.COORD_FORMAT] ?: defaults.coordFormat,
         )
     }
 
@@ -198,5 +200,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the battery-optimization prompt dismissed flag (O1). */
     override suspend fun setBatteryPromptDismissed(value: Boolean) {
         dataStore.edit { it[Keys.BATTERY_PROMPT_DISMISSED] = value }
+    }
+
+    /** Persists the coordinate display format (P2): "dd", "dms", or "utm". */
+    override suspend fun setCoordFormat(value: String) {
+        dataStore.edit { it[Keys.COORD_FORMAT] = value }
     }
 }

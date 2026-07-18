@@ -452,4 +452,10 @@
     <string name="battery_opt_action_not_now">Teď ne</string>
     <string name="battery_opt_settings_label">Neomezená aktivita na pozadí</string>
     <string name="battery_opt_emui_hint">Na Huawei/EMUI také povolte Automatické spouštění v Správě aplikací.</string>
+
+    <!-- Coordinate format (P2) -->
+    <string name="label_coord_format">Formát souřadnic</string>
+    <string name="coord_format_dd">DD</string>
+    <string name="coord_format_dms">DMS</string>
+    <string name="coord_format_utm">UTM</string>
 </resources>

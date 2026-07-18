@@ -253,6 +253,7 @@ fun SettingsScreen(
                 catch (_: Exception) { /* no fallback available */ }
             }
         },
+        onCoordFormat = viewModel::setCoordFormat,
         onExportBackup = { exportLauncher.launch("mototracker-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
         onOpenHelp = onOpenHelp,
@@ -293,6 +294,7 @@ fun SettingsScreen(
  * @param onWavesEnabled       Called when the BLE waves (pomachania) switch changes.
  * @param onOpenBatterySettings Called when the user taps the battery-optimization row (O1);
  *                              opens the system battery-optimization settings.
+ * @param onCoordFormat        Called with the coordinate format key ("dd"|"dms"|"utm").
  * @param onOpenHelp           Called when the user taps the Help row; navigates to the Help screen.
  * @param modifier             Standard Compose modifier.
  */
@@ -326,6 +328,7 @@ fun SettingsContent(
     onKeepScreenOn: (Boolean) -> Unit = {},
     onWavesEnabled: (Boolean) -> Unit = {},
     onOpenBatterySettings: () -> Unit = {},
+    onCoordFormat: (String) -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
     onOpenHelp: () -> Unit = {},
@@ -591,6 +594,11 @@ fun SettingsContent(
                             units = state.units,
                             onUnits = onUnits,
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CoordFormatSelector(
+                            coordFormat = state.coordFormat,
+                            onCoordFormat = onCoordFormat,
+                        )
                         LabeledSwitch(
                             label = stringResource(R.string.label_auto_pause),
                             desc = null,
@@ -844,6 +852,27 @@ private fun AppearanceSection(
         )
         Spacer(modifier = Modifier.height(8.dp))
         UnitsSelector(units = units, onUnits = onUnits)
+    }
+}
+
+/** Coordinate format selector row (P2). */
+@Composable
+private fun CoordFormatSelector(
+    coordFormat: String,
+    onCoordFormat: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        SettingLabel(stringResource(R.string.label_coord_format))
+        ChipRow(
+            options = listOf(
+                "dd" to stringResource(R.string.coord_format_dd),
+                "dms" to stringResource(R.string.coord_format_dms),
+                "utm" to stringResource(R.string.coord_format_utm),
+            ),
+            selected = coordFormat,
+            onSelect = onCoordFormat,
+        )
     }
 }
 

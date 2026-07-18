@@ -108,11 +108,14 @@ fun RouteDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showExportSheet by remember { mutableStateOf(false) }
     var pendingGpx by remember { mutableStateOf<String?>(null) }
+    var pendingTcx by remember { mutableStateOf<String?>(null) }
     var mapFullscreen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
     val gpxSavedMsg = stringResource(R.string.toast_gpx_saved)
     val gpxExportFailedMsg = stringResource(R.string.toast_gpx_export_failed)
+    val tcxSavedMsg = stringResource(R.string.toast_tcx_saved)
+    val tcxExportFailedMsg = stringResource(R.string.toast_tcx_export_failed)
     val linkCopiedMsg = stringResource(R.string.toast_link_copied)
     val serverSentMsg = stringResource(R.string.toast_server_sent)
     val correctionQueuedMsg = stringResource(R.string.toast_correction_queued)
@@ -138,12 +141,33 @@ fun RouteDetailScreen(
         pendingGpx = null
     }
 
+    // SAF launcher for TCX export (Q2); mirrors gpxExportLauncher exactly.
+    val tcxExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.garmin.tcx+xml"),
+    ) { uri ->
+        if (uri == null) {
+            pendingTcx = null
+            return@rememberLauncherForActivityResult
+        }
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(pendingTcx!!.toByteArray()) }
+            onToast(tcxSavedMsg)
+        } catch (e: Exception) {
+            onToast(tcxExportFailedMsg)
+        }
+        pendingTcx = null
+    }
+
     LaunchedEffect(viewModel.events) {
         viewModel.events.collectLatest { event ->
             when (event) {
                 is RouteDetailEvent.GpxSaved -> {
                     pendingGpx = event.content
                     gpxExportLauncher.launch(event.fileName)
+                }
+                is RouteDetailEvent.TcxSaved -> {
+                    pendingTcx = event.content
+                    tcxExportLauncher.launch(event.fileName)
                 }
                 is RouteDetailEvent.LinkCopied -> onToast(linkCopiedMsg)
                 is RouteDetailEvent.ServerSent -> onToast(serverSentMsg)
@@ -214,6 +238,7 @@ fun RouteDetailScreen(
         ExportSheet(
             routeName = state.name,
             onExportGpx = { viewModel.exportGpx() },
+            onExportTcx = { viewModel.exportTcx() },
             onShareRoute = { viewModel.shareRoute() },
             onShareImage = { viewModel.onShareImage() },
             onSendServer = { viewModel.sendToServer() },

@@ -31,8 +31,9 @@ import com.mototracker.ui.theme.MotoTracker
 /**
  * Export & share bottom sheet for the Route Detail screen.
  *
- * Presents four action rows matching the prototype spec:
+ * Presents five action rows:
  * - Export GPX file
+ * - Export TCX file (Q2)
  * - Share route link
  * - Share as image (K4)
  * - Send to GPStrack server
@@ -43,6 +44,7 @@ import com.mototracker.ui.theme.MotoTracker
  *
  * @param routeName     The route display name shown as the sheet subtitle.
  * @param onExportGpx   Called when the user taps "Export GPX file".
+ * @param onExportTcx   Called when the user taps "Export TCX file" (Q2).
  * @param onShareRoute  Called when the user taps "Share route".
  * @param onShareImage  Called when the user taps "Share as image" (K4).
  * @param onSendServer  Called when the user taps "Send to GPStrack server".
@@ -53,6 +55,7 @@ import com.mototracker.ui.theme.MotoTracker
 fun ExportSheet(
     routeName: String,
     onExportGpx: () -> Unit,
+    onExportTcx: () -> Unit,
     onShareRoute: () -> Unit,
     onShareImage: () -> Unit,
     onSendServer: () -> Unit,
@@ -95,6 +98,12 @@ fun ExportSheet(
                 title = stringResource(R.string.btn_export_gpx),
                 desc = stringResource(R.string.desc_export_gpx),
                 onClick = { onExportGpx(); onDismiss() },
+            )
+            HorizontalDivider(color = MotoTracker.colors.line.copy(alpha = 0.4f))
+            ExportOptionRow(
+                title = stringResource(R.string.btn_export_tcx),
+                desc = stringResource(R.string.desc_export_tcx),
+                onClick = { onExportTcx(); onDismiss() },
             )
             HorizontalDivider(color = MotoTracker.colors.line.copy(alpha = 0.4f))
             ExportOptionRow(

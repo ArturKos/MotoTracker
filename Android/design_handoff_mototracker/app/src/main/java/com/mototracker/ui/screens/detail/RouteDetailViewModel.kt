@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mototracker.R
 import com.mototracker.core.format.ChartPolyline
 import com.mototracker.core.format.GpxExporter
+import com.mototracker.core.format.TcxExporter
 import com.mototracker.core.format.MoneyFormatter
 import com.mototracker.core.format.RouteThumbnail
 import com.mototracker.core.format.RouteWeather
@@ -143,6 +144,24 @@ class RouteDetailViewModel @Inject constructor(
                 RouteDetailEvent.GpxSaved(
                     content = GpxExporter.toGpx(route),
                     fileName = GpxExporter.fileName(route),
+                )
+            )
+        }
+    }
+
+    /**
+     * Builds TCX content for the current route and emits [RouteDetailEvent.TcxSaved].
+     *
+     * The Composable is responsible for the actual file write / SAF invocation (🔬).
+     * No-op if the route has not loaded yet.
+     */
+    fun exportTcx() {
+        val route = currentRoute ?: return
+        viewModelScope.launch {
+            _events.send(
+                RouteDetailEvent.TcxSaved(
+                    content = TcxExporter.toTcx(route),
+                    fileName = TcxExporter.fileName(route),
                 )
             )
         }

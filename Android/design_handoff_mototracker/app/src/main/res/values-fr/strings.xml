@@ -124,6 +124,10 @@
     <string name="toast_import">Import GPX — choisir un .gpx</string>
     <string name="toast_gpx_saved">Fichier GPX enregistré</string>
     <string name="toast_gpx_export_failed">Échec de l\'export GPX</string>
+    <string name="btn_export_tcx">Exporter fichier TCX</string>
+    <string name="desc_export_tcx">Enregistrer la trace en .tcx (Garmin)</string>
+    <string name="toast_tcx_saved">Fichier TCX enregistré</string>
+    <string name="toast_tcx_export_failed">Échec de l\'export TCX</string>
     <string name="toast_link_copied">Lien du trajet copié</string>
     <string name="toast_server_sent">Envoyé au serveur GPStrack</string>
     <string name="toast_sent_pre">« </string>

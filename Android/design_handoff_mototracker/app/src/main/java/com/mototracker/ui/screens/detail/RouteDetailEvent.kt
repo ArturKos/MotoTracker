@@ -24,6 +24,17 @@ sealed interface RouteDetailEvent {
     data class GpxSaved(val content: String, val fileName: String) : RouteDetailEvent
 
     /**
+     * TCX content has been produced and is ready for the UI to write/share.
+     *
+     * Follows the same SAF pattern as [GpxSaved]. The ViewModel only produces the content string;
+     * the Composable handles the actual file write via [ActivityResultContracts.CreateDocument].
+     *
+     * @param content  The full TCX (Garmin Training Center Database v2) XML string.
+     * @param fileName Suggested filename, e.g. `"alpine-tour-abc12345.tcx"`.
+     */
+    data class TcxSaved(val content: String, val fileName: String) : RouteDetailEvent
+
+    /**
      * A deterministic route share URL has been produced and is ready for the clipboard.
      *
      * The actual clipboard write is done in the Composable (on-device only, 🔬).

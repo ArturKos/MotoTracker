@@ -124,6 +124,10 @@
     <string name="toast_import">Import GPX — vyberte .gpx</string>
     <string name="toast_gpx_saved">Soubor GPX uložen</string>
     <string name="toast_gpx_export_failed">Export GPX selhal</string>
+    <string name="btn_export_tcx">Exportovat TCX</string>
+    <string name="desc_export_tcx">Uložit stopu do .tcx (Garmin)</string>
+    <string name="toast_tcx_saved">Soubor TCX uložen</string>
+    <string name="toast_tcx_export_failed">Export TCX selhal</string>
     <string name="toast_link_copied">Odkaz na trasu zkopírován</string>
     <string name="toast_server_sent">Odesláno na server GPStrack</string>
     <string name="toast_sent_pre">„</string>

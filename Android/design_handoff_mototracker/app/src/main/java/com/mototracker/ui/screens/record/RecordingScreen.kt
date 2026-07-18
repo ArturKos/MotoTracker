@@ -275,20 +275,22 @@ fun RecordingContent(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 8.dp),
                 ) {
-                    // ── Compact chip row: GPS sat-count + live coordinates (K7, P1) ─
+                    // ── Compact chip row: GPS sat-count left, live coordinates right (K7, P1, S1) ─
                     // Range info is in the fuel readout below; weather is on Route detail.
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
+                        Spacer(Modifier.weight(1f))
                         CoordReadout(
                             lat = state.liveLat,
                             lng = state.liveLng,
                             coordFormat = state.coordFormat,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -389,7 +391,8 @@ private fun InfoChip(
 }
 
 /**
- * Live GPS coordinate readout rendered below the GPS sat-count chip (P1).
+ * Live GPS coordinate readout shown to the right of the GPS sat-count chip in the
+ * compact chip row (P1, S1).
  *
  * Displays coordinates formatted per [coordFormat] once a fix is available; shows a
  * placeholder resource until then. Uses JetBrains Mono at 11 sp with soft-wrapping
@@ -399,6 +402,7 @@ private fun InfoChip(
  * @param lat         Live WGS-84 latitude in decimal degrees, or null before first fix.
  * @param lng         Live WGS-84 longitude in decimal degrees, or null before first fix.
  * @param coordFormat Desired display format (DD / DMS / UTM).
+ * @param textAlign   Horizontal text alignment within the composable; defaults to [TextAlign.Center].
  * @param modifier    Standard Compose modifier.
  */
 @Composable
@@ -406,6 +410,7 @@ private fun CoordReadout(
     lat: Double?,
     lng: Double?,
     coordFormat: CoordFormat,
+    textAlign: TextAlign = TextAlign.Center,
     modifier: Modifier = Modifier,
 ) {
     val text = if (lat != null && lng != null) {
@@ -418,7 +423,7 @@ private fun CoordReadout(
         style = MotoTracker.typography.bigCardNumber.copy(fontSize = 11.sp),
         color = MotoTracker.colors.dim,
         softWrap = true,
-        textAlign = TextAlign.Center,
+        textAlign = textAlign,
         modifier = modifier,
     )
 }

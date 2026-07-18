@@ -10,6 +10,7 @@ import com.mototracker.ui.screens.detail.RouteDetailUiState
 import com.mototracker.ui.screens.detail.StatTileUi
 import com.mototracker.ui.screens.detail.TrackView
 import com.mototracker.ui.screens.login.LoginUiState
+import com.mototracker.core.format.CoordFormat
 import com.mototracker.ui.screens.record.RecordingPhase
 import com.mototracker.ui.screens.record.RecordingUiState
 import com.mototracker.ui.screens.record.WeatherInfo
@@ -66,6 +67,27 @@ object ScreenshotFixtures {
         gpsSatCount = 0,
         gpsOnRoad = false,
         weather = null,
+    )
+
+    /**
+     * Idle recording screen with a GPS fix and UTM coordinate format selected.
+     *
+     * Used by the S1 single-row GPS regression guard: verifies that the sat chip and the
+     * coordinate readout are both visible in the same horizontal row (not stacked).
+     */
+    val recordingIdleWithCoords = RecordingUiState(
+        phase = RecordingPhase.Idle,
+        metrics = RecordingMetrics(
+            tankCapacityL = 17.5,
+            remainingFuelL = 12.3,
+            remainingRangeKm = 210.0,
+        ),
+        gpsSatCount = 8,
+        gpsOnRoad = false,
+        weather = null,
+        liveLat = 51.26059,
+        liveLng = 15.56916,
+        coordFormat = CoordFormat.UTM,
     )
 
     /**

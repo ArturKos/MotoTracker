@@ -12,12 +12,15 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.mototracker.R
+import com.mototracker.core.format.CoordinateFormatter
+import com.mototracker.core.format.CoordFormat
 import com.mototracker.ui.screens.detail.RouteDetailContent
 import com.mototracker.ui.screens.login.LoginContent
 import com.mototracker.ui.screens.record.RecordingContent
@@ -165,6 +168,37 @@ class ScreenshotTest {
         composeRule.onNodeWithContentDescription(fillLabel).assertIsDisplayed()
 
         snapshot("record_recording_fuel_controls_visible")
+    }
+
+    /**
+     * S1 regression guard — GPS sat chip and coordinate readout in a single row.
+     *
+     * Renders [RecordingContent] in Idle with a GPS fix and UTM coordinate format.
+     * Verifies that both the sat chip text and the UTM coordinate string are visible
+     * simultaneously (proving neither was cropped or pushed off screen by the row layout).
+     */
+    @Test
+    @Config(sdk = [33], qualifiers = "w411dp-h891dp-xxhdpi")
+    fun record_idle_gps_coords_single_row() {
+        val fixture = ScreenshotFixtures.recordingIdleWithCoords
+        val expectedCoord = CoordinateFormatter.format(
+            fixture.liveLat!!,
+            fixture.liveLng!!,
+            CoordFormat.UTM,
+        )
+
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                RecordingContent(state = fixture)
+            }
+        }
+
+        // Sat chip must be visible (text starts with "GPS ·").
+        composeRule.onNodeWithText("GPS", substring = true).assertIsDisplayed()
+        // UTM coordinate readout must be visible in the same layout pass.
+        composeRule.onNodeWithText(expectedCoord, substring = true).assertIsDisplayed()
+
+        snapshot("record_idle_gps_coords_single_row")
     }
 
     /**

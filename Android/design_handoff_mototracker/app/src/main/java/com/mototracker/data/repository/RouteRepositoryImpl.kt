@@ -3,6 +3,8 @@ package com.mototracker.data.repository
 import com.mototracker.core.format.TraceChunkCodec
 import com.mototracker.core.format.TraceDownsampler
 import com.mototracker.core.format.RouteThumbnail
+import com.mototracker.domain.recording.TrackPoint
+import com.mototracker.domain.recording.TrackSmoother
 import com.mototracker.data.local.dao.RouteDao
 import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.entity.RouteTraceChunkEntity
@@ -133,7 +135,10 @@ class RouteRepositoryImpl @Inject constructor(
                 val obj = arr.getJSONObject(i)
                 obj.getDouble("lat") to obj.getDouble("lng")
             }
-            val downsampled = TraceDownsampler.downsample(points, THUMBNAIL_MAX_POINTS)
+            val smoothed = TrackSmoother.smooth(
+                points.map { (lat, lng) -> TrackPoint(lat, lng) },
+            ).map { it.lat to it.lng }
+            val downsampled = TraceDownsampler.downsample(smoothed, THUMBNAIL_MAX_POINTS)
             RouteThumbnail.buildPathDFromPoints(downsampled).ifEmpty { null }
         } catch (_: Exception) {
             null

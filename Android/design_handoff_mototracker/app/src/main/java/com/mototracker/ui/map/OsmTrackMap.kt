@@ -12,6 +12,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.mototracker.domain.recording.TrackPoint
 import com.mototracker.domain.recording.TrackSegmenter
+import com.mototracker.domain.recording.TrackSmoother
 import com.mototracker.ui.theme.MotoTracker
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -88,10 +89,11 @@ fun OsmTrackMap(
                 return@AndroidView
             }
 
-            val allGeoPoints = points.map { GeoPoint(it.lat, it.lng) }
+            val rendered = TrackSmoother.smooth(points)
+            val allGeoPoints = rendered.map { GeoPoint(it.lat, it.lng) }
 
             // Draw one polyline per segment so GPS dropout gaps are not connected by a straight line.
-            val segments = TrackSegmenter.split(points)
+            val segments = TrackSegmenter.split(rendered)
             for (segment in segments) {
                 if (segment.isEmpty()) continue
                 val polyline = Polyline(mv).apply {
@@ -140,7 +142,7 @@ fun OsmTrackMap(
                         mv.controller.setZoom(15.0)
                     }
                     allGeoPoints.size > 1 -> {
-                        val allGeoCoords = points.map { GeoCoord(it.lat, it.lng) }
+                        val allGeoCoords = rendered.map { GeoCoord(it.lat, it.lng) }
                         val b = TrackGeometry.bounds(allGeoCoords)
                         if (b != null) {
                             mv.zoomToBoundingBox(

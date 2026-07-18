@@ -501,4 +501,8 @@
     <string name="label_treat_group_separately">Traktuj grupę osobno</string>
     <string name="desc_treat_group_separately">Członkowie grupy liczone jako jedno spotkanie bez względu na przerwy</string>
     <string name="label_known_riders">Znani motocykliści</string>
+
+    <!-- Wave haptic signal on encounter start (X3) -->
+    <string name="settings_signal_waves">Sygnalizuj pomachania podczas jazdy</string>
+    <string name="settings_signal_waves_desc">Wibracja przy napotkaniu nowego motocyklisty podczas jazdy</string>
 </resources>

@@ -87,6 +87,8 @@ data class SyncQueueItemUi(
  * @param groupTreatedSeparately   Master toggle: when `true`, in-group riders get an infinite
  *                                 encounter gap (X2).
  * @param knownRiders              All known BLE-discovered riders, newest-first (X2).
+ * @param signalWavesEnabled       When `true`, a short haptic fires on each new BLE encounter
+ *                                 during a ride (X3). Encounters are still recorded when `false`.
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -118,4 +120,5 @@ data class SettingsUiState(
     val osrmBaseUrl: String = "http://192.168.1.142:5001",
     val groupTreatedSeparately: Boolean = true,
     val knownRiders: List<Rider> = emptyList(),
+    val signalWavesEnabled: Boolean = true,
 )

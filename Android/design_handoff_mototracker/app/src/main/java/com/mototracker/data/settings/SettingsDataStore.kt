@@ -59,6 +59,7 @@ class SettingsDataStore @Inject constructor(
         val COORD_FORMAT = stringPreferencesKey("coord_format")
         val ENCOUNTER_GAP_MINUTES = intPreferencesKey("encounter_gap_minutes")
         val GROUP_TREATED_SEPARATELY = booleanPreferencesKey("group_treated_separately")
+        val SIGNAL_WAVES_ENABLED = booleanPreferencesKey("signal_waves_enabled")
     }
 
     private val defaults = AppSettings()
@@ -93,6 +94,7 @@ class SettingsDataStore @Inject constructor(
             coordFormat = prefs[Keys.COORD_FORMAT] ?: defaults.coordFormat,
             encounterGapMinutes = prefs[Keys.ENCOUNTER_GAP_MINUTES] ?: defaults.encounterGapMinutes,
             groupTreatedSeparately = prefs[Keys.GROUP_TREATED_SEPARATELY] ?: defaults.groupTreatedSeparately,
+            signalWavesEnabled = prefs[Keys.SIGNAL_WAVES_ENABLED] ?: defaults.signalWavesEnabled,
         )
     }
 
@@ -221,5 +223,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the group-treated-separately master toggle (X2). */
     override suspend fun setGroupTreatedSeparately(value: Boolean) {
         dataStore.edit { it[Keys.GROUP_TREATED_SEPARATELY] = value }
+    }
+
+    /** Persists the wave-signal-on-encounter-start enabled flag (X3). */
+    override suspend fun setSignalWavesEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.SIGNAL_WAVES_ENABLED] = value }
     }
 }

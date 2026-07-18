@@ -52,6 +52,9 @@ package com.mototracker.data.settings
  *                               When `false`, group members are treated as ordinary encounters and
  *                               the standard [encounterGapMinutes] threshold applies.
  *                               Defaults to `true`.
+ * @param signalWavesEnabled     Whether a short haptic signal fires when a new BLE encounter
+ *                               starts during a ride (X3). When `false`, encounters are still
+ *                               recorded silently. Defaults to `true`.
  */
 data class AppSettings(
     val noInternet: Boolean = false,
@@ -78,4 +81,5 @@ data class AppSettings(
     val coordFormat: String = "dd",
     val encounterGapMinutes: Int = 10,
     val groupTreatedSeparately: Boolean = true,
+    val signalWavesEnabled: Boolean = true,
 )

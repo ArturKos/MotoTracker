@@ -501,4 +501,8 @@
     <string name="label_treat_group_separately">Skupina jako samostatná setkání</string>
     <string name="desc_treat_group_separately">Členové skupiny se počítají jako jedno nepřetržité setkání bez ohledu na přestávky</string>
     <string name="label_known_riders">Známí motorkáři</string>
+
+    <!-- Wave haptic signal on encounter start (X3) -->
+    <string name="settings_signal_waves">Signalizovat pozdravy při jízdě</string>
+    <string name="settings_signal_waves_desc">Vibrace při setkání s novým jezdcem během jízdy</string>
 </resources>

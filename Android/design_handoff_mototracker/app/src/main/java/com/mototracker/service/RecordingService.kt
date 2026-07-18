@@ -17,6 +17,7 @@ import com.mototracker.data.bluetooth.BleWaveSource
 import com.mototracker.data.bluetooth.EncounterEvent
 import com.mototracker.data.bluetooth.EncounterGap
 import com.mototracker.data.bluetooth.EncounterTracker
+import com.mototracker.data.bluetooth.WaveSignalDecision
 import com.mototracker.data.bluetooth.WaveFactory
 import com.mototracker.data.bluetooth.WavePayload
 import com.mototracker.data.local.dao.RiderDao
@@ -66,6 +67,7 @@ class RecordingService : Service() {
     @Inject lateinit var riderDao: RiderDao
     @Inject lateinit var dataStore: DataStore<Preferences>
     @Inject lateinit var rideLocationCollector: RideLocationCollector
+    @Inject lateinit var rideSignaler: RideSignaler
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -155,6 +157,9 @@ class RecordingService : Service() {
                             lastSeenMs = event.atMs,
                         )
                         waveDao.upsert(wave.toEntity())
+                        if (WaveSignalDecision.shouldSignal(event, currentSettings.signalWavesEnabled)) {
+                            rideSignaler.signal()
+                        }
                     }
                     is EncounterEvent.Extended -> {
                         val waveId = activeWaveIds[rider.shortId]

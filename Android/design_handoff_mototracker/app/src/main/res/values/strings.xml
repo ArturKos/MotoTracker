@@ -531,4 +531,8 @@
     <string name="label_treat_group_separately">Treat group separately</string>
     <string name="desc_treat_group_separately">Group members are counted as one continuous encounter regardless of breaks</string>
     <string name="label_known_riders">Known riders</string>
+
+    <!-- Wave haptic signal on encounter start (X3) -->
+    <string name="settings_signal_waves">Signal waves while riding</string>
+    <string name="settings_signal_waves_desc">Vibrate when a new rider is encountered during the ride</string>
 </resources>

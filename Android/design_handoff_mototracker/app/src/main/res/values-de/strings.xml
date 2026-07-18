@@ -501,4 +501,8 @@
     <string name="label_treat_group_separately">Gruppe separat behandeln</string>
     <string name="desc_treat_group_separately">Gruppenmitglieder werden als eine kontinuierliche Begegnung gezählt</string>
     <string name="label_known_riders">Bekannte Fahrer</string>
+
+    <!-- Wave haptic signal on encounter start (X3) -->
+    <string name="settings_signal_waves">Winken während der Fahrt signalisieren</string>
+    <string name="settings_signal_waves_desc">Vibration beim Treffen eines neuen Fahrers während der Fahrt</string>
 </resources>

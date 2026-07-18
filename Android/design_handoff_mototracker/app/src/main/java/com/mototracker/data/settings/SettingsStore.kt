@@ -125,4 +125,14 @@ interface SettingsStore : WritableSettingsSource {
      * Test fakes that implement [SettingsStore] are not required to override this.
      */
     suspend fun setGroupTreatedSeparately(value: Boolean) {}
+
+    /**
+     * Persists the wave-signal-on-encounter-start enabled flag (X3).
+     *
+     * When `true`, a short haptic fires on each new BLE encounter during a ride.
+     * When `false`, encounters are recorded silently.
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setSignalWavesEnabled(value: Boolean) {}
 }

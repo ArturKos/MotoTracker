@@ -4,6 +4,8 @@ import com.mototracker.core.resource.ContextStringResolver
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.data.bluetooth.AndroidBleWaveSource
 import com.mototracker.data.bluetooth.BleWaveSource
+import com.mototracker.service.RideSignaler
+import com.mototracker.service.VibratorRideSignaler
 import com.mototracker.data.location.AndroidGnssStatusClient
 import com.mototracker.data.location.AndroidReverseGeocoder
 import com.mototracker.data.location.FusedLocationClientImpl
@@ -95,6 +97,11 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindBleWaveSource(impl: AndroidBleWaveSource): BleWaveSource
+
+    /** Binds [VibratorRideSignaler] as the [RideSignaler] singleton (X3). */
+    @Binds
+    @Singleton
+    abstract fun bindRideSignaler(impl: VibratorRideSignaler): RideSignaler
 
     /** Binds [ChannelResumeRouteBus] as the [ResumeRouteBus] singleton (J5). */
     @Binds

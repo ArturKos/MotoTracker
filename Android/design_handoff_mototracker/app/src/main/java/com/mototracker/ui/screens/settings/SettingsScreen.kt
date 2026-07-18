@@ -247,6 +247,7 @@ fun SettingsScreen(
         onKeepScreenOn = viewModel::setKeepScreenOn,
         onWavesEnabled = viewModel::setWavesEnabled,
         onGroupTreatedSeparately = viewModel::setGroupTreatedSeparately,
+        onSignalWavesEnabled = viewModel::setSignalWavesEnabled,
         onSetRiderInGroup = viewModel::setRiderInGroup,
         onOpenBatterySettings = {
             try {
@@ -295,6 +296,7 @@ fun SettingsScreen(
  * @param onAutoPause          Called when the Auto-pause switch changes.
  * @param onKeepScreenOn       Called when the Keep-screen-on switch changes.
  * @param onWavesEnabled       Called when the BLE waves (pomachania) switch changes.
+ * @param onSignalWavesEnabled Called when the "signal waves" haptic toggle changes (X3).
  * @param onOpenBatterySettings Called when the user taps the battery-optimization row (O1);
  *                              opens the system battery-optimization settings.
  * @param onCoordFormat        Called with the coordinate format key ("dd"|"dms"|"utm").
@@ -331,6 +333,7 @@ fun SettingsContent(
     onKeepScreenOn: (Boolean) -> Unit = {},
     onWavesEnabled: (Boolean) -> Unit = {},
     onGroupTreatedSeparately: (Boolean) -> Unit = {},
+    onSignalWavesEnabled: (Boolean) -> Unit = {},
     onSetRiderInGroup: (shortId: String, inGroup: Boolean) -> Unit = { _, _ -> },
     onOpenBatterySettings: () -> Unit = {},
     onCoordFormat: (String) -> Unit = {},
@@ -524,6 +527,13 @@ fun SettingsContent(
                             desc = stringResource(R.string.desc_treat_group_separately),
                             checked = state.groupTreatedSeparately,
                             onChecked = onGroupTreatedSeparately,
+                        )
+                        // X3: Haptic signal on new encounter
+                        LabeledSwitch(
+                            label = stringResource(R.string.settings_signal_waves),
+                            desc = stringResource(R.string.settings_signal_waves_desc),
+                            checked = state.signalWavesEnabled,
+                            onChecked = onSignalWavesEnabled,
                         )
                         BroadcastSection(
                             state = state,

@@ -69,6 +69,7 @@ private class FakeSettingsStore(
     var lastCoordFormat: String? = null
     var lastOsrmBaseUrl: String? = null
     var lastGroupTreatedSeparately: Boolean? = null
+    var lastSignalWavesEnabled: Boolean? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -94,6 +95,7 @@ private class FakeSettingsStore(
     override suspend fun setCoordFormat(value: String) { lastCoordFormat = value; _flow.value = _flow.value.copy(coordFormat = value) }
     override suspend fun setOsrmBaseUrl(url: String) { lastOsrmBaseUrl = url; _flow.value = _flow.value.copy(osrmBaseUrl = url) }
     override suspend fun setGroupTreatedSeparately(value: Boolean) { lastGroupTreatedSeparately = value; _flow.value = _flow.value.copy(groupTreatedSeparately = value) }
+    override suspend fun setSignalWavesEnabled(value: Boolean) { lastSignalWavesEnabled = value; _flow.value = _flow.value.copy(signalWavesEnabled = value) }
 }
 
 private class FakeRiderRepository : RiderRepository {
@@ -1065,6 +1067,47 @@ class SettingsViewModelTest {
             val state = awaitItem()
             assertEquals(2, state.knownRiders.size)
             assertEquals("AA11", state.knownRiders[0].shortId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── X3: signalWavesEnabled ────────────────────────────────────────────────
+
+    @Test
+    fun `signalWavesEnabled defaults to true in initial uiState`() {
+        assertTrue(vm.uiState.value.signalWavesEnabled)
+    }
+
+    @Test
+    fun `setSignalWavesEnabled false persists to store and emits false in uiState`() = runTest {
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.setSignalWavesEnabled(false)
+            val state = awaitItem()
+            assertFalse(state.signalWavesEnabled)
+            assertEquals(false, store.lastSignalWavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setSignalWavesEnabled true persists to store and emits true in uiState`() = runTest {
+        store.emit(AppSettings(signalWavesEnabled = false))
+        vm.uiState.test {
+            awaitItem() // consume current false state
+            vm.setSignalWavesEnabled(true)
+            val state = awaitItem()
+            assertTrue(state.signalWavesEnabled)
+            assertEquals(true, store.lastSignalWavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `store emit signalWavesEnabled=false propagates to uiState`() = runTest {
+        store.emit(AppSettings(signalWavesEnabled = false))
+        vm.uiState.test {
+            assertFalse(awaitItem().signalWavesEnabled)
             cancelAndIgnoreRemainingEvents()
         }
     }

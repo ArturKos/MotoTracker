@@ -501,4 +501,8 @@
     <string name="label_treat_group_separately">Traiter le groupe séparément</string>
     <string name="desc_treat_group_separately">Les membres du groupe comptent comme une rencontre continue sans égard aux pauses</string>
     <string name="label_known_riders">Motards connus</string>
+
+    <!-- Wave haptic signal on encounter start (X3) -->
+    <string name="settings_signal_waves">Signaler les saluts en roulant</string>
+    <string name="settings_signal_waves_desc">Vibration lors de la rencontre d\'un nouveau motard pendant le trajet</string>
 </resources>

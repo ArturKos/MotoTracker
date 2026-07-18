@@ -212,6 +212,7 @@ class SettingsViewModel @Inject constructor(
             osrmBaseUrl = settings.osrmBaseUrl,
             groupTreatedSeparately = settings.groupTreatedSeparately,
             knownRiders = riders,
+            signalWavesEnabled = settings.signalWavesEnabled,
         )
     }
 
@@ -478,6 +479,16 @@ class SettingsViewModel @Inject constructor(
      */
     fun setGroupTreatedSeparately(value: Boolean) {
         viewModelScope.launch { settingsStore.setGroupTreatedSeparately(value) }
+    }
+
+    /**
+     * Persists the wave-signal-on-encounter-start enabled flag (X3).
+     *
+     * @param value `true` to emit a haptic signal when a new BLE encounter starts; `false`
+     *              to record encounters silently.
+     */
+    fun setSignalWavesEnabled(value: Boolean) {
+        viewModelScope.launch { settingsStore.setSignalWavesEnabled(value) }
     }
 
     // ── Backup / restore (B16) ────────────────────────────────────────────────

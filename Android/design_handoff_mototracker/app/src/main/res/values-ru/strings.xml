@@ -501,4 +501,8 @@
     <string name="label_treat_group_separately">Группа как отдельная встреча</string>
     <string name="desc_treat_group_separately">Члены группы считаются как одна непрерывная встреча независимо от перерывов</string>
     <string name="label_known_riders">Известные мотоциклисты</string>
+
+    <!-- Wave haptic signal on encounter start (X3) -->
+    <string name="settings_signal_waves">Сигнализировать о приветствиях во время езды</string>
+    <string name="settings_signal_waves_desc">Вибрация при встрече с новым мотоциклистом во время поездки</string>
 </resources>

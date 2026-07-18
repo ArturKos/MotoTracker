@@ -354,9 +354,8 @@ class RecordingViewModelFuelCorrectionTest {
             },
             settingsStore = object : SettingsStore {
                 override val settings: Flow<AppSettings> = MutableStateFlow(AppSettings())
-                override suspend fun setOffline(value: Boolean) {}
-                override suspend fun setAutoSync(value: Boolean) {}
-                override suspend fun setOfflineOnly(value: Boolean) {}
+                override suspend fun setNoInternet(value: Boolean) {}
+                override suspend fun setSyncEnabled(value: Boolean) {}
                 override suspend fun setGpsCorrect(value: Boolean) {}
                 override suspend fun setCurrentBikeId(bikeId: String?) {}
                 override suspend fun setUnits(units: String) {}

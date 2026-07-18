@@ -172,7 +172,7 @@ fun RidersContent(
         item {
             SectionHeader(
                 title = stringResource(R.string.label_feed_title).uppercase(),
-                badge = if (!state.feedAvailable) stringResource(R.string.label_no_internet) else null,
+                badge = if (!state.feedAvailable) stringResource(R.string.label_requires_internet) else null,
                 badgeAccent = MotoTracker.colors.accent2,
             )
         }
@@ -190,7 +190,7 @@ fun RidersContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(R.string.label_no_internet),
+                        text = stringResource(R.string.label_requires_internet),
                         style = MotoTracker.typography.body,
                         color = MotoTracker.colors.dim,
                     )

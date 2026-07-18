@@ -94,12 +94,12 @@
     <string name="btn_logout">Log out</string>
     <string name="btn_login">Sign in</string>
 
-    <!-- Settings — server section -->
+    <!-- Settings — server / network section (U1) -->
     <string name="section_server">Server &amp; sync</string>
-    <string name="label_offline_mode">Offline mode</string>
-    <string name="desc_offline_mode">Store locally only, don\'t upload</string>
-    <string name="label_auto_sync">Auto-sync</string>
-    <string name="desc_auto_sync">Upload when back in range / Wi-Fi</string>
+    <string name="label_no_internet">No internet</string>
+    <string name="desc_no_internet">Block all network access (weather, sync, group)</string>
+    <string name="label_sync_enabled">Sync with server</string>
+    <string name="desc_sync_enabled">Upload rides when connection is available</string>
 
     <!-- Settings — sync queue section -->
     <string name="section_sync_queue">Sync queue</string>
@@ -174,6 +174,7 @@
     <string name="btn_add_by_phone">Add by phone number</string>
 
     <!-- Riders screen — live feed -->
+    <string name="label_requires_internet">Requires internet</string>
     <string name="label_feed_title">Live feed</string>
     <string name="label_feed_start">started a ride</string>
     <string name="label_feed_finish">finished a ride</string>
@@ -182,7 +183,6 @@
     <!-- Riders screen — waves -->
     <string name="riders_waves_title">Waves (Bluetooth)</string>
     <string name="label_wave_at">near</string>
-    <string name="label_no_internet">Requires internet</string>
     <string name="label_works_offline">Works offline (BT)</string>
 
     <!-- Riders screen — broadcast section -->
@@ -198,8 +198,6 @@
 
     <!-- Settings — system section -->
     <string name="section_system">System &amp; privacy</string>
-    <string name="label_offline_only">Work without internet</string>
-    <string name="desc_offline_only">Disables weather &amp; online group</string>
     <string name="label_gps_correct">Snap GPS to road</string>
     <string name="desc_gps_correct">Fixes position drift (map-matching)</string>
     <string name="label_android_auto">Android Auto</string>

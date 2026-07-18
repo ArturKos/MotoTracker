@@ -54,7 +54,7 @@ import javax.inject.Inject
  * @param sessionStore      Persists and reads the server session cookie.
  * @param termsStore        Persists and reads the first-launch terms acceptance flag.
  * @param networkMonitor    Observes live network connectivity for [syncState].
- * @param settingsSource    Reads offline/offlineOnly settings flags for [syncState].
+ * @param settingsSource    Reads [AppSettings.noInternet] for [syncState] (U1).
  * @param syncRepository    Provides the pending sync queue count for [syncState].
  */
 @HiltViewModel
@@ -97,7 +97,7 @@ class AppStateViewModel @Inject constructor(
         settingsSource.settings,
         syncRepository.pendingCount,
     ) { online, s, pending ->
-        deriveSyncState(online, s.offline, s.offlineOnly, pending)
+        deriveSyncState(online, s.noInternet, pending)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SyncState.Offline)
 
     /**

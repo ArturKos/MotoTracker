@@ -100,9 +100,8 @@ class BackupRepositoryImpl @Inject constructor(
         }
 
     private suspend fun applySettings(s: AppSettings) {
-        settingsStore.setOffline(s.offline)
-        settingsStore.setAutoSync(s.autoSync)
-        settingsStore.setOfflineOnly(s.offlineOnly)
+        settingsStore.setNoInternet(s.noInternet)
+        settingsStore.setSyncEnabled(s.syncEnabled)
         settingsStore.setGpsCorrect(s.gpsCorrect)
         settingsStore.setCurrentBikeId(s.currentBikeId)
         settingsStore.setServerAddress(s.serverAddress)

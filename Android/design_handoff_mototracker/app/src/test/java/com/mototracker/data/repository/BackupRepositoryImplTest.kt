@@ -68,9 +68,8 @@ private class FakeSettingsStore(initial: AppSettings = AppSettings()) : Settings
 
     val appliedSettings = mutableListOf<Pair<String, Any?>>()
 
-    override suspend fun setOffline(value: Boolean) { appliedSettings += "offline" to value; _flow.value = _flow.value.copy(offline = value) }
-    override suspend fun setAutoSync(value: Boolean) { appliedSettings += "autoSync" to value; _flow.value = _flow.value.copy(autoSync = value) }
-    override suspend fun setOfflineOnly(value: Boolean) { appliedSettings += "offlineOnly" to value; _flow.value = _flow.value.copy(offlineOnly = value) }
+    override suspend fun setNoInternet(value: Boolean) { appliedSettings += "noInternet" to value; _flow.value = _flow.value.copy(noInternet = value) }
+    override suspend fun setSyncEnabled(value: Boolean) { appliedSettings += "syncEnabled" to value; _flow.value = _flow.value.copy(syncEnabled = value) }
     override suspend fun setGpsCorrect(value: Boolean) { appliedSettings += "gpsCorrect" to value; _flow.value = _flow.value.copy(gpsCorrect = value) }
     override suspend fun setCurrentBikeId(bikeId: String?) { appliedSettings += "currentBikeId" to bikeId; _flow.value = _flow.value.copy(currentBikeId = bikeId) }
     override suspend fun setUnits(units: String) { appliedSettings += "units" to units; _flow.value = _flow.value.copy(units = units) }

@@ -85,10 +85,10 @@
     <string name="btn_login">Connexion</string>
 
     <string name="section_server">Serveur &amp; sync.</string>
-    <string name="label_offline_mode">Mode hors ligne</string>
-    <string name="desc_offline_mode">Stocker localement, ne pas envoyer</string>
-    <string name="label_auto_sync">Sync auto</string>
-    <string name="desc_auto_sync">Envoyer au retour du réseau / Wi-Fi</string>
+    <string name="label_no_internet">Pas d\'internet</string>
+    <string name="desc_no_internet">Bloque tous les accès réseau</string>
+    <string name="label_sync_enabled">Synchroniser avec le serveur</string>
+    <string name="desc_sync_enabled">Envoyer les trajets quand la connexion est disponible</string>
 
     <string name="section_sync_queue">File de synchronisation</string>
     <string name="btn_send_all">Tout envoyer</string>
@@ -149,6 +149,7 @@
     <string name="label_members">membres</string>
     <string name="btn_add_by_phone">Ajouter par téléphone</string>
 
+    <string name="label_requires_internet">Nécessite internet</string>
     <string name="label_feed_title">Fil en direct</string>
     <string name="label_feed_start">a démarré</string>
     <string name="label_feed_finish">a terminé</string>
@@ -156,7 +157,6 @@
 
     <string name="riders_waves_title">Salutations (Bluetooth)</string>
     <string name="label_wave_at">près de</string>
-    <string name="label_no_internet">Nécessite internet</string>
     <string name="label_works_offline">Marche hors ligne (BT)</string>
 
     <string name="section_broadcast">Diffusion (Bluetooth)</string>
@@ -170,8 +170,6 @@
     <string name="label_bc_phone">Numéro de tél.</string>
 
     <string name="section_system">Système &amp; confidentialité</string>
-    <string name="label_offline_only">Fonctionner sans internet</string>
-    <string name="desc_offline_only">Désactive météo &amp; groupe en ligne</string>
     <string name="label_gps_correct">Corriger le GPS sur la route</string>
     <string name="desc_gps_correct">Corrige les écarts (map-matching)</string>
     <string name="label_android_auto">Android Auto</string>

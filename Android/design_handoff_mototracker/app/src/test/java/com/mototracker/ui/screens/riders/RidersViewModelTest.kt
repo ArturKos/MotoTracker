@@ -177,10 +177,10 @@ class RidersViewModelTest {
     // ── feedAvailable ─────────────────────────────────────────────────────────
 
     @Test
-    fun `feedAvailable is TRUE when online and not offlineOnly`() = runTest {
+    fun `feedAvailable is TRUE when online and noInternet is false`() = runTest {
         val vm = buildVm(
             networkMonitor = FakeNetworkMonitor(online = true),
-            settingsSource = FakeSettingsSource(AppSettings(offlineOnly = false)),
+            settingsSource = FakeSettingsSource(AppSettings(noInternet = false)),
         )
         vm.uiState.test {
             assertTrue(awaitItem().feedAvailable)
@@ -189,10 +189,10 @@ class RidersViewModelTest {
     }
 
     @Test
-    fun `feedAvailable is FALSE when offline and not offlineOnly`() = runTest {
+    fun `feedAvailable is FALSE when device offline and noInternet is false`() = runTest {
         val vm = buildVm(
             networkMonitor = FakeNetworkMonitor(online = false),
-            settingsSource = FakeSettingsSource(AppSettings(offlineOnly = false)),
+            settingsSource = FakeSettingsSource(AppSettings(noInternet = false)),
         )
         vm.uiState.test {
             assertFalse(awaitItem().feedAvailable)
@@ -201,10 +201,10 @@ class RidersViewModelTest {
     }
 
     @Test
-    fun `feedAvailable is FALSE when online but offlineOnly is true`() = runTest {
+    fun `feedAvailable is FALSE when online but noInternet is true`() = runTest {
         val vm = buildVm(
             networkMonitor = FakeNetworkMonitor(online = true),
-            settingsSource = FakeSettingsSource(AppSettings(offlineOnly = true)),
+            settingsSource = FakeSettingsSource(AppSettings(noInternet = true)),
         )
         vm.uiState.test {
             assertFalse(awaitItem().feedAvailable)
@@ -213,10 +213,10 @@ class RidersViewModelTest {
     }
 
     @Test
-    fun `feedAvailable is FALSE when offline and offlineOnly is true`() = runTest {
+    fun `feedAvailable is FALSE when device offline and noInternet is true`() = runTest {
         val vm = buildVm(
             networkMonitor = FakeNetworkMonitor(online = false),
-            settingsSource = FakeSettingsSource(AppSettings(offlineOnly = true)),
+            settingsSource = FakeSettingsSource(AppSettings(noInternet = true)),
         )
         vm.uiState.test {
             assertFalse(awaitItem().feedAvailable)
@@ -384,7 +384,7 @@ class RidersViewModelTest {
 @RunWith(Parameterized::class)
 class RidersViewModelFeedAvailableTest(
     private val isOnline: Boolean,
-    private val offlineOnly: Boolean,
+    private val noInternet: Boolean,
     private val expectedFeedAvailable: Boolean,
 ) {
 
@@ -395,7 +395,7 @@ class RidersViewModelFeedAvailableTest(
 
     companion object {
         @JvmStatic
-        @Parameterized.Parameters(name = "online={0} offlineOnly={1} expected={2}")
+        @Parameterized.Parameters(name = "online={0} noInternet={1} expected={2}")
         fun data() = listOf(
             arrayOf(true, false, true),
             arrayOf(false, false, false),
@@ -405,13 +405,13 @@ class RidersViewModelFeedAvailableTest(
     }
 
     @Test
-    fun `feedAvailable matches expected for given online + offlineOnly combo`() = runTest {
+    fun `feedAvailable matches expected for given online + noInternet combo`() = runTest {
         val vm = RidersViewModel(
             groupRepository = FakeGroupRepository(),
             feedRepository = FakeFeedRepository(),
             waveRepository = FakeWaveRepository(),
             networkMonitor = FakeNetworkMonitor(online = isOnline),
-            settingsSource = FakeSettingsSource(AppSettings(offlineOnly = offlineOnly)),
+            settingsSource = FakeSettingsSource(AppSettings(noInternet = noInternet)),
         )
         vm.uiState.test {
             assertEquals(expectedFeedAvailable, awaitItem().feedAvailable)

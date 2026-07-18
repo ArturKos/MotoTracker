@@ -521,7 +521,7 @@ class RecordingViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsSource.settings.first()
             val isOnline = networkMonitor.isOnline.first()
-            val offline = settings.offline || settings.offlineOnly || !isOnline
+            val offline = settings.noInternet || !isOnline
 
             val result = engine.buildRoutePayload()
 
@@ -777,7 +777,7 @@ class RecordingViewModel @Inject constructor(
                     viewModelScope.launch {
                         val settings = settingsSource.settings.first()
                         val isOnline = networkMonitor.isOnline.first()
-                        val offline = settings.offline || settings.offlineOnly || !isOnline
+                        val offline = settings.noInternet || !isOnline
                         if (!offline) {
                             weatherClient.fetch(sample.lat, sample.lng).onSuccess { snapshot ->
                                 pendingWxJson = snapshot.toWxJson()

@@ -234,9 +234,8 @@ private class FakeSettingsStore(
     settings: AppSettings = AppSettings(),
 ) : com.mototracker.data.settings.SettingsStore {
     override val settings: kotlinx.coroutines.flow.Flow<AppSettings> = MutableStateFlow(settings)
-    override suspend fun setOffline(value: Boolean) {}
-    override suspend fun setAutoSync(value: Boolean) {}
-    override suspend fun setOfflineOnly(value: Boolean) {}
+    override suspend fun setNoInternet(value: Boolean) {}
+    override suspend fun setSyncEnabled(value: Boolean) {}
     override suspend fun setGpsCorrect(value: Boolean) {}
     override suspend fun setCurrentBikeId(bikeId: String?) {}
     override suspend fun setUnits(units: String) {}
@@ -462,7 +461,7 @@ class RecordingViewModelTest {
 
     @Test
     fun `Finish emits Saved effect with offline=false when online`() = runTest(testDispatcher) {
-        val vm = buildViewModel(online = true, offline = false)
+        val vm = buildViewModel(online = true, noInternet = false)
         vm.effects.test {
             vm.onEvent(RecordingEvent.Start)
             vm.onEvent(RecordingEvent.Finish)
@@ -475,7 +474,7 @@ class RecordingViewModelTest {
 
     @Test
     fun `Finish emits Saved effect with offline=true when offline`() = runTest(testDispatcher) {
-        val vm = buildViewModel(online = false, offline = false)
+        val vm = buildViewModel(online = false, noInternet = false)
         vm.effects.test {
             vm.onEvent(RecordingEvent.Start)
             vm.onEvent(RecordingEvent.Finish)
@@ -487,20 +486,8 @@ class RecordingViewModelTest {
     }
 
     @Test
-    fun `Finish emits Saved effect with offline=true when settings offline flag is true`() = runTest(testDispatcher) {
-        val vm = buildViewModel(online = true, offline = true)
-        vm.effects.test {
-            vm.onEvent(RecordingEvent.Start)
-            vm.onEvent(RecordingEvent.Finish)
-            val effect = awaitItem()
-            assertTrue((effect as RecordingEffect.Saved).offline)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `Finish emits Saved effect with offline=true when offlineOnly flag is true`() = runTest(testDispatcher) {
-        val vm = buildViewModel(online = true, offline = false, offlineOnly = true)
+    fun `Finish emits Saved effect with offline=true when noInternet flag is true`() = runTest(testDispatcher) {
+        val vm = buildViewModel(online = true, noInternet = true)
         vm.effects.test {
             vm.onEvent(RecordingEvent.Start)
             vm.onEvent(RecordingEvent.Finish)
@@ -526,7 +513,7 @@ class RecordingViewModelTest {
 
     @Test
     fun `Finish emits NavigateToDetail effect with saved route id`() = runTest(testDispatcher) {
-        val vm = buildViewModel(online = true, offline = false)
+        val vm = buildViewModel(online = true)
         vm.effects.test {
             vm.onEvent(RecordingEvent.Start)
             vm.onEvent(RecordingEvent.Finish)
@@ -706,7 +693,6 @@ class RecordingViewModelTest {
         val collector = FakeRideLocationCollector()
         val vm = buildViewModel(
             online = true,
-            offline = false,
             routeRepository = repo,
             reverseGeocoder = FakeReverseGeocoder(result = "Szczecin"),
             rideLocationCollector = collector,
@@ -729,7 +715,6 @@ class RecordingViewModelTest {
         val repo = FakeRouteRepository()
         val vm = buildViewModel(
             online = false,
-            offline = false,
             routeRepository = repo,
             reverseGeocoder = FakeReverseGeocoder(result = "Szczecin"),
         )
@@ -747,7 +732,6 @@ class RecordingViewModelTest {
         val repo = FakeRouteRepository()
         val vm = buildViewModel(
             online = true,
-            offline = false,
             routeRepository = repo,
             reverseGeocoder = FakeReverseGeocoder(result = null),
         )
@@ -765,7 +749,6 @@ class RecordingViewModelTest {
         val repo = FakeRouteRepository()
         val vm = buildViewModel(
             online = true,
-            offline = false,
             routeRepository = repo,
             reverseGeocoder = FakeReverseGeocoder(shouldThrow = true),
         )
@@ -1453,7 +1436,7 @@ class RecordingViewModelTest {
     @Test
     fun `ConfirmStop clears showStopConfirmDialog and produces Saved and NavigateToDetail effects`() =
         runTest(testDispatcher) {
-            val vm = buildViewModel(online = true, offline = false)
+            val vm = buildViewModel(online = true)
             vm.onEvent(RecordingEvent.Start)
             advanceTimeBy(200L)
             vm.onEvent(RecordingEvent.RequestStop)
@@ -1670,9 +1653,8 @@ class RecordingViewModelTest {
 
     private fun buildViewModel(
         online: Boolean = true,
-        offline: Boolean = false,
-        offlineOnly: Boolean = false,
-        settings: AppSettings = AppSettings(offline = offline, offlineOnly = offlineOnly),
+        noInternet: Boolean = false,
+        settings: AppSettings = AppSettings(noInternet = noInternet),
         routeRepository: RouteRepository = routeRepo,
         fixedTimeMs: Long = 1_000_000L,
         rideLocationCollector: RideLocationCollector = FakeRideLocationCollector(),

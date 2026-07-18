@@ -246,9 +246,8 @@ class RecordingViewModelWeatherTest {
         },
         settingsStore = object : SettingsStore {
             override val settings: kotlinx.coroutines.flow.Flow<AppSettings> = MutableStateFlow(AppSettings())
-            override suspend fun setOffline(value: Boolean) {}
-            override suspend fun setAutoSync(value: Boolean) {}
-            override suspend fun setOfflineOnly(value: Boolean) {}
+            override suspend fun setNoInternet(value: Boolean) {}
+            override suspend fun setSyncEnabled(value: Boolean) {}
             override suspend fun setGpsCorrect(value: Boolean) {}
             override suspend fun setCurrentBikeId(bikeId: String?) {}
             override suspend fun setUnits(units: String) {}
@@ -286,7 +285,7 @@ class RecordingViewModelWeatherTest {
             val collector = WxFakeRideLocationCollector()
             val vm = buildVm(
                 online = true,
-                settings = AppSettings(offline = false, offlineOnly = false),
+                settings = AppSettings(),
                 locationCollector = collector,
                 weatherClient = fakeWeather,
             )
@@ -314,7 +313,7 @@ class RecordingViewModelWeatherTest {
             val routeRepo = WxFakeRouteRepository()
             val vm = buildVm(
                 online = true,
-                settings = AppSettings(offline = false, offlineOnly = false),
+                settings = AppSettings(),
                 locationCollector = collector,
                 routeRepo = routeRepo,
                 weatherClient = fakeWeather,
@@ -356,14 +355,14 @@ class RecordingViewModelWeatherTest {
     // ── Offline gate: client must not be called ───────────────────────────────
 
     @Test
-    fun `settings offline=true — client never called and wxJson is null`() =
+    fun `settings noInternet=true — client never called and wxJson is null`() =
         runTest(testDispatcher) {
             val fakeWeather = WxFakeWeatherClient()
             val collector = WxFakeRideLocationCollector()
             val routeRepo = WxFakeRouteRepository()
             val vm = buildVm(
                 online = true,
-                settings = AppSettings(offline = true),
+                settings = AppSettings(noInternet = true),
                 locationCollector = collector,
                 routeRepo = routeRepo,
                 weatherClient = fakeWeather,
@@ -375,32 +374,8 @@ class RecordingViewModelWeatherTest {
             vm.onEvent(RecordingEvent.Finish)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            assertEquals("client should not be called when offline=true", 0, fakeWeather.fetchCallCount)
-            assertNull("wxJson should be null when offline", routeRepo.saved.firstOrNull()?.wxJson)
-        }
-
-    @Test
-    fun `settings offlineOnly=true — client never called and wxJson is null`() =
-        runTest(testDispatcher) {
-            val fakeWeather = WxFakeWeatherClient()
-            val collector = WxFakeRideLocationCollector()
-            val routeRepo = WxFakeRouteRepository()
-            val vm = buildVm(
-                online = true,
-                settings = AppSettings(offlineOnly = true),
-                locationCollector = collector,
-                routeRepo = routeRepo,
-                weatherClient = fakeWeather,
-            )
-            vm.onEvent(RecordingEvent.Start)
-            advanceTimeBy(100L)
-            collector.tryEmit(sampleFix)
-            advanceTimeBy(300L)
-            vm.onEvent(RecordingEvent.Finish)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            assertEquals("client should not be called when offlineOnly=true", 0, fakeWeather.fetchCallCount)
-            assertNull("wxJson should be null when offlineOnly", routeRepo.saved.firstOrNull()?.wxJson)
+            assertEquals("client should not be called when noInternet=true", 0, fakeWeather.fetchCallCount)
+            assertNull("wxJson should be null when noInternet", routeRepo.saved.firstOrNull()?.wxJson)
         }
 
     @Test
@@ -411,7 +386,7 @@ class RecordingViewModelWeatherTest {
             val routeRepo = WxFakeRouteRepository()
             val vm = buildVm(
                 online = false,
-                settings = AppSettings(offline = false, offlineOnly = false),
+                settings = AppSettings(),
                 locationCollector = collector,
                 routeRepo = routeRepo,
                 weatherClient = fakeWeather,

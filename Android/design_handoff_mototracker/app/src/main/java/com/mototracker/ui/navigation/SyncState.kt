@@ -53,11 +53,10 @@ sealed class SyncState {
 
 /**
  * Derives the [SyncState] to display in the top-app-bar sync chip from three
- * independently-observed sources.
+ * independently-observed sources (U1: consolidated from 3 flags to 2).
  *
  * Decision order (first matching rule wins):
- * 1. [SyncState.Offline] — when the device has no network, the user enabled offline
- *    mode, or the user disabled all outbound network activity (`offlineOnly`).
+ * 1. [SyncState.Offline] — when the device has no network or [noInternet] is `true`.
  * 2. [SyncState.Queued] — when there are routes waiting in the sync queue.
  * 3. [SyncState.Synced] — the default/happy-path state.
  *
@@ -65,18 +64,16 @@ sealed class SyncState {
  * in plain JUnit tests without Robolectric.
  *
  * @param isOnline     `true` when the device has an active internet connection.
- * @param offline      `true` when the user has explicitly enabled offline mode.
- * @param offlineOnly  `true` when the user has disabled all outbound network activity.
+ * @param noInternet   `true` when the user has blocked all outbound network activity.
  * @param pendingCount Number of routes waiting in the outbound sync queue.
  * @return The [SyncState] that should be shown in the UI.
  */
 fun deriveSyncState(
     isOnline: Boolean,
-    offline: Boolean,
-    offlineOnly: Boolean,
+    noInternet: Boolean,
     pendingCount: Int,
 ): SyncState = when {
-    !isOnline || offline || offlineOnly -> SyncState.Offline
+    !isOnline || noInternet -> SyncState.Offline
     pendingCount > 0 -> SyncState.Queued(pendingCount)
     else -> SyncState.Synced
 }

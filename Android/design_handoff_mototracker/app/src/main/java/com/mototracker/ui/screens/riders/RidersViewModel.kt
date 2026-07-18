@@ -37,7 +37,7 @@ import javax.inject.Inject
  * @param feedRepository    Source of live-feed events (static seed; real push out of scope).
  * @param waveRepository    Source of all Bluetooth waves (empty until BT is real, 🔬).
  * @param networkMonitor    Provides current internet connectivity.
- * @param settingsSource    Provides [AppSettings.offlineOnly] flag.
+ * @param settingsSource    Provides [AppSettings.noInternet] flag.
  */
 @HiltViewModel
 class RidersViewModel @Inject constructor(
@@ -92,7 +92,7 @@ class RidersViewModel @Inject constructor(
         isOnline: Boolean,
         settings: AppSettings,
     ): RidersUiState {
-        val feedAvailable = isOnline && !settings.offlineOnly
+        val feedAvailable = isOnline && !settings.noInternet
         return RidersUiState(
             members = members.map { it.toUi() },
             memberCount = members.size,

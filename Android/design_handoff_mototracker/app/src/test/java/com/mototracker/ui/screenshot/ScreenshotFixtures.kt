@@ -316,8 +316,8 @@ object ScreenshotFixtures {
         language = "pl",
         units = "metric",
         serverAddress = "http://192.168.1.145/gpstrack",
-        offline = false,
-        autoSync = true,
+        noInternet = false,
+        syncEnabled = true,
         pendingRoutes = listOf(
             SyncQueueItemUi(
                 routeId = "r2",

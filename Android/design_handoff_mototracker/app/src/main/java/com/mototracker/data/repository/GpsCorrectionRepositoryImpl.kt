@@ -30,7 +30,7 @@ import javax.inject.Singleton
 /**
  * Production implementation of [GpsCorrectionRepository].
  *
- * Drains the correction queue when online and `offlineOnly` is false, submitting
+ * Drains the correction queue when online and `noInternet` is false, submitting
  * each route's raw GPS trace to the OSRM map-matching service and persisting the result
  * according to the [CorrectionQualityGate] verdict.
  *
@@ -76,10 +76,10 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
         )
     }
 
-    /** Drains all due entries regardless of the auto-drain conditions. Returns 0 when `offlineOnly` is true. */
+    /** Drains all due entries regardless of the auto-drain conditions. Returns 0 when [AppSettings.noInternet] is `true`. */
     override suspend fun correctNow(): Int {
         val settings = settingsSource.settings.first()
-        if (settings.offlineOnly) return 0
+        if (settings.noInternet) return 0
         return drain(settings.osrmBaseUrl)
     }
 
@@ -95,7 +95,7 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
     private suspend fun tryDrain() {
         val online = networkMonitor.isOnline.first()
         val settings = settingsSource.settings.first()
-        if (online && !settings.offlineOnly) drain(settings.osrmBaseUrl)
+        if (online && !settings.noInternet) drain(settings.osrmBaseUrl)
     }
 
     private suspend fun drain(osrmBaseUrl: String): Int {

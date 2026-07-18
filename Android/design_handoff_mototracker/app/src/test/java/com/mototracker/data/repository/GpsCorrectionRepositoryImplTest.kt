@@ -216,7 +216,7 @@ private class CorrFakeTraceChunkDao : RouteTraceChunkDao {
 // ---------------------------------------------------------------------------
 
 private val BASE_CORR_SETTINGS = AppSettings(
-    offlineOnly = false,
+    noInternet = false,
     osrmBaseUrl = "http://osrm.test:5001",
 )
 
@@ -487,11 +487,11 @@ class GpsCorrectionRepositoryImplTest {
         assertEquals(11_000L + expectedDelay, after2.nextRetryEpochMs)
     }
 
-    // ── offlineOnly gating ────────────────────────────────────────────────────
+    // ── noInternet gating ────────────────────────────────────────────────────
 
     @Test
-    fun `correctNow returns 0 and makes no calls when offlineOnly is true`() = runTest {
-        settingsSource.emit(BASE_CORR_SETTINGS.copy(offlineOnly = true))
+    fun `correctNow returns 0 and makes no calls when noInternet is true`() = runTest {
+        settingsSource.emit(BASE_CORR_SETTINGS.copy(noInternet = true))
         seedRoute("r1")
         repo.enqueue("r1")
 
@@ -557,8 +557,8 @@ class GpsCorrectionRepositoryImplTest {
     }
 
     @Test
-    fun `auto-drain does not run when offlineOnly is true`() = runTest {
-        settingsSource.emit(BASE_CORR_SETTINGS.copy(offlineOnly = true))
+    fun `auto-drain does not run when noInternet is true`() = runTest {
+        settingsSource.emit(BASE_CORR_SETTINGS.copy(noInternet = true))
         seedRoute("r1")
         repo.enqueue("r1")
 

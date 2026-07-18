@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -163,8 +164,8 @@ class SettingsViewModel @Inject constructor(
             language = settings.lang,
             units = settings.units,
             serverAddress = settings.serverAddress,
-            offline = settings.offline,
-            autoSync = settings.autoSync,
+            noInternet = settings.noInternet,
+            syncEnabled = settings.syncEnabled,
             pendingRoutes = pendingRoutes,
             bcName = settings.bcName,
             bcPhone = settings.bcPhone,
@@ -173,7 +174,6 @@ class SettingsViewModel @Inject constructor(
             bcBikeDisplay = bcBikeDisplay,
             bcTodayDisplay = UnitFormatter.formatDistance(todayKm, units),
             bcTotalDisplay = UnitFormatter.formatDistance(totalKm, units),
-            offlineOnly = settings.offlineOnly,
             gpsCorrect = settings.gpsCorrect,
             androidAutoEnabled = settings.androidAutoEnabled,
             autoPause = settings.autoPause,
@@ -321,14 +321,22 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsStore.setServerAddress(address) }
     }
 
-    /** Persists the offline mode flag. */
-    fun setOffline(value: Boolean) {
-        viewModelScope.launch { settingsStore.setOffline(value) }
+    /** Persists the master network kill-switch flag (U1). */
+    fun setNoInternet(value: Boolean) {
+        viewModelScope.launch { settingsStore.setNoInternet(value) }
     }
 
-    /** Persists the auto-sync flag. */
-    fun setAutoSync(value: Boolean) {
-        viewModelScope.launch { settingsStore.setAutoSync(value) }
+    /**
+     * Persists the sync-enabled flag (U1).
+     *
+     * No-op when [AppSettings.noInternet] is `true` — the master kill-switch must be cleared
+     * first before sync can be re-enabled.
+     */
+    fun setSyncEnabled(value: Boolean) {
+        viewModelScope.launch {
+            if (settingsStore.settings.first().noInternet) return@launch
+            settingsStore.setSyncEnabled(value)
+        }
     }
 
     /** Triggers an immediate upload of all pending sync queue entries. */
@@ -351,11 +359,6 @@ class SettingsViewModel @Inject constructor(
             settingsStore.setBcOrigin(origin)
             settingsStore.setBcSocial(social)
         }
-    }
-
-    /** Persists the work-without-internet flag. */
-    fun setOfflineOnly(value: Boolean) {
-        viewModelScope.launch { settingsStore.setOfflineOnly(value) }
     }
 
     /** Persists the GPS road-correction flag. */

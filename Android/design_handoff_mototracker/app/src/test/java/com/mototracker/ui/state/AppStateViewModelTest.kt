@@ -413,20 +413,10 @@ class AppStateViewModelTest {
     }
 
     @Test
-    fun `syncState transitions to Offline when user enables offline mode`() = runTest {
+    fun `syncState transitions to Offline when user enables noInternet`() = runTest {
         viewModel.syncState.test {
             awaitItem()
-            fakeSettingsSource.emit(AppSettings(offline = true))
-            assertEquals(SyncState.Offline, awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `syncState transitions to Offline when offlineOnly is enabled`() = runTest {
-        viewModel.syncState.test {
-            awaitItem()
-            fakeSettingsSource.emit(AppSettings(offlineOnly = true))
+            fakeSettingsSource.emit(AppSettings(noInternet = true))
             assertEquals(SyncState.Offline, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }

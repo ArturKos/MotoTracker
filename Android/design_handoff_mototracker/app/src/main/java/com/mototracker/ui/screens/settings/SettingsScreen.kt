@@ -221,11 +221,10 @@ fun SettingsScreen(
             appStateVm.setUnits(if (key == "imperial") Units.IMPERIAL else Units.METRIC)
         },
         onServerAddress = viewModel::setServerAddress,
-        onOffline = viewModel::setOffline,
-        onAutoSync = viewModel::setAutoSync,
+        onNoInternet = viewModel::setNoInternet,
+        onSyncEnabled = viewModel::setSyncEnabled,
         onSyncNow = viewModel::syncNow,
         onSaveBroadcastProfile = viewModel::saveBroadcastProfile,
-        onOfflineOnly = viewModel::setOfflineOnly,
         onGpsCorrect = viewModel::setGpsCorrect,
         onAndroidAutoEnabled = viewModel::setAndroidAutoEnabled,
         onDebugLogging = viewModel::setDebugLogging,
@@ -279,11 +278,10 @@ fun SettingsScreen(
  * @param onLanguage           Called with the BCP-47 language tag.
  * @param onUnits              Called with the units key ("metric"|"imperial").
  * @param onServerAddress      Called when the server-address field changes.
- * @param onOffline            Called when the Offline mode switch changes.
- * @param onAutoSync           Called when the Auto-sync switch changes.
+ * @param onNoInternet         Called when the master network kill-switch changes (U1).
+ * @param onSyncEnabled        Called when the sync-enabled switch changes (U1).
  * @param onSyncNow            Called when the user taps the Sync-all button.
  * @param onSaveBroadcastProfile Called when the user saves their BT broadcast profile.
- * @param onOfflineOnly        Called when the Offline-only switch changes.
  * @param onGpsCorrect         Called when the GPS-correction switch changes.
  * @param onAndroidAutoEnabled Called when the Android Auto switch changes.
  * @param onDebugLogging       Called when the Debug-logging switch changes.
@@ -314,11 +312,10 @@ fun SettingsContent(
     onLanguage: (String) -> Unit = {},
     onUnits: (String) -> Unit = {},
     onServerAddress: (String) -> Unit = {},
-    onOffline: (Boolean) -> Unit = {},
-    onAutoSync: (Boolean) -> Unit = {},
+    onNoInternet: (Boolean) -> Unit = {},
+    onSyncEnabled: (Boolean) -> Unit = {},
     onSyncNow: () -> Unit = {},
     onSaveBroadcastProfile: (String, String, String, String) -> Unit = { _, _, _, _ -> },
-    onOfflineOnly: (Boolean) -> Unit = {},
     onGpsCorrect: (Boolean) -> Unit = {},
     onAndroidAutoEnabled: (Boolean) -> Unit = {},
     onDebugLogging: (Boolean) -> Unit = {},
@@ -465,13 +462,13 @@ fun SettingsContent(
                 SettingsTab.SERVER_SYNC -> {
                     item {
                         SectionHeader(title = stringResource(R.string.section_server))
-                        ServerSection(
+                        NetworkSection(
                             serverAddress = state.serverAddress,
-                            offline = state.offline,
-                            autoSync = state.autoSync,
+                            noInternet = state.noInternet,
+                            syncEnabled = state.syncEnabled,
                             onServerAddress = onServerAddress,
-                            onOffline = onOffline,
-                            onAutoSync = onAutoSync,
+                            onNoInternet = onNoInternet,
+                            onSyncEnabled = onSyncEnabled,
                         )
                         SectionDivider()
                         SectionHeader(title = stringResource(R.string.section_sync_queue))
@@ -522,12 +519,6 @@ fun SettingsContent(
                 SettingsTab.SYSTEM_DIAGNOSTICS -> {
                     item {
                         SectionHeader(title = stringResource(R.string.section_system))
-                        LabeledSwitch(
-                            label = stringResource(R.string.label_offline_only),
-                            desc = stringResource(R.string.desc_offline_only),
-                            checked = state.offlineOnly,
-                            onChecked = onOfflineOnly,
-                        )
                         LabeledSwitch(
                             label = stringResource(R.string.label_gps_correct),
                             desc = stringResource(R.string.desc_gps_correct),
@@ -958,15 +949,26 @@ private fun AccentColorRow(
     }
 }
 
-/** Server address + offline mode + auto-sync section. */
+/**
+ * Network section: server address, master no-internet switch, and sync-enabled switch.
+ *
+ * The [syncEnabled] row is visually greyed and non-interactive while [noInternet] is `true` (U1).
+ *
+ * @param serverAddress  Current server base URL.
+ * @param noInternet     Whether all network access is blocked (master switch).
+ * @param syncEnabled    Whether upload to server is enabled.
+ * @param onServerAddress Called when the server-address field is committed.
+ * @param onNoInternet    Called when the master switch changes.
+ * @param onSyncEnabled   Called when the sync switch changes.
+ */
 @Composable
-private fun ServerSection(
+private fun NetworkSection(
     serverAddress: String,
-    offline: Boolean,
-    autoSync: Boolean,
+    noInternet: Boolean,
+    syncEnabled: Boolean,
     onServerAddress: (String) -> Unit,
-    onOffline: (Boolean) -> Unit,
-    onAutoSync: (Boolean) -> Unit,
+    onNoInternet: (Boolean) -> Unit,
+    onSyncEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var addressDraft by rememberSaveable { mutableStateOf(serverAddress) }
@@ -990,16 +992,63 @@ private fun ServerSection(
         )
         Spacer(modifier = Modifier.height(6.dp))
         LabeledSwitch(
-            label = stringResource(R.string.label_offline_mode),
-            desc = stringResource(R.string.desc_offline_mode),
-            checked = offline,
-            onChecked = onOffline,
+            label = stringResource(R.string.label_no_internet),
+            desc = stringResource(R.string.desc_no_internet),
+            checked = noInternet,
+            onChecked = onNoInternet,
         )
-        LabeledSwitch(
-            label = stringResource(R.string.label_auto_sync),
-            desc = stringResource(R.string.desc_auto_sync),
-            checked = autoSync,
-            onChecked = onAutoSync,
+        // Sync row is greyed/disabled while the master no-internet switch is on.
+        LabeledSwitchOptional(
+            label = stringResource(R.string.label_sync_enabled),
+            desc = stringResource(R.string.desc_sync_enabled),
+            checked = syncEnabled && !noInternet,
+            enabled = !noInternet,
+            onChecked = { if (!noInternet) onSyncEnabled(it) },
+        )
+    }
+}
+
+/**
+ * Labelled toggle row with an optional enabled/disabled state for greying out the control.
+ *
+ * When [enabled] is `false` the label and switch are rendered at reduced opacity and
+ * the switch cannot be interacted with.
+ */
+@Composable
+private fun LabeledSwitchOptional(
+    label: String,
+    desc: String?,
+    checked: Boolean,
+    enabled: Boolean,
+    onChecked: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val alpha = if (enabled) 1f else 0.38f
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                color = MotoTracker.colors.text.copy(alpha = alpha),
+                style = MotoTracker.typography.body,
+            )
+            if (desc != null) {
+                Text(
+                    text = desc,
+                    color = MotoTracker.colors.dim.copy(alpha = alpha),
+                    style = MotoTracker.typography.label,
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = if (enabled) onChecked else null,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(checkedTrackColor = MotoTracker.colors.accent),
         )
     }
 }

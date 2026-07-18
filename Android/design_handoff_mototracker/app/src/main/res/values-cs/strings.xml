@@ -85,10 +85,10 @@
     <string name="btn_login">Přihlásit</string>
 
     <string name="section_server">Server a synchronizace</string>
-    <string name="label_offline_mode">Offline režim</string>
-    <string name="desc_offline_mode">Ukládat jen lokálně, neodesílat</string>
-    <string name="label_auto_sync">Auto-synchronizace</string>
-    <string name="desc_auto_sync">Odeslat po návratu signálu / Wi-Fi</string>
+    <string name="label_no_internet">Bez internetu</string>
+    <string name="desc_no_internet">Blokuje veškerý přístup k síti</string>
+    <string name="label_sync_enabled">Synchronizovat se serverem</string>
+    <string name="desc_sync_enabled">Nahrát trasy při dostupném připojení</string>
 
     <string name="section_sync_queue">Fronta synchronizace</string>
     <string name="btn_send_all">Odeslat vše</string>
@@ -149,6 +149,7 @@
     <string name="label_members">členů</string>
     <string name="btn_add_by_phone">Přidat přes telefon</string>
 
+    <string name="label_requires_internet">Vyžaduje internet</string>
     <string name="label_feed_title">Živě</string>
     <string name="label_feed_start">zahájil trasu</string>
     <string name="label_feed_finish">ukončil trasu</string>
@@ -156,7 +157,6 @@
 
     <string name="riders_waves_title">Zamávání (Bluetooth)</string>
     <string name="label_wave_at">u</string>
-    <string name="label_no_internet">Vyžaduje internet</string>
     <string name="label_works_offline">Funguje offline (BT)</string>
 
     <string name="section_broadcast">Vysílání (Bluetooth)</string>
@@ -170,8 +170,6 @@
     <string name="label_bc_phone">Telefon</string>
 
     <string name="section_system">Systém a soukromí</string>
-    <string name="label_offline_only">Práce bez internetu</string>
-    <string name="desc_offline_only">Vypne počasí a online skupinu</string>
     <string name="label_gps_correct">Korekce GPS na silnici</string>
     <string name="desc_gps_correct">Opraví odchylky (map-matching)</string>
     <string name="label_android_auto">Android Auto</string>

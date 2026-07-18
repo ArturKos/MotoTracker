@@ -57,9 +57,8 @@ class BackupSerializerTest {
     )
 
     private fun settings() = AppSettings(
-        offline = true,
-        autoSync = false,
-        offlineOnly = true,
+        noInternet = true,
+        syncEnabled = false,
         gpsCorrect = false,
         currentBikeId = "b1",
         serverAddress = "http://example.com",
@@ -150,9 +149,8 @@ class BackupSerializerTest {
         val decoded = BackupSerializer.decode(BackupSerializer.encode(data)).getOrThrow()
         val s = decoded.settings
 
-        assertEquals(original.offline, s.offline)
-        assertEquals(original.autoSync, s.autoSync)
-        assertEquals(original.offlineOnly, s.offlineOnly)
+        assertEquals(original.noInternet, s.noInternet)
+        assertEquals(original.syncEnabled, s.syncEnabled)
         assertEquals(original.gpsCorrect, s.gpsCorrect)
         assertEquals(original.currentBikeId, s.currentBikeId)
         assertEquals(original.serverAddress, s.serverAddress)

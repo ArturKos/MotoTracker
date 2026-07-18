@@ -6,9 +6,15 @@ package com.mototracker.data.settings
  * Mirrors the settings fields from README §State (lines 141–142).
  * Defaults match the prototype initial state.
  *
- * @param offline             Whether the app is in explicit offline mode.
- * @param autoSync            Whether routes should be uploaded automatically when online.
- * @param offlineOnly         Whether the user has disabled all network activity.
+ * @param noInternet          Master network kill switch: when `true` ALL outbound network
+ *                            activity is blocked (weather, sync, GPS correction, online group).
+ *                            Replaces the old `offlineOnly` flag. Migration: new value is derived
+ *                            from `no_internet` key; falls back to legacy `offline_only` key.
+ * @param syncEnabled         Whether routes should be uploaded to the server. When `false`,
+ *                            no uploads occur; forced `false` while [noInternet] is `true`.
+ *                            Replaces the old `offline`/`autoSync` pair. Migration: new value is
+ *                            derived from `sync_enabled` key; falls back to
+ *                            `(autoSync ?: true) && !(offline ?: false)` from legacy keys.
  * @param gpsCorrect          Whether GPS road-correction (map-matching) is enabled.
  * @param currentBikeId       ID of the currently selected bike; null if none selected.
  * @param serverAddress       Base URL of the GPStrack server.
@@ -39,9 +45,8 @@ package com.mototracker.data.settings
  *                               (degrees/minutes/seconds), or "utm". Defaults to "dd".
  */
 data class AppSettings(
-    val offline: Boolean = false,
-    val autoSync: Boolean = true,
-    val offlineOnly: Boolean = false,
+    val noInternet: Boolean = false,
+    val syncEnabled: Boolean = true,
     val gpsCorrect: Boolean = true,
     val currentBikeId: String? = null,
     val serverAddress: String = "http://192.168.1.145/gpstrack",

@@ -85,10 +85,10 @@
     <string name="btn_login">Zaloguj</string>
 
     <string name="section_server">Serwer i synchronizacja</string>
-    <string name="label_offline_mode">Tryb offline</string>
-    <string name="desc_offline_mode">Zapisuj tylko lokalnie, nie wysyłaj</string>
-    <string name="label_auto_sync">Auto-synchronizacja</string>
-    <string name="desc_auto_sync">Wyślij po powrocie zasięgu / Wi-Fi</string>
+    <string name="label_no_internet">Bez internetu</string>
+    <string name="desc_no_internet">Blokuje wszystkie połączenia sieciowe</string>
+    <string name="label_sync_enabled">Synchronizuj z serwerem</string>
+    <string name="desc_sync_enabled">Wgraj trasy gdy połączenie dostępne</string>
 
     <string name="section_sync_queue">Kolejka synchronizacji</string>
     <string name="btn_send_all">Wyślij wszystko</string>
@@ -149,6 +149,7 @@
     <string name="label_members">uczestników</string>
     <string name="btn_add_by_phone">Dodaj przez numer telefonu</string>
 
+    <string name="label_requires_internet">Wymaga internetu</string>
     <string name="label_feed_title">Na żywo</string>
     <string name="label_feed_start">rozpoczął trasę</string>
     <string name="label_feed_finish">zakończył trasę</string>
@@ -156,7 +157,6 @@
 
     <string name="riders_waves_title">Pomachania (Bluetooth)</string>
     <string name="label_wave_at">przy</string>
-    <string name="label_no_internet">Wymaga internetu</string>
     <string name="label_works_offline">Działa offline (BT)</string>
 
     <string name="section_broadcast">Rozgłaszanie (Bluetooth)</string>
@@ -170,8 +170,6 @@
     <string name="label_bc_phone">Numer telefonu</string>
 
     <string name="section_system">System i prywatność</string>
-    <string name="label_offline_only">Praca bez internetu</string>
-    <string name="desc_offline_only">Wyłącza pogodę i grupę online</string>
     <string name="label_gps_correct">Korekcja GPS do drogi</string>
     <string name="desc_gps_correct">Prostuje odchyłki pozycji (map-matching)</string>
     <string name="label_android_auto">Android Auto</string>
@@ -216,7 +214,7 @@
     <string name="toast_bc_saved">Zapisano profil rozgłaszania</string>
 
     <!-- Location permission -->
-    <string name="perm_location_rationale">MotoTracker wymaga dostępu do lokalizacji, aby nagrywać trasę.</string>
+    <string name="perm_location_rationale">MotoTracker potrzebuje dostępu do lokalizacji, aby nagrywać Twoje trasy.</string>
     <string name="perm_location_denied">Brak uprawnień do lokalizacji. Włącz lokalizację w ustawieniach aplikacji, aby nagrywać trasy.</string>
     <string name="btn_grant_permission">Udziel uprawnienia</string>
 

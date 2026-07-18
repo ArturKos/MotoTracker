@@ -215,9 +215,8 @@ private fun pendingEntry(routeId: String, nextRetryMs: Long? = null, attemptCoun
     )
 
 private val onlineAutoSyncSettings = AppSettings(
-    offline = false,
-    autoSync = true,
-    offlineOnly = false,
+    noInternet = false,
+    syncEnabled = true,
     serverAddress = "http://test-server/gpstrack",
 )
 
@@ -440,11 +439,11 @@ class SyncRepositoryImplTest {
         assertTrue(client.calls.isEmpty())
     }
 
-    // ── syncNow respects offlineOnly ─────────────────────────────────────────
+    // ── syncNow respects noInternet ──────────────────────────────────────────
 
     @Test
-    fun `syncNow returns 0 and makes no HTTP calls when offlineOnly is true`() = runTest {
-        settingsSource.emit(onlineAutoSyncSettings.copy(offlineOnly = true))
+    fun `syncNow returns 0 and makes no HTTP calls when noInternet is true`() = runTest {
+        settingsSource.emit(onlineAutoSyncSettings.copy(noInternet = true))
         routeDao.upsert(routeEntity("r1"))
         repo.enqueue("r1")
 
@@ -456,8 +455,8 @@ class SyncRepositoryImplTest {
     }
 
     @Test
-    fun `syncNow runs even when autoSync is false`() = runTest {
-        settingsSource.emit(onlineAutoSyncSettings.copy(autoSync = false))
+    fun `syncNow runs even when syncEnabled is false`() = runTest {
+        settingsSource.emit(onlineAutoSyncSettings.copy(syncEnabled = false))
         routeDao.upsert(routeEntity("r1"))
         repo.enqueue("r1")
 
@@ -469,8 +468,8 @@ class SyncRepositoryImplTest {
     // ── auto-drain gated OFF ─────────────────────────────────────────────────
 
     @Test
-    fun `auto-drain does not run when offline flag is true`() = runTest {
-        settingsSource.emit(onlineAutoSyncSettings.copy(offline = true))
+    fun `auto-drain does not run when noInternet is true`() = runTest {
+        settingsSource.emit(onlineAutoSyncSettings.copy(noInternet = true))
         routeDao.upsert(routeEntity("r1"))
         repo.enqueue("r1")
 
@@ -482,21 +481,8 @@ class SyncRepositoryImplTest {
     }
 
     @Test
-    fun `auto-drain does not run when offlineOnly is true`() = runTest {
-        settingsSource.emit(onlineAutoSyncSettings.copy(offlineOnly = true))
-        routeDao.upsert(routeEntity("r1"))
-        repo.enqueue("r1")
-
-        repo.start(backgroundScope)
-        advanceUntilIdle()
-
-        assertTrue(client.calls.isEmpty())
-        assertNotNull(syncQueueDao.find("r1"))
-    }
-
-    @Test
-    fun `auto-drain does not run when autoSync is false`() = runTest {
-        settingsSource.emit(onlineAutoSyncSettings.copy(autoSync = false))
+    fun `auto-drain does not run when syncEnabled is false`() = runTest {
+        settingsSource.emit(onlineAutoSyncSettings.copy(syncEnabled = false))
         routeDao.upsert(routeEntity("r1"))
         repo.enqueue("r1")
 

@@ -85,10 +85,10 @@
     <string name="btn_login">Войти</string>
 
     <string name="section_server">Сервер и синхронизация</string>
-    <string name="label_offline_mode">Офлайн-режим</string>
-    <string name="desc_offline_mode">Хранить только локально, не отправлять</string>
-    <string name="label_auto_sync">Автосинхронизация</string>
-    <string name="desc_auto_sync">Отправить при возврате сети / Wi-Fi</string>
+    <string name="label_no_internet">Без интернета</string>
+    <string name="desc_no_internet">Блокирует весь сетевой доступ</string>
+    <string name="label_sync_enabled">Синхронизация с сервером</string>
+    <string name="desc_sync_enabled">Загрузить маршруты при наличии соединения</string>
 
     <string name="section_sync_queue">Очередь синхронизации</string>
     <string name="btn_send_all">Отправить все</string>
@@ -149,6 +149,7 @@
     <string name="label_members">участников</string>
     <string name="btn_add_by_phone">Добавить по номеру</string>
 
+    <string name="label_requires_internet">Требуется интернет</string>
     <string name="label_feed_title">Лента</string>
     <string name="label_feed_start">начал поездку</string>
     <string name="label_feed_finish">завершил поездку</string>
@@ -156,7 +157,6 @@
 
     <string name="riders_waves_title">Приветствия (Bluetooth)</string>
     <string name="label_wave_at">у</string>
-    <string name="label_no_internet">Требуется интернет</string>
     <string name="label_works_offline">Работает офлайн (BT)</string>
 
     <string name="section_broadcast">Трансляция (Bluetooth)</string>
@@ -170,8 +170,6 @@
     <string name="label_bc_phone">Телефон</string>
 
     <string name="section_system">Система и приватность</string>
-    <string name="label_offline_only">Работа без интернета</string>
-    <string name="desc_offline_only">Отключает погоду и онлайн-группу</string>
     <string name="label_gps_correct">Привязка GPS к дороге</string>
     <string name="desc_gps_correct">Исправляет отклонения (map-matching)</string>
     <string name="label_android_auto">Android Auto</string>

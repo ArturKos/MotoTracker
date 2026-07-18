@@ -61,10 +61,13 @@ object BackupSerializer {
     private const val B_FUEL_PRICE_PER_L = "fuelPricePerL"
     private const val B_CONSUMPTION_L_PER_100KM = "consumptionLper100km"
 
-    // Settings keys
-    private const val S_OFFLINE = "offline"
-    private const val S_AUTO_SYNC = "autoSync"
-    private const val S_OFFLINE_ONLY = "offlineOnly"
+    // Settings keys (U1: canonical new keys)
+    private const val S_NO_INTERNET = "noInternet"
+    private const val S_SYNC_ENABLED = "syncEnabled"
+    // Legacy keys — only used for backward-compatible decoding of old backup files
+    private const val S_OFFLINE_LEGACY = "offline"
+    private const val S_AUTO_SYNC_LEGACY = "autoSync"
+    private const val S_OFFLINE_ONLY_LEGACY = "offlineOnly"
     private const val S_GPS_CORRECT = "gpsCorrect"
     private const val S_CURRENT_BIKE_ID = "currentBikeId"
     private const val S_SERVER_ADDRESS = "serverAddress"
@@ -244,9 +247,8 @@ object BackupSerializer {
     private fun encodeSettings(s: AppSettings): JSONObject {
         val defaults = AppSettings()
         val o = JSONObject()
-        o.put(S_OFFLINE, s.offline)
-        o.put(S_AUTO_SYNC, s.autoSync)
-        o.put(S_OFFLINE_ONLY, s.offlineOnly)
+        o.put(S_NO_INTERNET, s.noInternet)
+        o.put(S_SYNC_ENABLED, s.syncEnabled)
         o.put(S_GPS_CORRECT, s.gpsCorrect)
         o.put(S_CURRENT_BIKE_ID, s.currentBikeId ?: JSONObject.NULL)
         o.put(S_SERVER_ADDRESS, s.serverAddress)
@@ -270,9 +272,11 @@ object BackupSerializer {
     private fun decodeSettings(o: JSONObject): AppSettings {
         val defaults = AppSettings()
         return AppSettings(
-            offline = o.optBoolean(S_OFFLINE, defaults.offline),
-            autoSync = o.optBoolean(S_AUTO_SYNC, defaults.autoSync),
-            offlineOnly = o.optBoolean(S_OFFLINE_ONLY, defaults.offlineOnly),
+            // Prefer new keys; migrate from legacy offline/autoSync/offlineOnly when absent.
+            noInternet = if (o.has(S_NO_INTERNET)) o.optBoolean(S_NO_INTERNET, false)
+                         else o.optBoolean(S_OFFLINE_ONLY_LEGACY, false),
+            syncEnabled = if (o.has(S_SYNC_ENABLED)) o.optBoolean(S_SYNC_ENABLED, true)
+                          else (o.optBoolean(S_AUTO_SYNC_LEGACY, true) && !o.optBoolean(S_OFFLINE_LEGACY, false)),
             gpsCorrect = o.optBoolean(S_GPS_CORRECT, defaults.gpsCorrect),
             currentBikeId = o.optStringOrNull(S_CURRENT_BIKE_ID),
             serverAddress = o.optString(S_SERVER_ADDRESS, defaults.serverAddress),

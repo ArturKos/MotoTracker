@@ -25,7 +25,7 @@ interface GpsCorrectionRepository {
     /**
      * Immediately processes all due queue entries, regardless of the auto-drain setting.
      *
-     * Returns 0 when `offlineOnly` is true.
+     * Returns 0 when `noInternet` is true (all network access blocked).
      *
      * @return Number of routes successfully corrected (quality-gate ACCEPT) in this call.
      */
@@ -36,7 +36,7 @@ interface GpsCorrectionRepository {
      *
      * The drain fires on start, whenever network connectivity changes, and whenever
      * settings change. It is gated on LAN reachability (transport failure counts as
-     * offline) and the `offlineOnly` flag.
+     * offline) and the `noInternet` master flag.
      *
      * @param scope Coroutine scope that owns the launched jobs.
      */

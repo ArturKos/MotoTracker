@@ -9,14 +9,16 @@ package com.mototracker.data.settings
  */
 interface SettingsStore : WritableSettingsSource {
 
-    /** Persists the [offline] flag. */
-    suspend fun setOffline(value: Boolean)
+    /** Persists the master network kill-switch [AppSettings.noInternet] flag (U1). */
+    suspend fun setNoInternet(value: Boolean)
 
-    /** Persists the [autoSync] flag. */
-    suspend fun setAutoSync(value: Boolean)
-
-    /** Persists the [offlineOnly] flag. */
-    suspend fun setOfflineOnly(value: Boolean)
+    /**
+     * Persists the [AppSettings.syncEnabled] flag (U1).
+     *
+     * Note: callers should only set this to `true` when [AppSettings.noInternet] is `false`;
+     * the Settings UI enforces this by disabling the toggle when the master switch is on.
+     */
+    suspend fun setSyncEnabled(value: Boolean)
 
     /** Persists the [gpsCorrect] flag. */
     suspend fun setGpsCorrect(value: Boolean)

@@ -60,8 +60,8 @@ data class SyncQueueItemUi(
  * @param language           Active BCP-47 language tag.
  * @param units              Measurement system ("metric" or "imperial").
  * @param serverAddress      GPStrack server base URL.
- * @param offline            Offline mode switch state.
- * @param autoSync           Auto-sync switch state.
+ * @param noInternet         Master network kill-switch: blocks all outbound traffic (U1).
+ * @param syncEnabled        Whether upload to server is enabled; forced off while [noInternet] is on (U1).
  * @param pendingRoutes      Routes not yet synced to the server.
  * @param bcName             Broadcast profile: rider name/handle.
  * @param bcPhone            Broadcast profile: phone number.
@@ -70,7 +70,6 @@ data class SyncQueueItemUi(
  * @param bcBikeDisplay      Auto: current bike name+year (read-only in broadcast section).
  * @param bcTodayDisplay     Auto: km ridden today (read-only in broadcast section).
  * @param bcTotalDisplay     Auto: total km in app (read-only in broadcast section).
- * @param offlineOnly          System: disable all network activity.
  * @param gpsCorrect           System: enable GPS road-correction (map-matching).
  * @param androidAutoEnabled   System: show on car display.
  * @param autoPause            Preference: auto-pause recording when stationary.
@@ -91,8 +90,8 @@ data class SettingsUiState(
     val language: String = "pl",
     val units: String = "metric",
     val serverAddress: String = "http://192.168.1.145/gpstrack",
-    val offline: Boolean = false,
-    val autoSync: Boolean = true,
+    val noInternet: Boolean = false,
+    val syncEnabled: Boolean = true,
     val pendingRoutes: List<SyncQueueItemUi> = emptyList(),
     val bcName: String = "",
     val bcPhone: String = "",
@@ -101,7 +100,6 @@ data class SettingsUiState(
     val bcBikeDisplay: String = "",
     val bcTodayDisplay: String = "",
     val bcTotalDisplay: String = "",
-    val offlineOnly: Boolean = false,
     val gpsCorrect: Boolean = true,
     val androidAutoEnabled: Boolean = false,
     val autoPause: Boolean = true,

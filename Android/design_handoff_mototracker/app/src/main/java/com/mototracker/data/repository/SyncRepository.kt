@@ -27,9 +27,9 @@ interface SyncRepository {
     suspend fun enqueue(routeId: String)
 
     /**
-     * Manually drains all due sync-queue entries, ignoring the `autoSync` setting.
+     * Manually drains all due sync-queue entries, regardless of the `syncEnabled` setting.
      *
-     * Returns immediately with 0 if `offlineOnly` is enabled (no network calls permitted).
+     * Returns immediately with 0 if `noInternet` is true (all network access blocked).
      *
      * @return The number of routes successfully uploaded in this call.
      */
@@ -39,7 +39,7 @@ interface SyncRepository {
      * Starts the background auto-drain coroutine inside [scope].
      *
      * The coroutine watches network connectivity and app settings; it drains due queue entries
-     * whenever `isOnline && !offlineOnly && !offline && autoSync`.
+     * whenever `isOnline && !noInternet && syncEnabled`.
      *
      * Call once per process, typically from the Application class or a singleton component.
      *

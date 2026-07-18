@@ -47,9 +47,8 @@ private class FakeSettingsStore(
     override val settings: Flow<AppSettings> = _flow
 
     var lastBikeId: String? = "UNCHANGED"
-    var lastOffline: Boolean? = null
-    var lastAutoSync: Boolean? = null
-    var lastOfflineOnly: Boolean? = null
+    var lastNoInternet: Boolean? = null
+    var lastSyncEnabled: Boolean? = null
     var lastGpsCorrect: Boolean? = null
     var lastTheme: String? = null
     var lastAccent: String? = null
@@ -69,9 +68,8 @@ private class FakeSettingsStore(
 
     fun emit(s: AppSettings) { _flow.value = s }
 
-    override suspend fun setOffline(value: Boolean) { lastOffline = value; _flow.value = _flow.value.copy(offline = value) }
-    override suspend fun setAutoSync(value: Boolean) { lastAutoSync = value; _flow.value = _flow.value.copy(autoSync = value) }
-    override suspend fun setOfflineOnly(value: Boolean) { lastOfflineOnly = value; _flow.value = _flow.value.copy(offlineOnly = value) }
+    override suspend fun setNoInternet(value: Boolean) { lastNoInternet = value; _flow.value = _flow.value.copy(noInternet = value) }
+    override suspend fun setSyncEnabled(value: Boolean) { lastSyncEnabled = value; _flow.value = _flow.value.copy(syncEnabled = value) }
     override suspend fun setGpsCorrect(value: Boolean) { lastGpsCorrect = value; _flow.value = _flow.value.copy(gpsCorrect = value) }
     override suspend fun setCurrentBikeId(bikeId: String?) { lastBikeId = bikeId; _flow.value = _flow.value.copy(currentBikeId = bikeId) }
     override suspend fun setServerAddress(address: String) { lastServerAddress = address; _flow.value = _flow.value.copy(serverAddress = address) }
@@ -237,8 +235,8 @@ class SettingsViewModelTest {
         assertEquals("cockpit", s.theme)
         assertEquals("metric", s.units)
         assertEquals("pl", s.language)
-        assertFalse(s.offline)
-        assertTrue(s.autoSync)
+        assertFalse(s.noInternet)
+        assertTrue(s.syncEnabled)
         assertTrue(s.autoPause)
         assertFalse(s.keepScreenOn)
         assertFalse(s.androidAutoEnabled)
@@ -404,21 +402,22 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `setOffline persists flag`() = runTest {
-        vm.setOffline(true)
-        assertEquals(true, store.lastOffline)
+    fun `setNoInternet persists flag`() = runTest {
+        vm.setNoInternet(true)
+        assertEquals(true, store.lastNoInternet)
     }
 
     @Test
-    fun `setAutoSync persists flag`() = runTest {
-        vm.setAutoSync(false)
-        assertEquals(false, store.lastAutoSync)
+    fun `setSyncEnabled persists flag`() = runTest {
+        vm.setSyncEnabled(false)
+        assertEquals(false, store.lastSyncEnabled)
     }
 
     @Test
-    fun `setOfflineOnly persists flag`() = runTest {
-        vm.setOfflineOnly(true)
-        assertEquals(true, store.lastOfflineOnly)
+    fun `setSyncEnabled is no-op when noInternet is true`() = runTest {
+        store.emit(AppSettings(noInternet = true))
+        vm.setSyncEnabled(true)
+        assertNull("store setter must not be called while noInternet is on", store.lastSyncEnabled)
     }
 
     @Test
@@ -753,12 +752,12 @@ class SettingsViewModelTest {
 
     @Test
     fun `updated settings emit new state`() = runTest {
-        store.emit(AppSettings(theme = "light", units = "imperial", offlineOnly = true))
+        store.emit(AppSettings(theme = "light", units = "imperial", noInternet = true))
         vm.uiState.test {
             val state = awaitItem()
             assertEquals("light", state.theme)
             assertEquals("imperial", state.units)
-            assertTrue(state.offlineOnly)
+            assertTrue(state.noInternet)
             cancelAndIgnoreRemainingEvents()
         }
     }

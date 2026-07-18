@@ -29,6 +29,10 @@ class SettingsDataStore @Inject constructor(
 ) : SettingsStore {
 
     private object Keys {
+        // New canonical keys (U1)
+        val NO_INTERNET = booleanPreferencesKey("no_internet")
+        val SYNC_ENABLED = booleanPreferencesKey("sync_enabled")
+        // Legacy keys — kept read-only for migration; no longer written
         val OFFLINE = booleanPreferencesKey("offline")
         val AUTO_SYNC = booleanPreferencesKey("auto_sync")
         val OFFLINE_ONLY = booleanPreferencesKey("offline_only")
@@ -59,9 +63,11 @@ class SettingsDataStore @Inject constructor(
     /** Live stream of the current [AppSettings], emitting on every change. */
     override val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
-            offline = prefs[Keys.OFFLINE] ?: defaults.offline,
-            autoSync = prefs[Keys.AUTO_SYNC] ?: defaults.autoSync,
-            offlineOnly = prefs[Keys.OFFLINE_ONLY] ?: defaults.offlineOnly,
+            // Migration: prefer new key; fall back to legacy offline_only key, then default false.
+            noInternet = prefs[Keys.NO_INTERNET] ?: prefs[Keys.OFFLINE_ONLY] ?: false,
+            // Migration: prefer new key; fall back to (autoSync ?: true) && !(offline ?: false).
+            syncEnabled = prefs[Keys.SYNC_ENABLED]
+                ?: ((prefs[Keys.AUTO_SYNC] ?: true) && !(prefs[Keys.OFFLINE] ?: false)),
             gpsCorrect = prefs[Keys.GPS_CORRECT] ?: defaults.gpsCorrect,
             currentBikeId = prefs[Keys.CURRENT_BIKE_ID],
             serverAddress = prefs[Keys.SERVER_ADDRESS] ?: defaults.serverAddress,
@@ -85,19 +91,14 @@ class SettingsDataStore @Inject constructor(
         )
     }
 
-    /** Persists the [offline] flag. */
-    override suspend fun setOffline(value: Boolean) {
-        dataStore.edit { it[Keys.OFFLINE] = value }
+    /** Persists the master network kill-switch [noInternet] flag (U1). */
+    override suspend fun setNoInternet(value: Boolean) {
+        dataStore.edit { it[Keys.NO_INTERNET] = value }
     }
 
-    /** Persists the [autoSync] flag. */
-    override suspend fun setAutoSync(value: Boolean) {
-        dataStore.edit { it[Keys.AUTO_SYNC] = value }
-    }
-
-    /** Persists the [offlineOnly] flag. */
-    override suspend fun setOfflineOnly(value: Boolean) {
-        dataStore.edit { it[Keys.OFFLINE_ONLY] = value }
+    /** Persists the [syncEnabled] flag (U1). */
+    override suspend fun setSyncEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.SYNC_ENABLED] = value }
     }
 
     /** Persists the [gpsCorrect] flag. */

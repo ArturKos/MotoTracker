@@ -85,10 +85,10 @@
     <string name="btn_login">Anmelden</string>
 
     <string name="section_server">Server &amp; Sync</string>
-    <string name="label_offline_mode">Offline-Modus</string>
-    <string name="desc_offline_mode">Nur lokal speichern, nicht senden</string>
-    <string name="label_auto_sync">Auto-Sync</string>
-    <string name="desc_auto_sync">Senden bei Netz / WLAN</string>
+    <string name="label_no_internet">Kein Internet</string>
+    <string name="desc_no_internet">Blockiert alle Netzwerkverbindungen</string>
+    <string name="label_sync_enabled">Mit Server synchronisieren</string>
+    <string name="desc_sync_enabled">Touren hochladen wenn Verbindung verfügbar</string>
 
     <string name="section_sync_queue">Sync-Warteschlange</string>
     <string name="btn_send_all">Alle senden</string>
@@ -149,6 +149,7 @@
     <string name="label_members">Mitglieder</string>
     <string name="btn_add_by_phone">Per Telefonnummer hinzufügen</string>
 
+    <string name="label_requires_internet">Braucht Internet</string>
     <string name="label_feed_title">Live-Feed</string>
     <string name="label_feed_start">hat gestartet</string>
     <string name="label_feed_finish">hat beendet</string>
@@ -156,7 +157,6 @@
 
     <string name="riders_waves_title">Winken (Bluetooth)</string>
     <string name="label_wave_at">bei</string>
-    <string name="label_no_internet">Braucht Internet</string>
     <string name="label_works_offline">Offline nutzbar (BT)</string>
 
     <string name="section_broadcast">Aussendung (Bluetooth)</string>
@@ -170,8 +170,6 @@
     <string name="label_bc_phone">Telefonnummer</string>
 
     <string name="section_system">System &amp; Datenschutz</string>
-    <string name="label_offline_only">Ohne Internet arbeiten</string>
-    <string name="desc_offline_only">Deaktiviert Wetter &amp; Online-Gruppe</string>
     <string name="label_gps_correct">GPS auf Straße korrigieren</string>
     <string name="desc_gps_correct">Korrigiert Abweichungen (Map-Matching)</string>
     <string name="label_android_auto">Android Auto</string>

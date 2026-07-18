@@ -24,7 +24,7 @@ import javax.inject.Singleton
  *
  * The auto-drain loop (started via [start]) combines [NetworkMonitor.isOnline] with
  * the current [AppSettingsSource.settings] and drains due queue entries whenever
- * `isOnline && !offlineOnly && !offline && autoSync`.
+ * `isOnline && !noInternet && syncEnabled`.
  *
  * @param syncQueueDao   DAO for the outbound sync queue.
  * @param routeDao       DAO for reading and updating route sync status.
@@ -67,13 +67,13 @@ class SyncRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Drains all due entries regardless of the `autoSync` setting.
+     * Drains all due entries regardless of the [AppSettings.syncEnabled] setting.
      *
-     * Returns 0 immediately if `offlineOnly` is true (no network calls permitted).
+     * Returns 0 immediately if [AppSettings.noInternet] is `true` (no network calls permitted).
      */
     override suspend fun syncNow(): Int {
         val settings = settingsSource.settings.first()
-        if (settings.offlineOnly) return 0
+        if (settings.noInternet) return 0
         return drain(settings.serverAddress)
     }
 
@@ -103,15 +103,12 @@ class SyncRepositoryImpl @Inject constructor(
     /**
      * Evaluates the current network + settings state and drains the queue if conditions are met.
      *
-     * Conditions: online AND NOT offlineOnly AND NOT offline AND autoSync enabled.
+     * Conditions: online AND NOT [AppSettings.noInternet] AND [AppSettings.syncEnabled].
      */
     private suspend fun tryDrain() {
         val online = networkMonitor.isOnline.first()
         val settings = settingsSource.settings.first()
-        val shouldDrain = online &&
-            !settings.offlineOnly &&
-            !settings.offline &&
-            settings.autoSync
+        val shouldDrain = online && !settings.noInternet && settings.syncEnabled
         if (shouldDrain) drain(settings.serverAddress)
     }
 

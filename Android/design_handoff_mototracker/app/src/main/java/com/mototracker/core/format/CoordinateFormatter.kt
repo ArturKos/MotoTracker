@@ -14,7 +14,24 @@ import kotlin.math.floor
 enum class CoordFormat {
     DECIMAL_DEGREES,
     DMS,
-    UTM,
+    UTM;
+
+    companion object {
+        /**
+         * Maps a persisted settings key to its [CoordFormat] constant.
+         *
+         * Accepted keys: `"dd"` → [DECIMAL_DEGREES], `"dms"` → [DMS], `"utm"` → [UTM].
+         * Any unknown or null key maps to [DECIMAL_DEGREES] (safe default).
+         *
+         * @param key Persisted string key from [com.mototracker.data.settings.AppSettings.coordFormat].
+         * @return The matching [CoordFormat], defaulting to [DECIMAL_DEGREES].
+         */
+        fun fromKey(key: String?): CoordFormat = when (key) {
+            "dms" -> DMS
+            "utm" -> UTM
+            else  -> DECIMAL_DEGREES
+        }
+    }
 }
 
 /**

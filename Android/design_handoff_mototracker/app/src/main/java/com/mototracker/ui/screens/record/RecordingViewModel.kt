@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.R
 import com.mototracker.car.CarRecordingBridge
+import com.mototracker.core.format.CoordFormat
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.diagnostics.RideDebugLogger
@@ -193,7 +194,13 @@ class RecordingViewModel @Inject constructor(
             settingsSource.settings.collect { s ->
                 currentBikeId = s.currentBikeId
                 batteryPromptDismissed = s.batteryPromptDismissed
-                _uiState.update { it.copy(gpsOnRoad = s.gpsCorrect, keepScreenOn = s.keepScreenOn) }
+                _uiState.update {
+                    it.copy(
+                        gpsOnRoad = s.gpsCorrect,
+                        keepScreenOn = s.keepScreenOn,
+                        coordFormat = CoordFormat.fromKey(s.coordFormat),
+                    )
+                }
                 carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)
             }
         }
@@ -317,6 +324,8 @@ class RecordingViewModel @Inject constructor(
                     it.copy(
                         liveSpeedKmh = sample.speedMps * 3.6,
                         liveAltitudeM = sample.altitudeM,
+                        liveLat = sample.lat,
+                        liveLng = sample.lng,
                     )
                 }
             }

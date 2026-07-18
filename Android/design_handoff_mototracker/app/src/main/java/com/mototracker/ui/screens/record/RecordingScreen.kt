@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.core.format.CoordFormat
+import com.mototracker.core.format.CoordinateFormatter
 import com.mototracker.data.battery.BatteryOptimizationIntents
 import com.mototracker.domain.fuel.FuelCostCalculator
 import com.mototracker.domain.fuel.FuelRangeColor
@@ -262,16 +264,21 @@ fun RecordingContent(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 8.dp),
                 ) {
-                    // ── Compact chip row: GPS sat-count centred, sole chip (K7) ─────
+                    // ── Compact chip row: GPS sat-count + live coordinates (K7, P1) ─
                     // Range info is in the fuel readout below; weather is on Route detail.
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         GpsChip(satCount = state.gpsSatCount, onRoad = state.gpsOnRoad)
+                        CoordReadout(
+                            lat = state.liveLat,
+                            lng = state.liveLng,
+                            coordFormat = state.coordFormat,
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     SpeedAndTimeRow(state = state, headingDeg = displayHeadingDeg, sizing = sizing)
@@ -368,6 +375,41 @@ private fun InfoChip(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
         )
     }
+}
+
+/**
+ * Live GPS coordinate readout rendered below the GPS sat-count chip (P1).
+ *
+ * Displays coordinates formatted per [coordFormat] once a fix is available; shows a
+ * placeholder resource until then. Uses JetBrains Mono at 11 sp with soft-wrapping
+ * enabled (no ellipsis) so the widest UTM string (≈18 chars) always fits on ~360dp
+ * screens without clipping.
+ *
+ * @param lat         Live WGS-84 latitude in decimal degrees, or null before first fix.
+ * @param lng         Live WGS-84 longitude in decimal degrees, or null before first fix.
+ * @param coordFormat Desired display format (DD / DMS / UTM).
+ * @param modifier    Standard Compose modifier.
+ */
+@Composable
+private fun CoordReadout(
+    lat: Double?,
+    lng: Double?,
+    coordFormat: CoordFormat,
+    modifier: Modifier = Modifier,
+) {
+    val text = if (lat != null && lng != null) {
+        CoordinateFormatter.format(lat, lng, coordFormat)
+    } else {
+        stringResource(R.string.gps_no_fix)
+    }
+    Text(
+        text = text,
+        style = MotoTracker.typography.bigCardNumber.copy(fontSize = 11.sp),
+        color = MotoTracker.colors.dim,
+        softWrap = true,
+        textAlign = TextAlign.Center,
+        modifier = modifier,
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

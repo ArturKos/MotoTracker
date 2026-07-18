@@ -164,6 +164,35 @@ class CoordinateFormatterTest {
         assertTrue("Degree should roll to 52", result.startsWith("52°00'00\""))
     }
 
+    // ── CoordFormat.fromKey ───────────────────────────────────────────────────
+
+    @Test
+    fun `fromKey dd maps to DECIMAL_DEGREES`() {
+        assertEquals(CoordFormat.DECIMAL_DEGREES, CoordFormat.fromKey("dd"))
+    }
+
+    @Test
+    fun `fromKey dms maps to DMS`() {
+        assertEquals(CoordFormat.DMS, CoordFormat.fromKey("dms"))
+    }
+
+    @Test
+    fun `fromKey utm maps to UTM`() {
+        assertEquals(CoordFormat.UTM, CoordFormat.fromKey("utm"))
+    }
+
+    @Test
+    fun `fromKey null maps to DECIMAL_DEGREES`() {
+        assertEquals(CoordFormat.DECIMAL_DEGREES, CoordFormat.fromKey(null))
+    }
+
+    @Test
+    fun `fromKey unknown key maps to DECIMAL_DEGREES`() {
+        assertEquals(CoordFormat.DECIMAL_DEGREES, CoordFormat.fromKey("unknown"))
+        assertEquals(CoordFormat.DECIMAL_DEGREES, CoordFormat.fromKey(""))
+        assertEquals(CoordFormat.DECIMAL_DEGREES, CoordFormat.fromKey("DD"))
+    }
+
     // ── ViewModel-layer: coordFormat propagation (verified in SettingsViewModelTest) ───────
     // The persistence round-trip is tested in SettingsViewModelCoordFormatTest.kt below.
 }

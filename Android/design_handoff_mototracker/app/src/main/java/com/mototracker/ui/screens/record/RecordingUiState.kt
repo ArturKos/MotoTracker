@@ -1,5 +1,6 @@
 package com.mototracker.ui.screens.record
 
+import com.mototracker.core.format.CoordFormat
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.domain.recording.RecordingMetrics
 import com.mototracker.domain.recording.TrackPoint
@@ -54,6 +55,15 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  *                          of recording phase from the raw GPS sample so the Idle cockpit
  *                          shows a real-time readout before the ride starts (M2).
  *                          Null until the first fix.
+ * @param liveLat           Live GPS latitude in decimal degrees (WGS-84), populated regardless of
+ *                          recording phase from the raw GPS sample so the top GPS-chip row shows a
+ *                          real-time coordinate readout (P1). Null until the first fix.
+ * @param liveLng           Live GPS longitude in decimal degrees (WGS-84), populated regardless of
+ *                          recording phase from the raw GPS sample so the top GPS-chip row shows a
+ *                          real-time coordinate readout (P1). Null until the first fix.
+ * @param coordFormat       Coordinate display format (DD / DMS / UTM) sourced from the user's
+ *                          settings and mapped via [CoordFormat.fromKey] (P2). Applied to
+ *                          [liveLat] / [liveLng] in the GPS chip row.
  * @param fuelPricePerL        Fuel price per litre from the current bike's configuration; null when
  *                             the bike has no price set.  Used to compute the running fuel cost
  *                             displayed in the fuel readout (G2).
@@ -83,6 +93,9 @@ data class RecordingUiState(
     val liveLeanDeg: Double? = null,
     val liveSpeedKmh: Double? = null,
     val liveAltitudeM: Double? = null,
+    val liveLat: Double? = null,
+    val liveLng: Double? = null,
+    val coordFormat: CoordFormat = CoordFormat.DECIMAL_DEGREES,
     val fuelPricePerL: Double? = null,
     val currency: String = "PLN",
     val showRefuelDialog: Boolean = false,

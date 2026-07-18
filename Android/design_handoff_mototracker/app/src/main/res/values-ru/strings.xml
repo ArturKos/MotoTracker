@@ -458,4 +458,7 @@
     <string name="coord_format_dd">DD</string>
     <string name="coord_format_dms">DMS</string>
     <string name="coord_format_utm">UTM</string>
+
+    <!-- GPS fix placeholder shown in the coordinate readout before the first fix (P1) -->
+    <string name="gps_no_fix">нет фиксации</string>
 </resources>

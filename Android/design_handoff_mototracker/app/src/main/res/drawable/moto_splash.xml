@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Static vector mark derived from icon.svg.
+  The moto_track path carries android:name so the AVD animator can target it.
+  trimPathEnd starts at 0 (invisible) and is driven to 1 by avd_moto_splash.xml.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Motorcycle track — animated by avd_moto_splash via trimPathEnd -->
+    <path
+        android:name="moto_track"
+        android:pathData="M128,372 C176,300 150,232 214,236 C278,240 250,152 320,150 C356,149 372,168 388,150"
+        android:strokeColor="#00d1b2"
+        android:strokeWidth="30"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:trimPathEnd="0" />
+
+    <!-- Rear wheel outer ring -->
+    <path
+        android:pathData="M154,372 A26,26 0 1,1 102,372 A26,26 0 1,1 154,372 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#00d1b2"
+        android:strokeWidth="18" />
+
+    <!-- Front wheel disc -->
+    <path
+        android:pathData="M430,150 A42,42 0 1,1 346,150 A42,42 0 1,1 430,150 Z"
+        android:fillColor="#00d1b2" />
+
+    <!-- Front wheel centre cutout -->
+    <path
+        android:pathData="M404,150 A16,16 0 1,1 372,150 A16,16 0 1,1 404,150 Z"
+        android:fillColor="#0e1114" />
+</vector>

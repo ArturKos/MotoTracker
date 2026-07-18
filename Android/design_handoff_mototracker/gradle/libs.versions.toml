@@ -59,6 +59,7 @@ roborazzi-core = { group = "io.github.takahirom.roborazzi", name = "roborazzi", 
 roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 roborazzi-junit-rule = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-animation-graphics = { group = "androidx.compose.animation", name = "animation-graphics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

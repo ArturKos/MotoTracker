@@ -483,4 +483,9 @@
     <string name="label_fuel_correction_litres">Литры</string>
     <string name="dialog_fuel_correction_confirm">Подтвердить</string>
     <string name="action_fuel_correction">Скорректировать уровень топлива</string>
+
+    <!-- Статусные сообщения экрана-заставки (T1) -->
+    <string name="splash_status_initializing">Загрузка…</string>
+    <string name="splash_status_migrating_db">Миграция базы…</string>
+    <string name="splash_status_loading_routes">Загрузка маршрутов…</string>
 </resources>

@@ -483,4 +483,9 @@
     <string name="label_fuel_correction_litres">Liter</string>
     <string name="dialog_fuel_correction_confirm">Bestätigen</string>
     <string name="action_fuel_correction">Kraftstoffstand anpassen</string>
+
+    <!-- Splash-Screen-Statusmeldungen (T1) -->
+    <string name="splash_status_initializing">Laden…</string>
+    <string name="splash_status_migrating_db">Datenbank migrieren…</string>
+    <string name="splash_status_loading_routes">Routen laden…</string>
 </resources>

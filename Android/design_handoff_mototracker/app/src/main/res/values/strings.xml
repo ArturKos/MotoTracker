@@ -513,4 +513,9 @@
     <string name="label_fuel_correction_litres">Litres</string>
     <string name="dialog_fuel_correction_confirm">Confirm</string>
     <string name="action_fuel_correction">Adjust fuel level</string>
+
+    <!-- Splash screen status labels (T1) -->
+    <string name="splash_status_initializing">Loading…</string>
+    <string name="splash_status_migrating_db">Migrating database…</string>
+    <string name="splash_status_loading_routes">Loading routes…</string>
 </resources>

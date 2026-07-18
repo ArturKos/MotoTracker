@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.core.format.CoordFormat
 import com.mototracker.core.format.CoordinateFormatter
 import com.mototracker.data.battery.BatteryOptimizationIntents
@@ -245,6 +247,15 @@ fun RecordingContent(
                 } catch (_: Exception) { /* intent not resolvable — fail silently */ }
             },
             onDismiss = { onEvent(RecordingEvent.BatteryOptDismiss) },
+        )
+    }
+
+    // R1: Fuel-level correction dialog shown when the rider taps the correction affordance.
+    if (state.showFuelCorrectionDialog) {
+        FuelCorrectionDialog(
+            currentRemainingL = state.fuelCorrectionCurrentRemaining,
+            onConfirm = { mode, value -> onEvent(RecordingEvent.ConfirmFuelCorrection(mode, value)) },
+            onDismiss = { onEvent(RecordingEvent.DismissFuelCorrectionDialog) },
         )
     }
 
@@ -957,6 +968,17 @@ private fun RecordingControlRow(
                             tint = fuelIconTint,
                         )
                     }
+                    // R1: Fuel-correction button shown alongside the refuel action.
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedIconButton(
+                        onClick = { onEvent(RecordingEvent.ShowFuelCorrectionDialog) },
+                        modifier = Modifier.size(sizing.controlButtonDp.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.action_fuel_correction),
+                        )
+                    }
                 }
             }
         }
@@ -1156,6 +1178,113 @@ private fun BatteryOptPromptDialog(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = stringResource(R.string.battery_opt_action_not_now),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fuel-level correction dialog (R1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Dialog for manually re-anchoring the remaining-fuel estimate (R1).
+ *
+ * Offers two modes:
+ * - **Set** ([FuelAdjustmentMode.SET_ABSOLUTE]) — enter the exact remaining litres.
+ * - **Delta** ([FuelAdjustmentMode.DELTA]) — enter a signed correction (positive = add,
+ *   negative = remove). Useful when a known amount was lost off-ride.
+ *
+ * The [currentRemainingL] is shown as context so the rider knows the engine's current
+ * estimate before typing a correction. On-device rendering is 🔬.
+ *
+ * @param currentRemainingL  Engine's current remaining-fuel estimate in litres.
+ * @param onConfirm          Called with the chosen [FuelAdjustmentMode] and value in litres.
+ * @param onDismiss          Called when the user cancels or dismisses without confirming.
+ */
+@Composable
+private fun FuelCorrectionDialog(
+    currentRemainingL: Double,
+    onConfirm: (mode: FuelAdjustmentMode, value: Double) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var mode by remember { mutableStateOf(FuelAdjustmentMode.SET_ABSOLUTE) }
+    var valueText by remember { mutableStateOf("%.1f".format(currentRemainingL)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_fuel_correction_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Mode toggle — SET_ABSOLUTE | DELTA
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (mode != FuelAdjustmentMode.SET_ABSOLUTE) {
+                                mode = FuelAdjustmentMode.SET_ABSOLUTE
+                                valueText = "%.1f".format(currentRemainingL)
+                            }
+                        },
+                        colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                            contentColor = if (mode == FuelAdjustmentMode.SET_ABSOLUTE)
+                                MotoTracker.colors.accent else MotoTracker.colors.dim,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.label_fuel_correction_set_absolute))
+                    }
+                    TextButton(
+                        onClick = {
+                            if (mode != FuelAdjustmentMode.DELTA) {
+                                mode = FuelAdjustmentMode.DELTA
+                                valueText = "0.0"
+                            }
+                        },
+                        colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                            contentColor = if (mode == FuelAdjustmentMode.DELTA)
+                                MotoTracker.colors.accent else MotoTracker.colors.dim,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.label_fuel_correction_delta))
+                    }
+                }
+                OutlinedTextField(
+                    value = valueText,
+                    onValueChange = { valueText = it },
+                    label = { Text(stringResource(R.string.label_fuel_correction_litres)) },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val v = valueText.toDoubleOrNull() ?: return@TextButton
+                    onConfirm(mode, v)
+                },
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_fuel_correction_confirm),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
                     color = MotoTracker.colors.dim,
                 )
             }

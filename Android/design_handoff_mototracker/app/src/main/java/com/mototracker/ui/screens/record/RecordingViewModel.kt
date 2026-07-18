@@ -16,12 +16,14 @@ import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.WeatherClient
 import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
+import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.domain.fuel.FuelConsumptionCalculator
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.FuelAdjustmentRepository
 import com.mototracker.data.repository.RefuelRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
@@ -106,6 +108,7 @@ import javax.inject.Inject
  * @param weatherClient                     Fetches current weather once at ride start when online (K5).
  * @param batteryOptimizationChecker        Checks whether the app is exempt from battery optimization (O1).
  * @param settingsStore                     Write access to persisted settings, used to record prompt-dismissed (O1).
+ * @param fuelAdjustmentRepository          Persistence for per-bike fuel-level correction events (R1).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -130,6 +133,7 @@ class RecordingViewModel @Inject constructor(
     private val weatherClient: WeatherClient,
     private val batteryOptimizationChecker: BatteryOptimizationChecker,
     private val settingsStore: SettingsStore,
+    private val fuelAdjustmentRepository: FuelAdjustmentRepository,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -378,6 +382,9 @@ class RecordingViewModel @Inject constructor(
             is RecordingEvent.ResumeRoute -> viewModelScope.launch { doResumeRoute(event.routeId) }
             is RecordingEvent.BatteryOptConfirm -> _uiState.update { it.copy(showBatteryOptPrompt = false) }
             is RecordingEvent.BatteryOptDismiss -> doBatteryOptDismiss()
+            is RecordingEvent.ShowFuelCorrectionDialog -> doShowFuelCorrectionDialog()
+            is RecordingEvent.ConfirmFuelCorrection -> doConfirmFuelCorrection(event.mode, event.value)
+            is RecordingEvent.DismissFuelCorrectionDialog -> _uiState.update { it.copy(showFuelCorrectionDialog = false) }
         }
     }
 
@@ -420,6 +427,51 @@ class RecordingViewModel @Inject constructor(
     private fun doBatteryOptDismiss() {
         _uiState.update { it.copy(showBatteryOptPrompt = false) }
         viewModelScope.launch { settingsStore.setBatteryPromptDismissed(true) }
+    }
+
+    /**
+     * Opens the fuel-correction dialog pre-filled with the current engine estimate (R1).
+     *
+     * Only meaningful when [tankCapacityL] is configured; shows the dialog unconditionally
+     * so the rider can always access it during Recording or Paused phases.
+     */
+    private fun doShowFuelCorrectionDialog() {
+        val currentRemaining = engine.snapshot().remainingFuelL ?: 0.0
+        _uiState.update {
+            it.copy(
+                showFuelCorrectionDialog = true,
+                fuelCorrectionCurrentRemaining = currentRemaining,
+            )
+        }
+    }
+
+    /**
+     * Applies a fuel-level correction from the dialog (R1).
+     *
+     * Calls [RecordingEngine.applyFuelCorrection] to re-anchor the live fuel estimate,
+     * persists a [com.mototracker.domain.fuel.FuelAdjustmentEvent] and updates [_uiState].
+     *
+     * @param mode  Whether the correction sets an absolute level or applies a signed delta.
+     * @param value Correction value in litres.
+     */
+    private fun doConfirmFuelCorrection(mode: FuelAdjustmentMode, value: Double) {
+        engine.applyFuelCorrection(mode, value)
+        val bikeId = currentBikeId
+        val routeId = pendingRouteId
+        _uiState.update { it.copy(metrics = engine.snapshot(), showFuelCorrectionDialog = false) }
+        viewModelScope.launch {
+            if (bikeId != null) {
+                runCatching {
+                    fuelAdjustmentRepository.addAdjustment(
+                        bikeId = bikeId,
+                        routeId = routeId,
+                        epochMs = timeProvider.nowEpochMs(),
+                        mode = mode,
+                        litres = value,
+                    )
+                }
+            }
+        }
     }
 
     private fun doPause() {

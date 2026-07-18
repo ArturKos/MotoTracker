@@ -8,6 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mototracker.core.format.TraceChunkCodec
 import com.mototracker.data.local.dao.BikeDao
 import com.mototracker.data.local.dao.CorrectionQueueDao
+import com.mototracker.data.local.dao.FuelAdjustmentEventDao
 import com.mototracker.data.local.dao.GroupDao
 import com.mototracker.data.local.dao.RefuelEventDao
 import com.mototracker.data.local.dao.RouteDao
@@ -16,6 +17,7 @@ import com.mototracker.data.local.dao.SyncQueueDao
 import com.mototracker.data.local.dao.WaveDao
 import com.mototracker.data.local.entity.BikeEntity
 import com.mototracker.data.local.entity.CorrectionQueueEntity
+import com.mototracker.data.local.entity.FuelAdjustmentEventEntity
 import com.mototracker.data.local.entity.GroupMemberEntity
 import com.mototracker.data.local.entity.RefuelEventEntity
 import com.mototracker.data.local.entity.RouteEntity
@@ -42,6 +44,7 @@ import com.mototracker.data.local.entity.WaveEntity
  * - 5 → 6: Added refuel_event table with per-route refuel ledger (G5).
  * - 6 → 7: Added autoUpdateConsumption (INTEGER NOT NULL DEFAULT 0) to bikes (K2).
  * - 7 → 8: Added leanHistogramJson (TEXT, nullable) to routes (Q1 lean-angle histogram).
+ * - 8 → 9: Added fuel_adjustment_event table with bikeId index (R1 manual fuel-level correction).
  */
 @Database(
     entities = [
@@ -53,8 +56,9 @@ import com.mototracker.data.local.entity.WaveEntity
         SyncQueueEntity::class,
         CorrectionQueueEntity::class,
         RefuelEventEntity::class,
+        FuelAdjustmentEventEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -73,6 +77,9 @@ abstract class MotoDatabase : RoomDatabase() {
     /** Provides the DAO for the per-route refuel event ledger (G5). */
     abstract fun refuelEventDao(): RefuelEventDao
 
+    /** Provides the DAO for the per-bike fuel-adjustment correction events (R1). */
+    abstract fun fuelAdjustmentEventDao(): FuelAdjustmentEventDao
+
     companion object {
         /** File name used by Room when building the on-device database. */
         const val DATABASE_NAME = "moto_tracker.db"
@@ -83,7 +90,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
     }
 }
 
@@ -324,5 +331,33 @@ private val MIGRATION_6_7 = object : Migration(6, 7) {
 private val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE routes ADD COLUMN leanHistogramJson TEXT")
+    }
+}
+
+/**
+ * Schema migration from version 8 to 9 (R1 — manual fuel-level correction).
+ *
+ * Creates the `fuel_adjustment_event` table with a `bikeId` index.
+ * [routeId] is a plain nullable column with no foreign key so that deleting a route
+ * does not cascade-delete correction history and off-ride corrections (routeId = null)
+ * are preserved unconditionally.
+ */
+private val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS fuel_adjustment_event (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                bikeId TEXT NOT NULL,
+                routeId TEXT,
+                epochMs INTEGER NOT NULL,
+                mode TEXT NOT NULL,
+                litres REAL NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_fuel_adjustment_event_bikeId ON fuel_adjustment_event (bikeId)",
+        )
     }
 }

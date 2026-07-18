@@ -32,6 +32,11 @@ data class BikeRouteRowUi(
  * @param topSpeedDisplay      Formatted top speed with unit label.
  * @param routes               Bike's routes sorted by date descending.
  * @param isLoading            True while the data stream has not emitted its first value.
+ * @param showFuelCorrectionDialog `true` when the off-ride fuel-correction dialog should be visible (R1).
+ * @param fuelCorrectionCurrentRemaining Pre-computed current remaining fuel (litres) shown as
+ *                                       context in the fuel-correction dialog (R1).
+ * @param tankCapacityL        Bike's configured tank capacity; null when not set.
+ *                             Used to pre-fill the correction dialog and to clamp corrections.
  */
 data class BikeDetailUiState(
     val bikeName: String = "",
@@ -45,4 +50,7 @@ data class BikeDetailUiState(
     val topSpeedDisplay: String = "0 km/h",
     val routes: List<BikeRouteRowUi> = emptyList(),
     val isLoading: Boolean = true,
+    val showFuelCorrectionDialog: Boolean = false,
+    val fuelCorrectionCurrentRemaining: Double = 0.0,
+    val tankCapacityL: Double? = null,
 )

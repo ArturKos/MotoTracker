@@ -30,7 +30,10 @@ package com.mototracker.domain.recording
  * @param elevOverDist          Pairs of (distanceKm, altitudeM) for the elevation-profile chart.
  * @param sessionFuelLper100km  Per-session fuel consumption rate in L/100km.
  * @param tankCapacityL         Configured bike tank capacity in litres; null if not set.
- * @param fillAnchorKm          Accumulated distance at the last 'fill to full' event; 0.0 at session start.
+ * @param anchorKm              Odometer reading at the last fill/correction anchor; 0.0 at session start.
+ * @param anchorLitres          Remaining-fuel level at the last fill/correction anchor (litres).
+ *                              Defaults to 0.0; the engine treats null [tankCapacityL] as inert so the
+ *                              default is only meaningful when [tankCapacityL] is non-null.
  * @param leanBucketCounts      Per-bucket time-in-seconds counts for the lean-angle histogram (Q1);
  *                              length 5, defaults to all-zeros for backward compatibility with pre-Q1 snapshots.
  */
@@ -56,6 +59,7 @@ data class RecordingEngineState(
     val elevOverDist: List<Pair<Double, Double>>,
     val sessionFuelLper100km: Double = 5.0,
     val tankCapacityL: Double? = null,
-    val fillAnchorKm: Double = 0.0,
+    val anchorKm: Double = 0.0,
+    val anchorLitres: Double = 0.0,
     val leanBucketCounts: List<Int> = List(5) { 0 },
 )

@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.mototracker.data.local.MotoDatabase
 import com.mototracker.data.local.dao.BikeDao
 import com.mototracker.data.local.dao.CorrectionQueueDao
+import com.mototracker.data.local.dao.FuelAdjustmentEventDao
 import com.mototracker.data.local.dao.GroupDao
 import com.mototracker.data.local.dao.RefuelEventDao
 import com.mototracker.data.local.dao.RouteDao
@@ -74,4 +75,8 @@ object DatabaseModule {
     /** Provides the [RefuelEventDao] from the singleton database. */
     @Provides
     fun provideRefuelEventDao(db: MotoDatabase): RefuelEventDao = db.refuelEventDao()
+
+    /** Provides the [FuelAdjustmentEventDao] from the singleton database (R1). */
+    @Provides
+    fun provideFuelAdjustmentEventDao(db: MotoDatabase): FuelAdjustmentEventDao = db.fuelAdjustmentEventDao()
 }

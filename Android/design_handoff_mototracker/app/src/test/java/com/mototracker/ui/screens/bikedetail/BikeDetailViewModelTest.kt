@@ -143,6 +143,14 @@ class BikeDetailViewModelTest {
             routeRepository = routeRepo,
             bikeRepository = bikeRepo,
             settingsSource = settings,
+            fuelAdjustmentRepository = object : com.mototracker.data.repository.FuelAdjustmentRepository {
+                override suspend fun addAdjustment(bikeId: String, routeId: String?, epochMs: Long, mode: com.mototracker.domain.fuel.FuelAdjustmentMode, litres: Double) {}
+                override fun observeForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<com.mototracker.domain.fuel.FuelAdjustmentEvent>> = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+                override suspend fun latestForBike(bikeId: String): com.mototracker.domain.fuel.FuelAdjustmentEvent? = null
+            },
+            timeProvider = object : com.mototracker.core.time.TimeProvider {
+                override fun nowEpochMs(): Long = 1_000_000L
+            },
         )
     }
 

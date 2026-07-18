@@ -475,4 +475,12 @@
     <string name="stat_lean_bucket_20_30">20–30°</string>
     <string name="stat_lean_bucket_30_40">30–40°</string>
     <string name="stat_lean_bucket_40_plus">40°+</string>
+
+    <!-- Fuel-level correction dialog (R1) -->
+    <string name="dialog_fuel_correction_title">Upravit hladinu paliva</string>
+    <string name="label_fuel_correction_set_absolute">Nastavit</string>
+    <string name="label_fuel_correction_delta">Delta</string>
+    <string name="label_fuel_correction_litres">Litry</string>
+    <string name="dialog_fuel_correction_confirm">Potvrdit</string>
+    <string name="action_fuel_correction">Upravit hladinu paliva</string>
 </resources>

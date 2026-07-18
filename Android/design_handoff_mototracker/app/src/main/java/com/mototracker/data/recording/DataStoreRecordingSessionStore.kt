@@ -102,7 +102,8 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
         })
         put("fuelRate", e.sessionFuelLper100km)
         if (e.tankCapacityL != null) put("tankCap", e.tankCapacityL) else put("tankCap", JSONObject.NULL)
-        put("fillAnchorKm", e.fillAnchorKm)
+        put("anchorKm", e.anchorKm)
+        put("anchorLitres", e.anchorLitres)
         put("refuels", JSONArray().also { arr ->
             snapshot.pendingRefuels.forEach { r ->
                 arr.put(
@@ -165,7 +166,10 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         },
         sessionFuelLper100km = o.optDouble("fuelRate", 5.0),
         tankCapacityL = o.optDoubleOrNull("tankCap"),
-        fillAnchorKm = o.optDouble("fillAnchorKm", 0.0),
+        // Backward-compat: old JSON has "fillAnchorKm" with no anchorLitres.
+        // When anchorLitres is absent, default to tankCapacityL (was full at that km).
+        anchorKm = o.optDouble("anchorKm", o.optDouble("fillAnchorKm", 0.0)),
+        anchorLitres = o.optDouble("anchorLitres", o.optDoubleOrNull("tankCap") ?: 0.0),
     )
     val pendingRefuels = if (o.has("refuels")) {
         val arr = o.getJSONArray("refuels")

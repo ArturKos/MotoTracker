@@ -328,7 +328,7 @@ class RecordingEngineTest {
     }
 
     @Test
-    fun `exportState and restore round-trip preserves fillAnchorKm and tankCapacityL`() {
+    fun `exportState and restore round-trip preserves anchorKm, anchorLitres and tankCapacityL`() {
         engine.reset(fuelLper100km = 6.0, tankCapacityL = 20.0)
         engine.onLocation(sample(lat = 0.0, lng = 0.0))
         engine.onLocation(sample(lat = 1.0, lng = 0.0)) // ~111 km
@@ -339,8 +339,10 @@ class RecordingEngineTest {
         val exportedState = engine.exportState()
         assertEquals(6.0, exportedState.sessionFuelLper100km, 0.0)
         assertEquals(20.0, exportedState.tankCapacityL!!, 0.0)
-        // fillAnchorKm should be ~111 km (distance when fillToFull was called)
-        assertTrue("fillAnchorKm should be > 0 after fill", exportedState.fillAnchorKm > 0.0)
+        // anchorKm should be ~111 km (distance when fillToFull was called)
+        assertTrue("anchorKm should be > 0 after fill", exportedState.anchorKm > 0.0)
+        // anchorLitres should be the full tank capacity
+        assertEquals(20.0, exportedState.anchorLitres, 0.0)
 
         val restored = RecordingEngine()
         restored.restore(exportedState)
@@ -374,9 +376,11 @@ class RecordingEngineTest {
         // Accumulators untouched
         assertEquals(distBefore, snapAfter.distanceKm, 0.001)
         assertEquals(distSinceFull, snapAfter.distanceSinceFullKm, 0.001)
-        // Remaining fuel reflects the new capacity and new consumption rate
+        // anchorLitres stays at the old fillToFull value (10.0L); only consumption rate changes.
+        // This is correct: updateFuelConfig must NOT override anchorLitres so that
+        // applyFuelCorrection corrections survive a reactive re-fire of the bike-config combine.
         val expectedFuelUsed = distSinceFull * 6.0 / 100.0
-        val expectedRemaining = (20.0 - expectedFuelUsed).coerceAtLeast(0.0)
+        val expectedRemaining = (10.0 - expectedFuelUsed).coerceAtLeast(0.0)
         assertEquals(expectedRemaining, snapAfter.remainingFuelL!!, 0.01)
         assertEquals(20.0, snapAfter.tankCapacityL!!, 0.001)
     }

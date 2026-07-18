@@ -219,6 +219,11 @@ class RecordingViewModelCoordTest {
             },
             batteryOptimizationChecker = object : BatteryOptimizationChecker { override fun isIgnoringBatteryOptimizations() = true },
             settingsStore = CCoordFakeSettingsStore(),
+            fuelAdjustmentRepository = object : com.mototracker.data.repository.FuelAdjustmentRepository {
+                override suspend fun addAdjustment(bikeId: String, routeId: String?, epochMs: Long, mode: com.mototracker.domain.fuel.FuelAdjustmentMode, litres: Double) {}
+                override fun observeForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<com.mototracker.domain.fuel.FuelAdjustmentEvent>> = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+                override suspend fun latestForBike(bikeId: String): com.mototracker.domain.fuel.FuelAdjustmentEvent? = null
+            },
         )
     }
 

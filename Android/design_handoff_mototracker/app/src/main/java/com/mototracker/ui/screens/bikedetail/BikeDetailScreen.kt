@@ -15,10 +15,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.ui.theme.MotoTracker
 
 /**
@@ -49,7 +58,22 @@ fun BikeDetailScreen(
     viewModel: BikeDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    BikeDetailContent(state = state, onRouteClick = onRouteClick, modifier = modifier)
+
+    // R1: Off-ride fuel-correction dialog.
+    if (state.showFuelCorrectionDialog) {
+        BikeDetailFuelCorrectionDialog(
+            currentRemainingL = state.fuelCorrectionCurrentRemaining,
+            onConfirm = { mode, value -> viewModel.confirmFuelCorrection(mode, value) },
+            onDismiss = { viewModel.dismissFuelCorrectionDialog() },
+        )
+    }
+
+    BikeDetailContent(
+        state = state,
+        onRouteClick = onRouteClick,
+        onFuelCorrectionClick = { viewModel.openFuelCorrectionDialog() },
+        modifier = modifier,
+    )
 }
 
 /**
@@ -57,16 +81,19 @@ fun BikeDetailScreen(
  *
  * Shows a header with the bike name and an optional SOLD badge, a stat grid
  * (ride count, total distance, total time, total fuel, optional cost, longest ride,
- * top speed), and a tappable list of the bike's routes.
+ * top speed), an off-ride fuel-correction button (R1), and a tappable list of the
+ * bike's routes.
  *
- * @param state         The current UI state produced by [BikeDetailViewModel].
- * @param onRouteClick  Called with the route UUID when the user taps a route row.
- * @param modifier      Standard Compose modifier.
+ * @param state                  The current UI state produced by [BikeDetailViewModel].
+ * @param onRouteClick           Called with the route UUID when the user taps a route row.
+ * @param onFuelCorrectionClick  Called when the rider taps the off-ride fuel-correction button (R1).
+ * @param modifier               Standard Compose modifier.
  */
 @Composable
 fun BikeDetailContent(
     state: BikeDetailUiState,
     onRouteClick: (String) -> Unit,
+    onFuelCorrectionClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -159,6 +186,20 @@ fun BikeDetailContent(
                 }
             }
             Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        // ── R1: Off-ride fuel-correction action ──────────────────────────────
+        item {
+            OutlinedButton(
+                onClick = onFuelCorrectionClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MotoTracker.colors.accent,
+                ),
+            ) {
+                Text(stringResource(R.string.action_fuel_correction))
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         // ── Routes header ────────────────────────────────────────────────────
@@ -276,4 +317,105 @@ private fun BikeRouteRow(
         )
     }
     HorizontalDivider(color = MotoTracker.colors.line, thickness = 0.5.dp)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Off-ride fuel-correction dialog (R1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Dialog for correcting the remaining-fuel estimate while no ride is active (R1).
+ *
+ * Mirrors [com.mototracker.ui.screens.record.RecordingScreen]'s `FuelCorrectionDialog`
+ * but is wired to [BikeDetailViewModel] so the event is persisted with `routeId = null`.
+ *
+ * @param currentRemainingL Pre-filled estimate; typically the bike's tank capacity (no engine running).
+ * @param onConfirm         Called with the chosen [FuelAdjustmentMode] and value in litres.
+ * @param onDismiss         Called when the user cancels or dismisses without confirming.
+ */
+@Composable
+private fun BikeDetailFuelCorrectionDialog(
+    currentRemainingL: Double,
+    onConfirm: (mode: FuelAdjustmentMode, value: Double) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var mode by remember { mutableStateOf(FuelAdjustmentMode.SET_ABSOLUTE) }
+    var valueText by remember { mutableStateOf("%.1f".format(currentRemainingL)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_fuel_correction_title),
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (mode != FuelAdjustmentMode.SET_ABSOLUTE) {
+                                mode = FuelAdjustmentMode.SET_ABSOLUTE
+                                valueText = "%.1f".format(currentRemainingL)
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (mode == FuelAdjustmentMode.SET_ABSOLUTE)
+                                MotoTracker.colors.accent else MotoTracker.colors.dim,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.label_fuel_correction_set_absolute))
+                    }
+                    TextButton(
+                        onClick = {
+                            if (mode != FuelAdjustmentMode.DELTA) {
+                                mode = FuelAdjustmentMode.DELTA
+                                valueText = "0.0"
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (mode == FuelAdjustmentMode.DELTA)
+                                MotoTracker.colors.accent else MotoTracker.colors.dim,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.label_fuel_correction_delta))
+                    }
+                }
+                OutlinedTextField(
+                    value = valueText,
+                    onValueChange = { valueText = it },
+                    label = { Text(stringResource(R.string.label_fuel_correction_litres)) },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val v = valueText.toDoubleOrNull() ?: return@TextButton
+                    onConfirm(mode, v)
+                },
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_fuel_correction_confirm),
+                    color = MotoTracker.colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.btn_cancel),
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        },
+    )
 }

@@ -279,6 +279,29 @@ private class FakeRefuelRepository(
         MutableStateFlow(refuelsByBike[bikeId] ?: emptyList())
 }
 
+private class FakeFuelAdjustmentRepository : com.mototracker.data.repository.FuelAdjustmentRepository {
+    val added = mutableListOf<com.mototracker.domain.fuel.FuelAdjustmentEvent>()
+    override suspend fun addAdjustment(
+        bikeId: String,
+        routeId: String?,
+        epochMs: Long,
+        mode: com.mototracker.domain.fuel.FuelAdjustmentMode,
+        litres: Double,
+    ) {
+        added += com.mototracker.domain.fuel.FuelAdjustmentEvent(
+            id = (added.size + 1).toLong(),
+            bikeId = bikeId,
+            routeId = routeId,
+            epochMs = epochMs,
+            mode = mode,
+            litres = litres,
+        )
+    }
+    override fun observeForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<com.mototracker.domain.fuel.FuelAdjustmentEvent>> =
+        MutableStateFlow(emptyList())
+    override suspend fun latestForBike(bikeId: String): com.mototracker.domain.fuel.FuelAdjustmentEvent? = null
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1661,6 +1684,7 @@ class RecordingViewModelTest {
         sessionStore: RecordingSessionStore = FakeRecordingSessionStore(),
         bikeRepository: BikeRepository = FakeBikeRepository(),
         refuelRepository: RefuelRepository = FakeRefuelRepository(),
+        fuelAdjustmentRepository: com.mototracker.data.repository.FuelAdjustmentRepository = FakeFuelAdjustmentRepository(),
         weatherClient: WeatherClient = FakeWeatherClient(),
         batteryOptimizationChecker: com.mototracker.domain.battery.BatteryOptimizationChecker =
             FakeBatteryOptimizationChecker(exempt = true),
@@ -1681,6 +1705,7 @@ class RecordingViewModelTest {
         stringResolver = stringResolver,
         sessionStore = sessionStore,
         refuelRepository = refuelRepository,
+        fuelAdjustmentRepository = fuelAdjustmentRepository,
         resumeRouteBus = FakeResumeRouteBus(),
         autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
         weatherClient = weatherClient,

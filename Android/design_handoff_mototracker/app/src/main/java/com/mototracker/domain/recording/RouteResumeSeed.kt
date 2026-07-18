@@ -36,8 +36,8 @@ object RouteResumeSeed {
      * - Fuel-model fields (`sessionFuelLper100km`, `tankCapacityL`) are left at defaults;
      *   call [RecordingEngine.updateFuelConfig] immediately after [RecordingEngine.restore]
      *   to apply the current bike's config.
-     * - `fillAnchorKm`  — 0.0 (fuel accounting spans the whole resumed route from the
-     *   beginning; the engine re-anchors on each confirmed refuel).
+     * - `anchorKm` / `anchorLitres` — both 0.0 (fuel accounting spans the whole resumed
+     *   route from the beginning; the engine re-anchors on each confirmed refuel or R1 correction).
      *
      * @param route The saved route whose accumulated data will seed the engine state.
      * @return A fully-populated [RecordingEngineState] ready for [RecordingEngine.restore].
@@ -73,7 +73,8 @@ object RouteResumeSeed {
             elevOverDist = elevOverDist,
             sessionFuelLper100km = 5.0,
             tankCapacityL = null,
-            fillAnchorKm = 0.0,
+            anchorKm = 0.0,
+            anchorLitres = 0.0,
         )
     }
 

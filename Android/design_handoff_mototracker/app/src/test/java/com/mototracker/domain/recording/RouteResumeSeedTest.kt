@@ -100,9 +100,10 @@ class RouteResumeSeedTest {
     }
 
     @Test
-    fun `fromRoute sets fillAnchorKm to zero`() {
+    fun `fromRoute sets anchor fields to zero`() {
         val state = RouteResumeSeed.fromRoute(makeRoute())
-        assertEquals(0.0, state.fillAnchorKm, 0.0)
+        assertEquals(0.0, state.anchorKm, 0.0)
+        assertEquals(0.0, state.anchorLitres, 0.0)
     }
 
     @Test

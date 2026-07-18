@@ -322,4 +322,130 @@ class MigrationTest {
 
         db.close()
     }
+
+    /**
+     * Verifies [MIGRATION_8_9]: the `fuel_adjustment_event` table and its `bikeId` index are
+     * created; pre-existing `bikes` and `routes` rows survive; a new adjustment event can be
+     * inserted and retrieved.
+     */
+    @Test
+    fun migrate8To9_createsFuelAdjustmentEventTableAndPreservesExistingRows() {
+        val db = SQLiteDatabase.openOrCreateDatabase(":memory:", null)
+
+        // ── Build version-8 schema (bikes + routes, no fuel_adjustment_event) ─
+        db.execSQL(
+            """CREATE TABLE bikes (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                year INTEGER NOT NULL,
+                plate TEXT NOT NULL,
+                status TEXT NOT NULL,
+                tankCapacityL REAL,
+                fuelPricePerL REAL,
+                consumptionLper100km REAL,
+                autoUpdateConsumption INTEGER NOT NULL DEFAULT 0
+            )""",
+        )
+        db.execSQL(
+            """CREATE TABLE routes (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                dateEpochMs INTEGER NOT NULL,
+                bikeId TEXT,
+                km REAL NOT NULL,
+                durSec INTEGER NOT NULL,
+                avg REAL NOT NULL,
+                max REAL NOT NULL,
+                lean REAL NOT NULL,
+                elev REAL NOT NULL,
+                fuel REAL NOT NULL,
+                synced INTEGER NOT NULL DEFAULT 0,
+                correctionStatus TEXT NOT NULL DEFAULT 'NONE',
+                confidence REAL,
+                wxJson TEXT,
+                speedJson TEXT,
+                elevProfileJson TEXT,
+                notes TEXT,
+                thumbnailPathD TEXT,
+                fuelPricePerL REAL,
+                maxLeanLeftDeg REAL NOT NULL DEFAULT 0,
+                maxLeanRightDeg REAL NOT NULL DEFAULT 0,
+                leanHistogramJson TEXT
+            )""",
+        )
+
+        // ── Insert v8 seed rows ───────────────────────────────────────────────
+        db.execSQL(
+            "INSERT INTO bikes (id, name, year, plate, status, tankCapacityL) VALUES ('b-r1', 'Honda CB500', 2020, 'WX 999', 'ACTIVE', 17.0)",
+        )
+        db.execSQL(
+            """INSERT INTO routes (id, name, dateEpochMs, bikeId, km, durSec, avg, max, lean, elev, fuel, synced, correctionStatus)
+               VALUES ('route-r1', 'R1 Test Ride', 1700003000000, 'b-r1', 65.0, 3200, 73.1, 138.0, 19.0, 310.0, 3.2, 0, 'NONE')""",
+        )
+
+        // ── Run MIGRATION_8_9 SQL (mirrors private val in MotoDatabase) ───────
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS fuel_adjustment_event (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                bikeId TEXT NOT NULL,
+                routeId TEXT,
+                epochMs INTEGER NOT NULL,
+                mode TEXT NOT NULL,
+                litres REAL NOT NULL
+            )""",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_fuel_adjustment_event_bikeId ON fuel_adjustment_event (bikeId)",
+        )
+
+        // ── Verify pre-existing bikes row survived ────────────────────────────
+        db.rawQuery("SELECT id, tankCapacityL FROM bikes WHERE id = 'b-r1'", null).use { cursor ->
+            assertEquals(1, cursor.count)
+            assertTrue(cursor.moveToFirst())
+            assertEquals("b-r1", cursor.getString(cursor.getColumnIndexOrThrow("id")))
+            assertEquals(17.0, cursor.getDouble(cursor.getColumnIndexOrThrow("tankCapacityL")), 0.001)
+        }
+
+        // ── Verify pre-existing routes row survived ───────────────────────────
+        db.rawQuery("SELECT id, km FROM routes WHERE id = 'route-r1'", null).use { cursor ->
+            assertEquals(1, cursor.count)
+            assertTrue(cursor.moveToFirst())
+            assertEquals("route-r1", cursor.getString(cursor.getColumnIndexOrThrow("id")))
+            assertEquals(65.0, cursor.getDouble(cursor.getColumnIndexOrThrow("km")), 0.001)
+        }
+
+        // ── Verify fuel_adjustment_event table exists; insert a row and read it back ──
+        db.execSQL(
+            "INSERT INTO fuel_adjustment_event (bikeId, routeId, epochMs, mode, litres) VALUES ('b-r1', 'route-r1', 1700003500000, 'SET_ABSOLUTE', 12.5)",
+        )
+        // Also verify an off-ride correction (routeId = null) can be inserted
+        db.execSQL(
+            "INSERT INTO fuel_adjustment_event (bikeId, routeId, epochMs, mode, litres) VALUES ('b-r1', NULL, 1700004000000, 'DELTA', -2.0)",
+        )
+        db.rawQuery(
+            "SELECT bikeId, routeId, mode, litres FROM fuel_adjustment_event WHERE bikeId = 'b-r1' ORDER BY epochMs ASC",
+            null,
+        ).use { cursor ->
+            assertEquals(2, cursor.count)
+            assertTrue(cursor.moveToFirst())
+            assertEquals("b-r1", cursor.getString(cursor.getColumnIndexOrThrow("bikeId")))
+            assertEquals("route-r1", cursor.getString(cursor.getColumnIndexOrThrow("routeId")))
+            assertEquals("SET_ABSOLUTE", cursor.getString(cursor.getColumnIndexOrThrow("mode")))
+            assertEquals(12.5, cursor.getDouble(cursor.getColumnIndexOrThrow("litres")), 0.001)
+            assertTrue(cursor.moveToNext())
+            assertTrue("routeId should be NULL for off-ride correction", cursor.isNull(cursor.getColumnIndexOrThrow("routeId")))
+            assertEquals("DELTA", cursor.getString(cursor.getColumnIndexOrThrow("mode")))
+            assertEquals(-2.0, cursor.getDouble(cursor.getColumnIndexOrThrow("litres")), 0.001)
+        }
+
+        // ── Verify the bikeId index exists ────────────────────────────────────
+        db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'index_fuel_adjustment_event_bikeId'",
+            null,
+        ).use { cursor ->
+            assertEquals("index_fuel_adjustment_event_bikeId should exist", 1, cursor.count)
+        }
+
+        db.close()
+    }
 }

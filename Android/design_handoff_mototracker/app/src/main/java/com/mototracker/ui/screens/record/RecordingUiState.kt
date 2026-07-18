@@ -2,6 +2,7 @@ package com.mototracker.ui.screens.record
 
 import com.mototracker.core.format.CoordFormat
 import com.mototracker.data.recording.ActiveSessionSnapshot
+import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.domain.recording.RecordingMetrics
 import com.mototracker.domain.recording.TrackPoint
 
@@ -78,6 +79,9 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param showBatteryOptPrompt  `true` when the battery-optimization exemption dialog should be
  *                              shown (O1). Set before recording starts when the app is not exempt
  *                              and the user has not yet dismissed the prompt.
+ * @param showFuelCorrectionDialog `true` when the fuel-correction dialog should be visible (R1).
+ * @param fuelCorrectionCurrentRemaining Pre-computed current remaining fuel (litres) shown as context
+ *                                       in the fuel-correction dialog (R1).
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -103,6 +107,8 @@ data class RecordingUiState(
     val refuelDialogPricePerL: Double? = null,
     val showStopConfirmDialog: Boolean = false,
     val showBatteryOptPrompt: Boolean = false,
+    val showFuelCorrectionDialog: Boolean = false,
+    val fuelCorrectionCurrentRemaining: Double = 0.0,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */
@@ -183,6 +189,24 @@ sealed class RecordingEvent {
      * Persists the dismissed flag and clears the prompt so it is not shown again.
      */
     data object BatteryOptDismiss : RecordingEvent()
+
+    /**
+     * User tapped the fuel-correction affordance during an active or paused ride (R1).
+     *
+     * Opens the fuel-correction dialog pre-filled with the current remaining fuel.
+     */
+    data object ShowFuelCorrectionDialog : RecordingEvent()
+
+    /**
+     * User confirmed a fuel-level correction from the dialog (R1).
+     *
+     * @param mode  Whether the correction sets an absolute level or applies a delta.
+     * @param value Correction value in litres (absolute or signed).
+     */
+    data class ConfirmFuelCorrection(val mode: FuelAdjustmentMode, val value: Double) : RecordingEvent()
+
+    /** User dismissed the fuel-correction dialog without confirming (R1). */
+    data object DismissFuelCorrectionDialog : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

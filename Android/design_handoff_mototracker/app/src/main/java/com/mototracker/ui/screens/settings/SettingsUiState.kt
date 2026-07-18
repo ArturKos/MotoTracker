@@ -1,5 +1,6 @@
 package com.mototracker.ui.screens.settings
 
+import com.mototracker.core.sms.SmsRecipient
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Rider
 
@@ -89,6 +90,10 @@ data class SyncQueueItemUi(
  * @param knownRiders              All known BLE-discovered riders, newest-first (X2).
  * @param signalWavesEnabled       When `true`, a short haptic fires on each new BLE encounter
  *                                 during a ride (X3). Encounters are still recorded when `false`.
+ * @param smsShareEnabled          Whether periodic SMS location sharing is active (Y1).
+ *                                 Defaults to `false`.
+ * @param smsIntervalMinutes       How often (in minutes) a location SMS is sent during a ride (Y1).
+ * @param smsRecipients            Contacts that should receive location SMS messages (Y1).
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -121,4 +126,7 @@ data class SettingsUiState(
     val groupTreatedSeparately: Boolean = true,
     val knownRiders: List<Rider> = emptyList(),
     val signalWavesEnabled: Boolean = true,
+    val smsShareEnabled: Boolean = false,
+    val smsIntervalMinutes: Int = 15,
+    val smsRecipients: List<SmsRecipient> = emptyList(),
 )

@@ -14,6 +14,7 @@ import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
+import com.mototracker.core.sms.SmsRecipient
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.SettingsStore
 import com.mototracker.domain.backup.ImportSummary
@@ -70,6 +71,9 @@ private class FakeSettingsStore(
     var lastOsrmBaseUrl: String? = null
     var lastGroupTreatedSeparately: Boolean? = null
     var lastSignalWavesEnabled: Boolean? = null
+    var lastSmsShareEnabled: Boolean? = null
+    var lastSmsIntervalMinutes: Int? = null
+    var lastSmsRecipients: List<SmsRecipient>? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -96,6 +100,9 @@ private class FakeSettingsStore(
     override suspend fun setOsrmBaseUrl(url: String) { lastOsrmBaseUrl = url; _flow.value = _flow.value.copy(osrmBaseUrl = url) }
     override suspend fun setGroupTreatedSeparately(value: Boolean) { lastGroupTreatedSeparately = value; _flow.value = _flow.value.copy(groupTreatedSeparately = value) }
     override suspend fun setSignalWavesEnabled(value: Boolean) { lastSignalWavesEnabled = value; _flow.value = _flow.value.copy(signalWavesEnabled = value) }
+    override suspend fun setSmsShareEnabled(value: Boolean) { lastSmsShareEnabled = value; _flow.value = _flow.value.copy(smsShareEnabled = value) }
+    override suspend fun setSmsIntervalMinutes(value: Int) { lastSmsIntervalMinutes = value; _flow.value = _flow.value.copy(smsIntervalMinutes = value) }
+    override suspend fun setSmsRecipients(recipients: List<SmsRecipient>) { lastSmsRecipients = recipients; _flow.value = _flow.value.copy(smsRecipients = recipients) }
 }
 
 private class FakeRiderRepository : RiderRepository {
@@ -1108,6 +1115,114 @@ class SettingsViewModelTest {
         store.emit(AppSettings(signalWavesEnabled = false))
         vm.uiState.test {
             assertFalse(awaitItem().signalWavesEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── Y1: SMS location sharing ──────────────────────────────────────────────
+
+    @Test
+    fun `smsShareEnabled defaults to false in initial uiState`() {
+        assertFalse(vm.uiState.value.smsShareEnabled)
+    }
+
+    @Test
+    fun `setSmsShareEnabled true persists to store and surfaces in uiState`() = runTest {
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.setSmsShareEnabled(true)
+            val state = awaitItem()
+            assertTrue(state.smsShareEnabled)
+            assertEquals(true, store.lastSmsShareEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setSmsShareEnabled false persists to store and surfaces in uiState`() = runTest {
+        store.emit(AppSettings(smsShareEnabled = true))
+        vm.uiState.test {
+            awaitItem() // consume enabled=true state
+            vm.setSmsShareEnabled(false)
+            val state = awaitItem()
+            assertFalse(state.smsShareEnabled)
+            assertEquals(false, store.lastSmsShareEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `smsIntervalMinutes defaults to 15 in initial uiState`() {
+        assertEquals(15, vm.uiState.value.smsIntervalMinutes)
+    }
+
+    @Test
+    fun `setSmsIntervalMinutes persists to store and surfaces in uiState`() = runTest {
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.setSmsIntervalMinutes(30)
+            val state = awaitItem()
+            assertEquals(30, state.smsIntervalMinutes)
+            assertEquals(30, store.lastSmsIntervalMinutes)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `smsRecipients defaults to empty in initial uiState`() {
+        assertTrue(vm.uiState.value.smsRecipients.isEmpty())
+    }
+
+    @Test
+    fun `addSmsRecipient appends to the persisted list and surfaces in uiState`() = runTest {
+        val alice = SmsRecipient("Alice", "+48100000001")
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.addSmsRecipient(alice)
+            val state = awaitItem()
+            assertEquals(listOf(alice), state.smsRecipients)
+            assertEquals(listOf(alice), store.lastSmsRecipients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `addSmsRecipient twice results in two recipients`() = runTest {
+        val alice = SmsRecipient("Alice", "+48100000001")
+        val bob = SmsRecipient("Bob", "+48100000002")
+        vm.uiState.test {
+            awaitItem()
+            vm.addSmsRecipient(alice)
+            awaitItem() // after first add
+            vm.addSmsRecipient(bob)
+            val state = awaitItem()
+            assertEquals(2, state.smsRecipients.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `removeSmsRecipient removes the correct recipient and surfaces in uiState`() = runTest {
+        val alice = SmsRecipient("Alice", "+48100000001")
+        val bob = SmsRecipient("Bob", "+48100000002")
+        store.emit(AppSettings(smsRecipients = listOf(alice, bob)))
+        vm.uiState.test {
+            awaitItem() // consume current state with two recipients
+            vm.removeSmsRecipient(alice)
+            val state = awaitItem()
+            assertEquals(listOf(bob), state.smsRecipients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `store emit smsRecipients propagates to uiState`() = runTest {
+        val recipients = listOf(SmsRecipient("X", "+1"), SmsRecipient("Y", "+2"))
+        store.emit(AppSettings(smsRecipients = recipients))
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(2, state.smsRecipients.size)
+            assertEquals("X", state.smsRecipients[0].name)
             cancelAndIgnoreRemainingEvents()
         }
     }

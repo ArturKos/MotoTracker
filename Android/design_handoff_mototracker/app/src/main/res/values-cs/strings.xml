@@ -511,4 +511,14 @@
     <string name="waves_section_meetups">SETKÁNÍ</string>
     <string name="wave_rode_together">jeli spolu %1$s</string>
     <string name="wave_pass">míjení</string>
+
+    <!-- Sdílení polohy přes SMS (Y1) -->
+    <string name="section_sms_sharing">Sdílení polohy</string>
+    <string name="label_sms_share_enabled">Sdílet polohu přes SMS</string>
+    <string name="desc_sms_share_enabled">Odesílá odkaz Google Maps vybraným kontaktům během jízdy</string>
+    <string name="label_sms_interval_minutes">Interval (minuty)</string>
+    <string name="btn_add_contact">Přidat kontakt</string>
+    <string name="hint_sms_recipients_empty">Žádní příjemci</string>
+    <string name="perm_contacts_denied">Přístup ke kontaktům odepřen. Udělte oprávnění pro přidání příjemců.</string>
+    <string name="sms_default_template">MotoTracker: jsem zde %s</string>
 </resources>

@@ -511,4 +511,14 @@
     <string name="waves_section_meetups">SPOTKANIA</string>
     <string name="wave_rode_together">jechaliście razem %1$s</string>
     <string name="wave_pass">minięcie</string>
+
+    <!-- Udostępnianie pozycji SMS (Y1) -->
+    <string name="section_sms_sharing">Udostępnianie pozycji</string>
+    <string name="label_sms_share_enabled">Udostępniaj pozycję przez SMS</string>
+    <string name="desc_sms_share_enabled">Wysyła link Google Maps do wybranych kontaktów podczas jazdy</string>
+    <string name="label_sms_interval_minutes">Interwał (minuty)</string>
+    <string name="btn_add_contact">Dodaj kontakt</string>
+    <string name="hint_sms_recipients_empty">Brak odbiorców</string>
+    <string name="perm_contacts_denied">Brak dostępu do kontaktów. Zezwól na uprawnienie, aby dodać odbiorców.</string>
+    <string name="sms_default_template">MotoTracker: jestem tu %s</string>
 </resources>

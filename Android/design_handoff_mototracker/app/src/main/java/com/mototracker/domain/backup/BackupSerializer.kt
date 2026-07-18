@@ -1,5 +1,6 @@
 package com.mototracker.domain.backup
 
+import com.mototracker.core.sms.SmsRecipient
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
@@ -85,6 +86,9 @@ object BackupSerializer {
     private const val S_DEBUG_LOGGING = "debugLoggingEnabled"
     private const val S_OSRM_BASE_URL = "osrmBaseUrl"
     private const val S_CURRENCY = "currency"
+    private const val S_SMS_SHARE_ENABLED = "smsShareEnabled"
+    private const val S_SMS_INTERVAL_MINUTES = "smsIntervalMinutes"
+    private const val S_SMS_RECIPIENTS = "smsRecipients"
 
     /**
      * Serialises [data] to a compact JSON string.
@@ -266,6 +270,16 @@ object BackupSerializer {
         o.put(S_DEBUG_LOGGING, s.debugLoggingEnabled)
         o.put(S_OSRM_BASE_URL, s.osrmBaseUrl)
         o.put(S_CURRENCY, s.currency)
+        o.put(S_SMS_SHARE_ENABLED, s.smsShareEnabled)
+        o.put(S_SMS_INTERVAL_MINUTES, s.smsIntervalMinutes)
+        val recipientsArr = JSONArray()
+        for (r in s.smsRecipients) {
+            val rObj = JSONObject()
+            rObj.put("name", r.name)
+            rObj.put("number", r.number)
+            recipientsArr.put(rObj)
+        }
+        o.put(S_SMS_RECIPIENTS, recipientsArr)
         return o
     }
 
@@ -294,6 +308,20 @@ object BackupSerializer {
             debugLoggingEnabled = o.optBoolean(S_DEBUG_LOGGING, defaults.debugLoggingEnabled),
             osrmBaseUrl = o.optString(S_OSRM_BASE_URL, defaults.osrmBaseUrl),
             currency = o.optString(S_CURRENCY, defaults.currency),
+            smsShareEnabled = o.optBoolean(S_SMS_SHARE_ENABLED, defaults.smsShareEnabled),
+            smsIntervalMinutes = o.optInt(S_SMS_INTERVAL_MINUTES, defaults.smsIntervalMinutes),
+            smsRecipients = if (o.has(S_SMS_RECIPIENTS)) {
+                val arr = o.getJSONArray(S_SMS_RECIPIENTS)
+                (0 until arr.length()).mapNotNull { i ->
+                    runCatching {
+                        val rObj = arr.getJSONObject(i)
+                        SmsRecipient(
+                            name = rObj.optString("name", ""),
+                            number = rObj.optString("number", ""),
+                        )
+                    }.getOrNull()
+                }
+            } else defaults.smsRecipients,
         )
     }
 
@@ -301,5 +329,5 @@ object BackupSerializer {
 
     /** Returns the string value for [key], or `null` if absent or equal to [JSONObject.NULL]. */
     private fun JSONObject.optStringOrNull(key: String): String? =
-        if (!has(key) || isNull(key)) null else optString(key, null)
+        if (!has(key) || isNull(key)) null else optString(key)
 }

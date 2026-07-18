@@ -1,7 +1,9 @@
 package com.mototracker.ui.screens.settings
 
 import android.content.Intent
+import android.provider.ContactsContract
 import android.text.format.Formatter
+import com.mototracker.core.sms.SmsRecipient
 import com.mototracker.data.battery.BatteryOptimizationIntents
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -75,6 +77,10 @@ import com.mototracker.R
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Rider
 import com.mototracker.domain.backup.RestoreMode
+import com.mototracker.ui.permissions.AppFeaturePermission
+import com.mototracker.ui.permissions.PermissionDeniedBanner
+import com.mototracker.ui.permissions.rememberFeaturePermission
+import kotlinx.coroutines.Dispatchers
 import com.mototracker.ui.state.AppStateViewModel
 import com.mototracker.ui.state.Language
 import com.mototracker.ui.state.Units
@@ -123,6 +129,43 @@ fun SettingsScreen(
     val backupFailMsg = stringResource(R.string.toast_backup_failed)
     val restoreOkMsg = stringResource(R.string.toast_restore_ok)
     val restoreFailMsg = stringResource(R.string.toast_restore_failed)
+
+    // Y1: contacts permission handle
+    val contactsPerm = rememberFeaturePermission(AppFeaturePermission.CONTACTS)
+
+    // Y1: contacts picker launcher
+    val contactsPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            val projection = arrayOf(
+                ContactsContract.Contacts._ID,
+                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+            )
+            val nameCursor = ctx.contentResolver.query(uri, projection, null, null, null)
+                ?: return@launch
+            val (contactId, contactName) = nameCursor.use { c ->
+                if (!c.moveToFirst()) return@launch
+                Pair(
+                    c.getString(c.getColumnIndexOrThrow(ContactsContract.Contacts._ID)),
+                    c.getString(c.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)) ?: "",
+                )
+            }
+            val phoneCursor = ctx.contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                arrayOf(contactId),
+                null,
+            ) ?: return@launch
+            val number = phoneCursor.use { c ->
+                if (!c.moveToFirst()) return@launch
+                c.getString(c.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+            } ?: return@launch
+            viewModel.addSmsRecipient(SmsRecipient(name = contactName, number = number))
+        }
+    }
 
     // SAF launcher: create a new JSON file for export
     val exportLauncher = rememberLauncherForActivityResult(
@@ -261,6 +304,13 @@ fun SettingsScreen(
         onExportBackup = { exportLauncher.launch("mototracker-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
         onOpenHelp = onOpenHelp,
+        onSmsShareEnabled = viewModel::setSmsShareEnabled,
+        onSmsIntervalMinutes = viewModel::setSmsIntervalMinutes,
+        onRemoveSmsRecipient = viewModel::removeSmsRecipient,
+        onAddContact = {
+            contactsPerm.requestThen { contactsPickerLauncher.launch(null) }
+        },
+        contactsPermDenied = contactsPerm.denied,
         modifier = modifier,
     )
 }
@@ -301,6 +351,12 @@ fun SettingsScreen(
  *                              opens the system battery-optimization settings.
  * @param onCoordFormat        Called with the coordinate format key ("dd"|"dms"|"utm").
  * @param onOpenHelp           Called when the user taps the Help row; navigates to the Help screen.
+ * @param onSmsShareEnabled    Called when the SMS location-sharing switch changes (Y1).
+ * @param onSmsIntervalMinutes Called when the SMS interval value changes (Y1).
+ * @param onRemoveSmsRecipient Called when a recipient remove button is tapped (Y1).
+ * @param onAddContact         Called when the user taps "Add contact" — requests permission then
+ *                             launches the system contacts picker (Y1).
+ * @param contactsPermDenied   `true` when the READ_CONTACTS permission was denied (Y1).
  * @param modifier             Standard Compose modifier.
  */
 @Composable
@@ -340,6 +396,11 @@ fun SettingsContent(
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
     onOpenHelp: () -> Unit = {},
+    onSmsShareEnabled: (Boolean) -> Unit = {},
+    onSmsIntervalMinutes: (Int) -> Unit = {},
+    onRemoveSmsRecipient: (SmsRecipient) -> Unit = {},
+    onAddContact: () -> Unit = {},
+    contactsPermDenied: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val ctx = LocalContext.current
@@ -618,6 +679,51 @@ fun SettingsContent(
                 // ── PREFERENCES ───────────────────────────────────────────────
                 SettingsTab.PREFERENCES -> {
                     item {
+                        SectionHeader(title = stringResource(R.string.section_sms_sharing))
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_sms_share_enabled),
+                            desc = stringResource(R.string.desc_sms_share_enabled),
+                            checked = state.smsShareEnabled,
+                            onChecked = onSmsShareEnabled,
+                        )
+                        SmsIntervalRow(
+                            value = state.smsIntervalMinutes,
+                            onValue = onSmsIntervalMinutes,
+                        )
+                        if (contactsPermDenied) {
+                            PermissionDeniedBanner(
+                                text = stringResource(R.string.perm_contacts_denied),
+                                onRetry = onAddContact,
+                                modifier = Modifier.padding(vertical = 6.dp),
+                            )
+                        } else {
+                            if (state.smsRecipients.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.hint_sms_recipients_empty),
+                                    color = MotoTracker.colors.dim,
+                                    style = MotoTracker.typography.label,
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                )
+                            } else {
+                                state.smsRecipients.forEach { recipient ->
+                                    SmsRecipientRow(
+                                        recipient = recipient,
+                                        onRemove = { onRemoveSmsRecipient(recipient) },
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = onAddContact,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.btn_add_contact),
+                                    color = MotoTracker.colors.accent,
+                                    style = MotoTracker.typography.label,
+                                )
+                            }
+                        }
+                        SectionDivider()
                         SectionHeader(title = stringResource(R.string.section_preferences))
                         UnitsSelector(
                             units = state.units,
@@ -1594,3 +1700,67 @@ private val AccentColor.hex: String
         AccentColor.LIME -> "#C6FF00"
         AccentColor.BLUE -> "#3B82F6"
     }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMS location sharing sub-composables (Y1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Interval stepper row: label on the left, minus/value/plus on the right. */
+@Composable
+private fun SmsIntervalRow(
+    value: Int,
+    onValue: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.label_sms_interval_minutes),
+            color = MotoTracker.colors.text,
+            style = MotoTracker.typography.body,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(
+            onClick = { if (value > 1) onValue(value - 1) },
+        ) {
+            Text("−", color = MotoTracker.colors.accent, style = MotoTracker.typography.body)
+        }
+        Text(
+            text = value.toString(),
+            color = MotoTracker.colors.text,
+            style = MotoTracker.typography.body,
+        )
+        TextButton(
+            onClick = { onValue(value + 1) },
+        ) {
+            Text("+", color = MotoTracker.colors.accent, style = MotoTracker.typography.body)
+        }
+    }
+}
+
+/** Single SMS recipient row: name + number on the left, remove button on the right. */
+@Composable
+private fun SmsRecipientRow(
+    recipient: SmsRecipient,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = recipient.name, color = MotoTracker.colors.text, style = MotoTracker.typography.body)
+            Text(text = recipient.number, color = MotoTracker.colors.dim, style = MotoTracker.typography.label)
+        }
+        TextButton(onClick = onRemove) {
+            Text("✕", color = MotoTracker.colors.dim, style = MotoTracker.typography.label)
+        }
+    }
+}

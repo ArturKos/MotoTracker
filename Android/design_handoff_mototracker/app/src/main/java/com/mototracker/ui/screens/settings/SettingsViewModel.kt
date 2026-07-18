@@ -3,6 +3,7 @@ package com.mototracker.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.core.format.UnitFormatter
+import com.mototracker.core.sms.SmsRecipient
 import com.mototracker.data.diagnostics.RideLogShareIntentFactory
 import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
@@ -213,6 +214,9 @@ class SettingsViewModel @Inject constructor(
             groupTreatedSeparately = settings.groupTreatedSeparately,
             knownRiders = riders,
             signalWavesEnabled = settings.signalWavesEnabled,
+            smsShareEnabled = settings.smsShareEnabled,
+            smsIntervalMinutes = settings.smsIntervalMinutes,
+            smsRecipients = settings.smsRecipients,
         )
     }
 
@@ -489,6 +493,50 @@ class SettingsViewModel @Inject constructor(
      */
     fun setSignalWavesEnabled(value: Boolean) {
         viewModelScope.launch { settingsStore.setSignalWavesEnabled(value) }
+    }
+
+    // ── Y1: SMS location sharing ──────────────────────────────────────────────
+
+    /**
+     * Persists the SMS location-sharing enabled flag (Y1).
+     *
+     * @param value `true` to enable periodic SMS during rides; `false` to disable.
+     */
+    fun setSmsShareEnabled(value: Boolean) {
+        viewModelScope.launch { settingsStore.setSmsShareEnabled(value) }
+    }
+
+    /**
+     * Persists the SMS sharing interval in minutes (Y1).
+     *
+     * @param value Interval in minutes (e.g. 15).
+     */
+    fun setSmsIntervalMinutes(value: Int) {
+        viewModelScope.launch { settingsStore.setSmsIntervalMinutes(value) }
+    }
+
+    /**
+     * Appends [recipient] to the persisted recipients list (Y1).
+     *
+     * @param recipient Contact to add.
+     */
+    fun addSmsRecipient(recipient: SmsRecipient) {
+        viewModelScope.launch {
+            val current = settingsStore.settings.first().smsRecipients
+            settingsStore.setSmsRecipients(current + recipient)
+        }
+    }
+
+    /**
+     * Removes [recipient] from the persisted recipients list (Y1).
+     *
+     * @param recipient Contact to remove (matched by equality).
+     */
+    fun removeSmsRecipient(recipient: SmsRecipient) {
+        viewModelScope.launch {
+            val current = settingsStore.settings.first().smsRecipients
+            settingsStore.setSmsRecipients(current - recipient)
+        }
     }
 
     // ── Backup / restore (B16) ────────────────────────────────────────────────

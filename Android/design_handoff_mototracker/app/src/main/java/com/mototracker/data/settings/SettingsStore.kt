@@ -1,5 +1,7 @@
 package com.mototracker.data.settings
 
+import com.mototracker.core.sms.SmsRecipient
+
 /**
  * Full read-write contract for [AppSettings] persistence.
  *
@@ -135,4 +137,28 @@ interface SettingsStore : WritableSettingsSource {
      * Test fakes that implement [SettingsStore] are not required to override this.
      */
     suspend fun setSignalWavesEnabled(value: Boolean) {}
+
+    /**
+     * Persists the SMS location-sharing enabled flag (Y1).
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setSmsShareEnabled(value: Boolean) {}
+
+    /**
+     * Persists the SMS sharing interval in minutes (Y1).
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setSmsIntervalMinutes(value: Int) {}
+
+    /**
+     * Persists the list of SMS sharing recipients (Y1).
+     *
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setSmsRecipients(recipients: List<SmsRecipient>) {}
 }

@@ -1,5 +1,7 @@
 package com.mototracker.data.settings
 
+import com.mototracker.core.sms.SmsRecipient
+import com.mototracker.core.sms.SmsRecipientCodec
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -60,6 +62,9 @@ class SettingsDataStore @Inject constructor(
         val ENCOUNTER_GAP_MINUTES = intPreferencesKey("encounter_gap_minutes")
         val GROUP_TREATED_SEPARATELY = booleanPreferencesKey("group_treated_separately")
         val SIGNAL_WAVES_ENABLED = booleanPreferencesKey("signal_waves_enabled")
+        val SMS_SHARE_ENABLED = booleanPreferencesKey("sms_share_enabled")
+        val SMS_INTERVAL_MINUTES = intPreferencesKey("sms_interval_minutes")
+        val SMS_RECIPIENTS = stringPreferencesKey("sms_recipients")
     }
 
     private val defaults = AppSettings()
@@ -95,6 +100,9 @@ class SettingsDataStore @Inject constructor(
             encounterGapMinutes = prefs[Keys.ENCOUNTER_GAP_MINUTES] ?: defaults.encounterGapMinutes,
             groupTreatedSeparately = prefs[Keys.GROUP_TREATED_SEPARATELY] ?: defaults.groupTreatedSeparately,
             signalWavesEnabled = prefs[Keys.SIGNAL_WAVES_ENABLED] ?: defaults.signalWavesEnabled,
+            smsShareEnabled = prefs[Keys.SMS_SHARE_ENABLED] ?: defaults.smsShareEnabled,
+            smsIntervalMinutes = prefs[Keys.SMS_INTERVAL_MINUTES] ?: defaults.smsIntervalMinutes,
+            smsRecipients = SmsRecipientCodec.decode(prefs[Keys.SMS_RECIPIENTS] ?: ""),
         )
     }
 
@@ -228,5 +236,20 @@ class SettingsDataStore @Inject constructor(
     /** Persists the wave-signal-on-encounter-start enabled flag (X3). */
     override suspend fun setSignalWavesEnabled(value: Boolean) {
         dataStore.edit { it[Keys.SIGNAL_WAVES_ENABLED] = value }
+    }
+
+    /** Persists the SMS location-sharing enabled flag (Y1). */
+    override suspend fun setSmsShareEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.SMS_SHARE_ENABLED] = value }
+    }
+
+    /** Persists the SMS sharing interval in minutes (Y1). */
+    override suspend fun setSmsIntervalMinutes(value: Int) {
+        dataStore.edit { it[Keys.SMS_INTERVAL_MINUTES] = value }
+    }
+
+    /** Persists the list of SMS sharing recipients (Y1) as a [SmsRecipientCodec]-encoded string. */
+    override suspend fun setSmsRecipients(recipients: List<SmsRecipient>) {
+        dataStore.edit { it[Keys.SMS_RECIPIENTS] = SmsRecipientCodec.encode(recipients) }
     }
 }

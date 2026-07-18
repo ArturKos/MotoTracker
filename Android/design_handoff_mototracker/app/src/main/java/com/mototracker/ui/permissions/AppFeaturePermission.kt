@@ -23,4 +23,10 @@ enum class AppFeaturePermission {
      * `BLUETOOTH / BLUETOOTH_ADMIN + ACCESS_FINE_LOCATION` pair on older SDKs.
      */
     BLUETOOTH_WAVES,
+
+    /**
+     * Reading the phone's contacts — required to populate SMS location-sharing recipients (Y1).
+     * Requires [android.Manifest.permission.READ_CONTACTS] on all supported SDK versions.
+     */
+    CONTACTS,
 }

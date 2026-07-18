@@ -1,5 +1,7 @@
 package com.mototracker.data.settings
 
+import com.mototracker.core.sms.SmsRecipient
+
 /**
  * Immutable snapshot of all persisted application settings.
  *
@@ -55,6 +57,12 @@ package com.mototracker.data.settings
  * @param signalWavesEnabled     Whether a short haptic signal fires when a new BLE encounter
  *                               starts during a ride (X3). When `false`, encounters are still
  *                               recorded silently. Defaults to `true`.
+ * @param smsShareEnabled        Whether periodic SMS location sharing is active (Y1).
+ *                               Defaults to `false`; costs money so never silently enabled.
+ * @param smsIntervalMinutes     How often (in minutes) a location SMS is sent during a ride (Y1).
+ *                               Defaults to 15.
+ * @param smsRecipients          Contacts that should receive location SMS messages (Y1).
+ *                               Stored in DataStore via [com.mototracker.core.sms.SmsRecipientCodec].
  */
 data class AppSettings(
     val noInternet: Boolean = false,
@@ -82,4 +90,7 @@ data class AppSettings(
     val encounterGapMinutes: Int = 10,
     val groupTreatedSeparately: Boolean = true,
     val signalWavesEnabled: Boolean = true,
+    val smsShareEnabled: Boolean = false,
+    val smsIntervalMinutes: Int = 15,
+    val smsRecipients: List<SmsRecipient> = emptyList(),
 )

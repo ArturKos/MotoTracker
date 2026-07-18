@@ -39,6 +39,9 @@ object PermissionRequirements {
                 Manifest.permission.BLUETOOTH_ADMIN,
                 Manifest.permission.ACCESS_FINE_LOCATION,
             )
+
+        AppFeaturePermission.CONTACTS ->
+            listOf(Manifest.permission.READ_CONTACTS)
     }
 }
 

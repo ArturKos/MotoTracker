@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Y1: read contacts to populate SMS location-sharing recipients -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <!-- Bluetooth waves — modern perms (API 31+) -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"

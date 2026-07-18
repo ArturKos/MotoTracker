@@ -1,13 +1,17 @@
 package com.mototracker.ui.screens.stats
 
 import app.cash.turbine.test
+import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
+import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
+import com.mototracker.R
 import com.mototracker.domain.stats.Badge
+import com.mototracker.domain.stats.LeanHistogram
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +23,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -56,6 +62,16 @@ private class FakeSettingsSource(
     override val settings: Flow<AppSettings> = _flow
 }
 
+private class FakeBikeRepository(bikes: List<Bike> = emptyList()) : BikeRepository {
+    private val _flow = MutableStateFlow(bikes)
+
+    fun emit(bikes: List<Bike>) { _flow.value = bikes }
+
+    override fun observeAll(): Flow<List<Bike>> = _flow
+    override suspend fun addBike(bike: Bike) { _flow.value = _flow.value + bike }
+    override suspend fun deleteAll() { _flow.value = emptyList() }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,25 +84,31 @@ private fun makeRoute(
     max: Double = 120.0,
     lean: Double = 20.0,
     elev: Double = 500.0,
+    fuel: Double = 5.0,
+    bikeId: String? = null,
+    fuelPricePerL: Double? = null,
+    leanHistogramJson: String? = null,
     dateEpochMs: Long = epochForYearMonth(2026, Calendar.JUNE),
 ): Route = Route(
     id = id,
     name = "Route $id",
     dateEpochMs = dateEpochMs,
-    bikeId = null,
+    bikeId = bikeId,
     km = km,
     durSec = durSec,
     avg = avg,
     max = max,
     lean = lean,
     elev = elev,
-    fuel = 5.0,
+    fuel = fuel,
     synced = true,
     wxJson = null,
     pathJson = null,
     speedJson = null,
     elevProfileJson = null,
     notes = null,
+    fuelPricePerL = fuelPricePerL,
+    leanHistogramJson = leanHistogramJson,
 )
 
 /** Returns a deterministic epoch-ms for the 1st of [year]/[month] (Calendar.JANUARY = 0). */
@@ -106,6 +128,7 @@ class StatsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var routeRepo: FakeRouteRepository
+    private lateinit var bikeRepo: FakeBikeRepository
     private lateinit var settings: FakeSettingsSource
     private lateinit var viewModel: StatsViewModel
 
@@ -113,8 +136,9 @@ class StatsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         routeRepo = FakeRouteRepository()
+        bikeRepo = FakeBikeRepository()
         settings = FakeSettingsSource()
-        viewModel = StatsViewModel(routeRepo, settings)
+        viewModel = StatsViewModel(routeRepo, bikeRepo, settings)
     }
 
     @After
@@ -464,6 +488,123 @@ class StatsViewModelTest {
             for (badgeUi in awaitItem().badges) {
                 assertTrue("nameRes for ${badgeUi.badge} must be > 0", badgeUi.nameRes > 0)
             }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── Q1 — total fuel + cost ───────────────────────────────────────────────
+
+    @Test
+    fun `totalFuelDisplay sums all route fuel values`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", fuel = 5.0), makeRoute("r2", fuel = 3.5)))
+        viewModel.uiState.test {
+            assertEquals("8.5 L", awaitItem().totalFuelDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `totalCostDisplay is dash when no route has a price`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", fuel = 5.0, fuelPricePerL = null)))
+        viewModel.uiState.test {
+            assertEquals("—", awaitItem().totalCostDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `totalCostDisplay uses per-route price when set`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", fuel = 10.0, fuelPricePerL = 2.0)))
+        viewModel.uiState.test {
+            // 10 * 2.0 = 20.00, currency = PLN (default)
+            assertEquals("20.00 PLN", awaitItem().totalCostDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `totalCostDisplay falls back to bike price when route price is null`() = runTest {
+        val bike = Bike(
+            id = "b1", name = "Test", year = 2020, plate = "X",
+            status = com.mototracker.data.local.entity.BikeStatus.ACTIVE,
+            fuelPricePerL = 1.5,
+        )
+        bikeRepo.emit(listOf(bike))
+        routeRepo.emit(listOf(makeRoute("r1", fuel = 10.0, bikeId = "b1", fuelPricePerL = null)))
+        viewModel.uiState.test {
+            assertEquals("15.00 PLN", awaitItem().totalCostDisplay)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── Q1 — lean histogram ──────────────────────────────────────────────────
+
+    @Test
+    fun `hasLeanHistogram is false when no route has histogram data`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", leanHistogramJson = null)))
+        viewModel.uiState.test {
+            assertFalse(awaitItem().hasLeanHistogram)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `hasLeanHistogram is true when at least one route has histogram`() = runTest {
+        val json = LeanHistogram.encode(intArrayOf(10, 5, 3, 1, 0))
+        routeRepo.emit(listOf(makeRoute("r1", leanHistogramJson = json)))
+        viewModel.uiState.test {
+            assertTrue(awaitItem().hasLeanHistogram)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `leanHistogram has 5 buckets with correct axis label resource IDs`() = runTest {
+        val json = LeanHistogram.encode(intArrayOf(10, 5, 3, 1, 0))
+        routeRepo.emit(listOf(makeRoute("r1", leanHistogramJson = json)))
+        viewModel.uiState.test {
+            val hist = awaitItem().leanHistogram
+            assertEquals(5, hist.size)
+            assertEquals(R.string.stat_lean_bucket_0_10, hist[0].axisLabelRes)
+            assertEquals(R.string.stat_lean_bucket_10_20, hist[1].axisLabelRes)
+            assertEquals(R.string.stat_lean_bucket_20_30, hist[2].axisLabelRes)
+            assertEquals(R.string.stat_lean_bucket_30_40, hist[3].axisLabelRes)
+            assertEquals(R.string.stat_lean_bucket_40_plus, hist[4].axisLabelRes)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `leanHistogram tallest bucket has heightFraction 1_0`() = runTest {
+        val json = LeanHistogram.encode(intArrayOf(100, 50, 30, 10, 5))
+        routeRepo.emit(listOf(makeRoute("r1", leanHistogramJson = json)))
+        viewModel.uiState.test {
+            val hist = awaitItem().leanHistogram
+            assertEquals(1.0f, hist[0].heightFraction, 0.001f)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `legacy routes without histogram contribute to fuel total but not lean histogram`() = runTest {
+        val routeWithHist = makeRoute("r1", fuel = 5.0,
+            leanHistogramJson = LeanHistogram.encode(intArrayOf(10, 5, 0, 0, 0)))
+        val routeWithout = makeRoute("r2", fuel = 3.0, leanHistogramJson = null)
+        routeRepo.emit(listOf(routeWithHist, routeWithout))
+        viewModel.uiState.test {
+            val s = awaitItem()
+            assertEquals("8.0 L", s.totalFuelDisplay)
+            assertTrue(s.hasLeanHistogram) // only one route needed
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `all legacy routes gives hasLeanHistogram false and counts of zero`() = runTest {
+        routeRepo.emit(listOf(makeRoute("r1", leanHistogramJson = null)))
+        viewModel.uiState.test {
+            val s = awaitItem()
+            assertFalse(s.hasLeanHistogram)
             cancelAndIgnoreRemainingEvents()
         }
     }

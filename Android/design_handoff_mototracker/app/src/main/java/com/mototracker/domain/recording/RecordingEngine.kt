@@ -1,5 +1,7 @@
 package com.mototracker.domain.recording
 
+import com.mototracker.domain.stats.LeanHistogram
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.pow
@@ -103,6 +105,9 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     private var elevGainM: Double = 0.0
     private var headingDeg: Float = 0f
 
+    /** Per-bucket time-in-seconds counts for the lean-angle histogram (Q1). */
+    private val leanBucketCounts = IntArray(LeanHistogram.BUCKET_COUNT)
+
     private val pathPoints = mutableListOf<TrackPoint>()
     private val speedOverTime = mutableListOf<Pair<Long, Double>>()
     private val elevOverDist = mutableListOf<Pair<Double, Double>>()
@@ -194,8 +199,8 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
      */
     fun onLean(deg: Double) {
         currentLeanDeg = deg
-        val abs = kotlin.math.abs(deg)
-        if (abs > maxLeanDeg) maxLeanDeg = abs
+        val absDeg = abs(deg)
+        if (absDeg > maxLeanDeg) maxLeanDeg = absDeg
         if (deg < 0) { val mag = -deg; if (mag > maxLeanLeftDeg) maxLeanLeftDeg = mag }
         if (deg > 0) { if (deg > maxLeanRightDeg) maxLeanRightDeg = deg }
     }
@@ -210,6 +215,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     fun tick(elapsedSec: Long) {
         durationSec += elapsedSec
         if (currentSpeedKmh >= MOVING_THRESHOLD_KMH) movingSec += elapsedSec
+        leanBucketCounts[LeanHistogram.bucketIndex(abs(currentLeanDeg))] += elapsedSec.toInt()
     }
 
     /** Returns an immutable snapshot of the current [RecordingMetrics]. */
@@ -265,6 +271,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         pathJson = buildPathJson(),
         speedJson = buildSpeedJson(),
         elevProfileJson = buildElevJson(),
+        leanHistogramJson = LeanHistogram.encode(leanBucketCounts),
     )
 
     /**
@@ -288,6 +295,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         currentLeanDeg = 0.0; maxLeanDeg = 0.0
         maxLeanLeftDeg = 0.0; maxLeanRightDeg = 0.0
         altitudeM = 0.0; elevGainM = 0.0; headingDeg = 0f
+        leanBucketCounts.fill(0)
         pathPoints.clear(); speedOverTime.clear(); elevOverDist.clear()
     }
 
@@ -351,6 +359,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         sessionFuelLper100km = sessionFuelLper100km,
         tankCapacityL = tankCapacityL,
         fillAnchorKm = fillAnchorKm,
+        leanBucketCounts = leanBucketCounts.toList(),
     )
 
     /**
@@ -383,6 +392,8 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         sessionFuelLper100km = state.sessionFuelLper100km
         tankCapacityL = state.tankCapacityL
         fillAnchorKm = state.fillAnchorKm
+        leanBucketCounts.fill(0)
+        state.leanBucketCounts.forEachIndexed { i, v -> if (i < leanBucketCounts.size) leanBucketCounts[i] = v }
         pathPoints.clear(); pathPoints.addAll(state.pathPoints)
         speedOverTime.clear(); speedOverTime.addAll(state.speedOverTime)
         elevOverDist.clear(); elevOverDist.addAll(state.elevOverDist)

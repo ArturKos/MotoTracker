@@ -38,6 +38,7 @@ fun RouteEntity.toDomain(pathJson: String? = null, correctedPathJson: String? = 
     fuelPricePerL = fuelPricePerL,
     maxLeanLeftDeg = maxLeanLeftDeg,
     maxLeanRightDeg = maxLeanRightDeg,
+    leanHistogramJson = leanHistogramJson,
 )
 
 /**
@@ -71,6 +72,7 @@ fun Route.toEntity(): RouteEntity = RouteEntity(
     fuelPricePerL = fuelPricePerL,
     maxLeanLeftDeg = maxLeanLeftDeg,
     maxLeanRightDeg = maxLeanRightDeg,
+    leanHistogramJson = leanHistogramJson,
 )
 
 /**
@@ -98,4 +100,6 @@ fun Route.toRouteSummaryModel(): RouteSummaryModel = RouteSummaryModel(
     thumbnailPathD = null,
     correctionStatus = correctionStatus,
     confidence = confidence,
+    fuelPricePerL = fuelPricePerL,
+    leanHistogramJson = leanHistogramJson,
 )

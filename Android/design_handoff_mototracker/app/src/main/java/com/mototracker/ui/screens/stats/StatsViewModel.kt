@@ -3,12 +3,17 @@ package com.mototracker.ui.screens.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mototracker.R
+import com.mototracker.core.format.MoneyFormatter
 import com.mototracker.core.format.UnitFormatter
+import com.mototracker.data.model.Bike
 import com.mototracker.data.model.RouteSummaryModel
+import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.stats.Badge
+import com.mototracker.domain.stats.FuelCostCalculator
+import com.mototracker.domain.stats.LeanHistogram
 import com.mototracker.domain.stats.PersonalRecordsCalculator
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,25 +29,28 @@ import kotlin.math.roundToInt
 /**
  * ViewModel for the Statistics screen.
  *
- * Combines [RouteRepository.observeSummaries] with [AppSettingsSource.settings] into a
- * single [StatsUiState] stream. The lightweight summary stream avoids loading GPS trace
- * blobs (which can be megabytes per route) for what is entirely a scalar aggregation screen.
+ * Combines [RouteRepository.observeSummaries], [BikeRepository.observeAll], and
+ * [AppSettingsSource.settings] into a single [StatsUiState] stream. The lightweight
+ * summary stream avoids loading GPS trace blobs for what is a scalar aggregation screen.
  *
  * @param routeRepository  Provides the live route summary list.
- * @param settingsSource   Provides the user's unit preference.
+ * @param bikeRepository   Provides the live bike list for fuel-price fallback resolution (Q1).
+ * @param settingsSource   Provides the user's unit and currency preferences.
  */
 @HiltViewModel
 class StatsViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
+    private val bikeRepository: BikeRepository,
     private val settingsSource: AppSettingsSource,
 ) : ViewModel() {
 
     /** Live UI state exposed to the Stats screen. */
     val uiState: StateFlow<StatsUiState> = combine(
         routeRepository.observeSummaries(),
+        bikeRepository.observeAll(),
         settingsSource.settings,
-    ) { summaries, settings ->
-        build(summaries, settings)
+    ) { summaries, bikes, settings ->
+        build(summaries, bikes, settings)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -51,7 +59,11 @@ class StatsViewModel @Inject constructor(
 
     // ── Mapping ──────────────────────────────────────────────────────────────
 
-    private fun build(summaries: List<RouteSummaryModel>, settings: AppSettings): StatsUiState {
+    private fun build(
+        summaries: List<RouteSummaryModel>,
+        bikes: List<Bike>,
+        settings: AppSettings,
+    ): StatsUiState {
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
 
         val totalKm = summaries.sumOf { it.km }
@@ -70,6 +82,20 @@ class StatsViewModel @Inject constructor(
         }
 
         val personalRecords = PersonalRecordsCalculator.computeFromSummaries(summaries)
+
+        // Q1 — Total fuel + cost
+        val bikePriceById: Map<String, Double?> = bikes.associate { it.id to it.fuelPricePerL }
+        val fuelTotals = FuelCostCalculator.compute(summaries, bikePriceById)
+        val totalFuelDisplay = String.format(Locale.US, "%.1f L", fuelTotals.totalFuelL)
+        val totalCostDisplay = fuelTotals.totalCost
+            ?.let { MoneyFormatter.format(it, settings.currency) }
+            ?: "—"
+
+        // Q1 — Lean histogram
+        val decodedHistograms = summaries.mapNotNull { LeanHistogram.decode(it.leanHistogramJson) }
+        val hasLeanHistogram = decodedHistograms.isNotEmpty()
+        val aggregatedCounts = LeanHistogram.aggregate(decodedHistograms)
+        val leanHistogram = buildLeanHistogram(aggregatedCounts)
 
         return StatsUiState(
             totalDistanceDisplay = UnitFormatter.formatDistance(totalKm, units),
@@ -92,7 +118,31 @@ class StatsViewModel @Inject constructor(
             badges = personalRecords.earnedBadges.map { badge ->
                 BadgeUi(badge = badge, nameRes = badge.nameRes())
             },
+            totalFuelDisplay = totalFuelDisplay,
+            totalCostDisplay = totalCostDisplay,
+            leanHistogram = leanHistogram,
+            hasLeanHistogram = hasLeanHistogram,
         )
+    }
+
+    private fun buildLeanHistogram(counts: IntArray): List<LeanBucketUi> {
+        val labelRes = listOf(
+            R.string.stat_lean_bucket_0_10,
+            R.string.stat_lean_bucket_10_20,
+            R.string.stat_lean_bucket_20_30,
+            R.string.stat_lean_bucket_30_40,
+            R.string.stat_lean_bucket_40_plus,
+        )
+        val maxCount = counts.maxOrNull()?.takeIf { it > 0 } ?: return labelRes.mapIndexed { i, res ->
+            LeanBucketUi(axisLabelRes = res, heightFraction = 0f, count = 0)
+        }
+        return labelRes.mapIndexed { i, res ->
+            LeanBucketUi(
+                axisLabelRes = res,
+                heightFraction = (counts[i].toFloat() / maxCount).coerceIn(0f, 1f),
+                count = counts[i],
+            )
+        }
     }
 
     private fun buildRecords(

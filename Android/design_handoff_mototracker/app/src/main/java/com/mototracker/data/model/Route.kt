@@ -32,6 +32,7 @@ import com.mototracker.data.local.entity.CorrectionStatus
  *                           the assigned bike's price.
  * @param maxLeanLeftDeg     Non-negative magnitude of the peak leftward lean, in degrees (E7).
  * @param maxLeanRightDeg    Non-negative magnitude of the peak rightward lean, in degrees (E7).
+ * @param leanHistogramJson  Encoded lean-angle histogram JSON string (Q1); null for routes recorded before Q1.
  */
 data class Route(
     val id: String,
@@ -57,4 +58,5 @@ data class Route(
     val fuelPricePerL: Double? = null,
     val maxLeanLeftDeg: Double = 0.0,
     val maxLeanRightDeg: Double = 0.0,
+    val leanHistogramJson: String? = null,
 )

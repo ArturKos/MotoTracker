@@ -49,7 +49,8 @@ interface RouteDao {
      */
     @Query(
         """SELECT id, name, dateEpochMs, bikeId, km, durSec, avg, max, lean, elev, fuel,
-                  synced, thumbnailPathD, correctionStatus, confidence
+                  synced, thumbnailPathD, correctionStatus, confidence,
+                  fuelPricePerL, leanHistogramJson
            FROM routes ORDER BY dateEpochMs DESC""",
     )
     fun observeSummaries(): Flow<List<RouteSummaryModel>>

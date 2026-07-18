@@ -19,6 +19,10 @@ import com.mototracker.domain.stats.Badge
  * @param style                 Riding-style summary fractions and display strings.
  * @param records               Pre-formatted personal-record rows for the Records card.
  * @param badges                Earned achievement badges for the Achievements card.
+ * @param totalFuelDisplay      Formatted total fuel consumed across all rides, e.g. `"123.4 L"` (Q1).
+ * @param totalCostDisplay      Formatted total fuel cost, e.g. `"450.00 PLN"`, or `"—"` when no price (Q1).
+ * @param leanHistogram         Five lean-angle buckets for the histogram chart (Q1).
+ * @param hasLeanHistogram      Whether at least one route has lean histogram data (Q1).
  */
 data class StatsUiState(
     val totalDistanceDisplay: String = "0.0 km",
@@ -32,6 +36,10 @@ data class StatsUiState(
     val style: RidingStyleUi = RidingStyleUi(),
     val records: List<RecordItemUi> = emptyList(),
     val badges: List<BadgeUi> = emptyList(),
+    val totalFuelDisplay: String = "0.0 L",
+    val totalCostDisplay: String = "—",
+    val leanHistogram: List<LeanBucketUi> = emptyList(),
+    val hasLeanHistogram: Boolean = false,
 )
 
 /**
@@ -71,6 +79,20 @@ data class RecordItemUi(
 data class BadgeUi(
     val badge: Badge,
     val nameRes: Int,
+)
+
+/**
+ * One bucket in the lean-angle histogram chart (Q1).
+ *
+ * @param axisLabelRes  String resource ID for the axis label displayed below the bar,
+ *                      e.g. `R.string.stat_lean_bucket_0_10` → `"0–10°"`.
+ * @param heightFraction Normalised bar height in `[0f, 1f]` where `1f` = tallest bucket.
+ * @param count         Raw time-in-bucket count in seconds; shown as tooltip/accessibility text.
+ */
+data class LeanBucketUi(
+    val axisLabelRes: Int,
+    val heightFraction: Float,
+    val count: Int,
 )
 
 /**

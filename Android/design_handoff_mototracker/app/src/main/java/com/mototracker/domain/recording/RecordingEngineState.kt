@@ -31,6 +31,8 @@ package com.mototracker.domain.recording
  * @param sessionFuelLper100km  Per-session fuel consumption rate in L/100km.
  * @param tankCapacityL         Configured bike tank capacity in litres; null if not set.
  * @param fillAnchorKm          Accumulated distance at the last 'fill to full' event; 0.0 at session start.
+ * @param leanBucketCounts      Per-bucket time-in-seconds counts for the lean-angle histogram (Q1);
+ *                              length 5, defaults to all-zeros for backward compatibility with pre-Q1 snapshots.
  */
 data class RecordingEngineState(
     val prevLat: Double?,
@@ -55,4 +57,5 @@ data class RecordingEngineState(
     val sessionFuelLper100km: Double = 5.0,
     val tankCapacityL: Double? = null,
     val fillAnchorKm: Double = 0.0,
+    val leanBucketCounts: List<Int> = List(5) { 0 },
 )

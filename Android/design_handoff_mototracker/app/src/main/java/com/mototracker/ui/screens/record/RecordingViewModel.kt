@@ -534,6 +534,7 @@ class RecordingViewModel @Inject constructor(
                 notes = null,
                 maxLeanLeftDeg = result.metrics.maxLeanLeftDeg,
                 maxLeanRightDeg = result.metrics.maxLeanRightDeg,
+                leanHistogramJson = result.leanHistogramJson,
             )
 
             routeRepository.save(route)

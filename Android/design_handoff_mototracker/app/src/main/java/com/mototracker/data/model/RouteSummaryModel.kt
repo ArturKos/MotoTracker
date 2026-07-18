@@ -24,6 +24,8 @@ import com.mototracker.data.local.entity.CorrectionStatus
  * @param thumbnailPathD    Precomputed SVG path `d` string for the mini route preview; null if not yet computed.
  * @param correctionStatus  Current GPS-correction pipeline state.
  * @param confidence        OSRM matching confidence score (0–1); null when not yet attempted.
+ * @param fuelPricePerL     Per-route fuel price override (user's currency/L); null → fall back to bike price (Q1).
+ * @param leanHistogramJson Encoded lean-angle histogram JSON (Q1); null for legacy routes without histogram data.
  */
 data class RouteSummaryModel(
     val id: String,
@@ -41,4 +43,6 @@ data class RouteSummaryModel(
     val thumbnailPathD: String?,
     val correctionStatus: CorrectionStatus,
     val confidence: Double?,
+    val fuelPricePerL: Double? = null,
+    val leanHistogramJson: String? = null,
 )

@@ -39,6 +39,7 @@ import androidx.room.PrimaryKey
  *                           the assigned bike's [BikeEntity.fuelPricePerL].
  * @param maxLeanLeftDeg     Non-negative magnitude of the peak leftward lean recorded on this route, in degrees (E7).
  * @param maxLeanRightDeg    Non-negative magnitude of the peak rightward lean recorded on this route, in degrees (E7).
+ * @param leanHistogramJson  Encoded lean-angle histogram JSON string (Q1); null for routes recorded before Q1.
  */
 @Entity(
     tableName = "routes",
@@ -75,4 +76,5 @@ data class RouteEntity(
     val maxLeanLeftDeg: Double = 0.0,
     @ColumnInfo(defaultValue = "0")
     val maxLeanRightDeg: Double = 0.0,
+    val leanHistogramJson: String? = null,
 )

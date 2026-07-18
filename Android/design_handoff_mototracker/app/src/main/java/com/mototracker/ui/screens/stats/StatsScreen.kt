@@ -73,11 +73,124 @@ fun StatsContent(
     ) {
         Spacer(Modifier.height(4.dp))
         StatTilesGrid(state)
+        FuelTile(state)
         MonthBarCard(state)
         RidingStyleCard(state)
+        LeanHistogramCard(state)
         if (state.records.isNotEmpty()) RecordsCard(state)
         if (state.badges.isNotEmpty()) AchievementsCard(state)
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+// ── Total fuel + cost tile (Q1) ───────────────────────────────────────────────
+
+@Composable
+private fun FuelTile(state: StatsUiState) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MotoTracker.colors.panel)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.stat_fuel_total).uppercase(),
+                style = MotoTracker.typography.label,
+                color = MotoTracker.colors.dim,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = state.totalFuelDisplay,
+                style = MotoTracker.typography.bigCardNumber.copy(
+                    fontFamily = JetBrainsMonoFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 22.sp,
+                ),
+                color = MotoTracker.colors.text,
+                maxLines = 1,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = state.totalCostDisplay,
+                style = MotoTracker.typography.label.copy(
+                    fontFamily = JetBrainsMonoFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp,
+                ),
+                color = MotoTracker.colors.accent,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+// ── Lean-angle histogram card (Q1) ────────────────────────────────────────────
+
+@Composable
+private fun LeanHistogramCard(state: StatsUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MotoTracker.colors.panel)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.stat_lean_histogram_title).uppercase(),
+            style = MotoTracker.typography.label,
+            color = MotoTracker.colors.dim,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        if (!state.hasLeanHistogram) {
+            Text(
+                text = stringResource(R.string.stat_lean_histogram_no_data),
+                style = MotoTracker.typography.bigCardNumber,
+                color = MotoTracker.colors.dim,
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                for (bucket in state.leanHistogram) {
+                    LeanBucketBar(bucket = bucket, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LeanBucketBar(bucket: LeanBucketUi, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Bottom,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(maxOf(bucket.heightFraction * 70f, 2f).dp)
+                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                .background(MotoTracker.colors.accent2),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(bucket.axisLabelRes),
+            style = MotoTracker.typography.label.copy(fontSize = 9.sp),
+            color = MotoTracker.colors.dim,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }
 

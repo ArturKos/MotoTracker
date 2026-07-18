@@ -461,4 +461,14 @@
 
     <!-- GPS fix placeholder shown in the coordinate readout before the first fix (P1) -->
     <string name="gps_no_fix">bez fixu</string>
+
+    <!-- Stats — total fuel &amp; cost tile + lean-angle histogram (Q1) -->
+    <string name="stat_fuel_total">Celkem palivo</string>
+    <string name="stat_lean_histogram_title">Rozložení náklonu</string>
+    <string name="stat_lean_histogram_no_data">Nedostatek dat — začněte nahrávat, aby se sbírala data náklonu</string>
+    <string name="stat_lean_bucket_0_10">0–10°</string>
+    <string name="stat_lean_bucket_10_20">10–20°</string>
+    <string name="stat_lean_bucket_20_30">20–30°</string>
+    <string name="stat_lean_bucket_30_40">30–40°</string>
+    <string name="stat_lean_bucket_40_plus">40°+</string>
 </resources>

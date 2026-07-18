@@ -41,6 +41,7 @@ import com.mototracker.data.local.entity.WaveEntity
  * - 4 → 5: Added maxLeanLeftDeg and maxLeanRightDeg (NOT NULL DEFAULT 0) to routes (E7 separate L/R lean tracking).
  * - 5 → 6: Added refuel_event table with per-route refuel ledger (G5).
  * - 6 → 7: Added autoUpdateConsumption (INTEGER NOT NULL DEFAULT 0) to bikes (K2).
+ * - 7 → 8: Added leanHistogramJson (TEXT, nullable) to routes (Q1 lean-angle histogram).
  */
 @Database(
     entities = [
@@ -53,7 +54,7 @@ import com.mototracker.data.local.entity.WaveEntity
         CorrectionQueueEntity::class,
         RefuelEventEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -82,7 +83,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
     }
 }
 
@@ -310,5 +311,18 @@ private val MIGRATION_5_6 = object : Migration(5, 6) {
 private val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE bikes ADD COLUMN autoUpdateConsumption INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/**
+ * Schema migration from version 7 to 8 (Q1 — lean-angle histogram per route).
+ *
+ * Adds [RouteEntity.leanHistogramJson] as a nullable TEXT column. Existing rows default
+ * to NULL (no histogram data), which [com.mototracker.domain.stats.LeanHistogram.decode]
+ * treats as "legacy route without histogram".
+ */
+private val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE routes ADD COLUMN leanHistogramJson TEXT")
     }
 }

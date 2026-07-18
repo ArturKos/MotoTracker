@@ -671,11 +671,70 @@ class RecordingEngineTest {
     @Test
     fun `boundary just above GPS_GAP_SEC skips bridging distance`() {
         // dt = GPS_GAP_SEC + 0.001 s → strictly greater → dropout detected.
+        // 0.001° ≈ 111 m > REACQUIRE_DIST_M (60 m), so both conditions are met.
         val dtMs = ((RecordingEngine.GPS_GAP_SEC + 0.001) * 1000).toLong()
         engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
         val distBefore = engine.snapshot().distanceKm
         engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = dtMs))
         assertEquals(distBefore, engine.snapshot().distanceKm, 0.0001)
+    }
+
+    // ── S2: dual-condition GPS dropout gate ──────────────────────────────────
+    //
+    // After S2, isDropout requires BOTH time gap > GPS_GAP_SEC AND
+    // haversine distance > REACQUIRE_DIST_M (60 m). A stationary pause (big time gap,
+    // tiny distance) is no longer misclassified as a dropout.
+
+    @Test
+    fun `stationary pause large time gap small distance is not dropout — bridging distance added`() {
+        // 0.0001° ≈ 11 m — below REACQUIRE_DIST_M (60 m); time gap > GPS_GAP_SEC.
+        // Implied speed: 11 m / 25 s ≈ 1.6 km/h — well below outlier gate (300 km/h).
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.0001, lng = 21.0, timeMs = gapMs)) // ~11 m
+        // NOT a dropout → tiny bridging distance is added.
+        assertTrue(
+            "stationary pause should accumulate bridging distance",
+            engine.snapshot().distanceKm > 0.0,
+        )
+    }
+
+    @Test
+    fun `true dropout large time gap and large distance skips bridging distance`() {
+        // 0.001° ≈ 111 m > REACQUIRE_DIST_M (60 m) AND time gap > GPS_GAP_SEC → dropout.
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        val distBefore = engine.snapshot().distanceKm
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = gapMs)) // ~111 m
+        assertEquals(
+            "true dropout must not add bridging distance",
+            distBefore,
+            engine.snapshot().distanceKm,
+            0.0001,
+        )
+    }
+
+    @Test
+    fun `boundary only time condition met does not trigger dropout — distance accumulated`() {
+        // Time gap > GPS_GAP_SEC but 0.00001° ≈ 1.1 m < REACQUIRE_DIST_M → not a dropout.
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        engine.onLocation(sample(lat = 52.00001, lng = 21.0, timeMs = gapMs)) // ~1.1 m
+        assertTrue(
+            "time-only condition should not trigger dropout; distance must accumulate",
+            engine.snapshot().distanceKm > 0.0,
+        )
+    }
+
+    @Test
+    fun `boundary only distance condition met does not trigger dropout — distance accumulated`() {
+        // 0.001° ≈ 111 m > REACQUIRE_DIST_M but time gap = 10 s < GPS_GAP_SEC → not a dropout.
+        engine.onLocation(sample(lat = 52.0, lng = 21.0, timeMs = 0L))
+        engine.onLocation(sample(lat = 52.001, lng = 21.0, timeMs = 10_000L)) // 10 s < 20 s
+        assertTrue(
+            "distance-only condition should not trigger dropout; distance must accumulate",
+            engine.snapshot().distanceKm > 0.0,
+        )
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

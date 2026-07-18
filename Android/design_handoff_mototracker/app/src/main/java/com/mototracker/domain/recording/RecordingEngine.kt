@@ -85,8 +85,24 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
          *
          * Typical GPS re-acquisition after a short tunnel takes 2–10 s; 20 s gives comfortable
          * headroom for slower re-acquisition while still catching brief signal losses.
+         *
+         * Both [GPS_GAP_SEC] and [REACQUIRE_DIST_M] must be exceeded simultaneously for a gap
+         * to be classified as a dropout. See [REACQUIRE_DIST_M] for the distance half of the gate.
          */
         const val GPS_GAP_SEC = 20.0
+
+        /**
+         * Minimum haversine distance in metres that — together with exceeding [GPS_GAP_SEC] — must
+         * be observed between two consecutive accepted moving fixes to classify the gap as a GPS
+         * dropout.
+         *
+         * A stationary pause where the bike is stopped (large time gap, small distance) does NOT
+         * cross this threshold and is therefore not treated as a dropout: the tiny bridging distance
+         * is accumulated normally and the path remains a single continuous segment. A genuine tunnel
+         * or canyon dropout moves the reception point tens of metres at minimum; 60 m provides a
+         * comfortable margin above GPS dither (~10–35 m) without masking real signal-loss events.
+         */
+        const val REACQUIRE_DIST_M = 60.0
     }
 
     private var prevLat: Double? = null
@@ -167,12 +183,13 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         headingDeg = sample.bearingDeg
 
         if (speedKmh >= MOVING_THRESHOLD_KMH) {
-            // Gap detection: a large elapsed time between two accepted moving fixes means GPS
-            // dropped out (tunnel, bag, canyon). Do NOT add the bridging distance or elevation
-            // gain for the gap — the fix IS recorded and prev* anchors advance normally so
-            // movement after reacquisition accumulates from the correct position.
+            // Gap detection: a true GPS dropout (tunnel, bag, canyon) requires BOTH a large
+            // elapsed time AND a large distance jump. A stationary pause has a big time gap but a
+            // negligible distance, so the bridging distance is accumulated normally (it is tiny).
+            // Only when both conditions are exceeded do we skip the bridging distance and elevation.
             val isDropout = pLat != null && pLng != null && pTimeMs != null &&
-                (sample.timeMs - pTimeMs) / 1000.0 > GPS_GAP_SEC
+                (sample.timeMs - pTimeMs) / 1000.0 > GPS_GAP_SEC &&
+                haversine(pLat, pLng, sample.lat, sample.lng) * 1000.0 > REACQUIRE_DIST_M
 
             if (!isDropout && pLat != null && pLng != null) {
                 distanceKm += haversine(pLat, pLng, sample.lat, sample.lng)

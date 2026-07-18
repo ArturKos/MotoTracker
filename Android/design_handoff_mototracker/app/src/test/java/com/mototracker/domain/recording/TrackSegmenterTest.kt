@@ -158,4 +158,66 @@ class TrackSegmenterTest {
         assertTrue("segment should contain same object instances", result[0][0] === pt1)
         assertTrue(result[0][1] === pt2)
     }
+
+    // ── S2: dual-condition split (time gap AND distance jump) ────────────────
+
+    @Test
+    fun `stationary pause large time gap small distance does not split`() {
+        // 0.00001° ≈ 1.1 m — far below REACQUIRE_DIST_M (60 m), but time gap > GPS_GAP_SEC.
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        val points = listOf(
+            TrackPoint(52.0, 21.0, t = 0L),
+            TrackPoint(52.00001, 21.0, t = gapMs), // ~1.1 m — well below 60 m
+        )
+        val result = TrackSegmenter.split(points)
+        assertEquals("stationary pause should remain one segment", 1, result.size)
+        assertEquals(2, result[0].size)
+    }
+
+    @Test
+    fun `true dropout large time gap and large distance splits into two segments`() {
+        // 0.001° ≈ 111 m — above REACQUIRE_DIST_M (60 m), and time gap > GPS_GAP_SEC.
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        val points = listOf(
+            TrackPoint(52.0, 21.0, t = 0L),
+            TrackPoint(52.001, 21.0, t = gapMs), // ~111 m — above 60 m
+        )
+        val result = TrackSegmenter.split(points)
+        assertEquals("true dropout should produce two segments", 2, result.size)
+    }
+
+    @Test
+    fun `walk-like track with many large time gaps but small deltas produces one segment`() {
+        // Each step takes > GPS_GAP_SEC but covers only ~1.1 m — no step exceeds REACQUIRE_DIST_M.
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 5.0) * 1000).toLong()
+        val walkPoints = (0 until 10).map { i ->
+            TrackPoint(52.0 + i * 0.00001, 21.0, t = i * gapMs) // ~1.1 m per step
+        }
+        val result = TrackSegmenter.split(walkPoints)
+        assertEquals("walk-like track should be one segment", 1, result.size)
+        assertEquals(10, result[0].size)
+    }
+
+    @Test
+    fun `boundary only time condition met does not split`() {
+        // Time gap > GPS_GAP_SEC but distance < REACQUIRE_DIST_M (0.0004° ≈ 44 m < 60 m).
+        val gapMs = ((RecordingEngine.GPS_GAP_SEC + 1.0) * 1000).toLong()
+        val points = listOf(
+            TrackPoint(52.0, 21.0, t = 0L),
+            TrackPoint(52.0004, 21.0, t = gapMs), // ~44 m — below 60 m
+        )
+        val result = TrackSegmenter.split(points)
+        assertEquals("time-only condition should not split", 1, result.size)
+    }
+
+    @Test
+    fun `boundary only distance condition met does not split`() {
+        // Distance > REACQUIRE_DIST_M (0.001° ≈ 111 m) but time gap < GPS_GAP_SEC (10 s < 20 s).
+        val points = listOf(
+            TrackPoint(52.0, 21.0, t = 0L),
+            TrackPoint(52.001, 21.0, t = 10_000L), // 10 s < GPS_GAP_SEC
+        )
+        val result = TrackSegmenter.split(points)
+        assertEquals("distance-only condition should not split", 1, result.size)
+    }
 }

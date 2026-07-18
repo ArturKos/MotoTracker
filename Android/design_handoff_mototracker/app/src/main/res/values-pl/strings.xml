@@ -505,4 +505,10 @@
     <!-- Wave haptic signal on encounter start (X3) -->
     <string name="settings_signal_waves">Sygnalizuj pomachania podczas jazdy</string>
     <string name="settings_signal_waves_desc">Wibracja przy napotkaniu nowego motocyklisty podczas jazdy</string>
+
+    <!-- Waves list UI — GRUPO vs SPOTKANIA (X4) -->
+    <string name="waves_section_group">GRUPA</string>
+    <string name="waves_section_meetups">SPOTKANIA</string>
+    <string name="wave_rode_together">jechaliście razem %1$s</string>
+    <string name="wave_pass">minięcie</string>
 </resources>

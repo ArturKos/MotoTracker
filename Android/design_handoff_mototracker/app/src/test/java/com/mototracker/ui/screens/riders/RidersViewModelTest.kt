@@ -4,10 +4,12 @@ import app.cash.turbine.test
 import com.mototracker.data.model.FeedEvent
 import com.mototracker.data.model.FeedType
 import com.mototracker.data.model.GroupMember
+import com.mototracker.data.model.Rider
 import com.mototracker.data.model.Wave
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.repository.FeedRepository
 import com.mototracker.data.repository.GroupRepository
+import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -57,8 +59,18 @@ private class FakeFeedRepository(feed: List<FeedEvent> = emptyList()) : FeedRepo
 
 private class FakeWaveRepository(waves: List<Wave> = emptyList()) : WaveRepository {
     private val _flow = MutableStateFlow(waves)
+    fun emit(waves: List<Wave>) { _flow.value = waves }
     override fun observeForRoute(routeId: String): Flow<List<Wave>> = _flow
     override fun observeAll(): Flow<List<Wave>> = _flow
+}
+
+private class FakeRiderRepository(riders: List<Rider> = emptyList()) : RiderRepository {
+    private val _flow = MutableStateFlow(riders)
+    fun emit(riders: List<Rider>) { _flow.value = riders }
+    override fun observeAll(): Flow<List<Rider>> = _flow
+    override suspend fun setInGroup(shortId: String, inGroup: Boolean) {
+        _flow.value = _flow.value.map { if (it.shortId == shortId) it.copy(inGroup = inGroup) else it }
+    }
 }
 
 private class FakeNetworkMonitor(online: Boolean = false) : NetworkMonitor {
@@ -98,7 +110,28 @@ private fun makeWave(
     bikeName: String = "GSX-R",
     place: String = "Rynek",
     timeLabel: String = "14:00",
-) = Wave(id = id, nick = nick, bikeName = bikeName, place = place, timeLabel = timeLabel, routeId = null)
+    shortId: String = "",
+    firstSeenMs: Long = 0L,
+    lastSeenMs: Long = 0L,
+) = Wave(
+    id = id,
+    nick = nick,
+    bikeName = bikeName,
+    place = place,
+    timeLabel = timeLabel,
+    routeId = null,
+    shortId = shortId,
+    firstSeenMs = firstSeenMs,
+    lastSeenMs = lastSeenMs,
+)
+
+private fun makeRider(
+    shortId: String = "ABCD",
+    nick: String = "Piotr",
+    bike: String = "GSX-R",
+    lastSeenMs: Long = 1_000L,
+    inGroup: Boolean = false,
+) = Rider(shortId = shortId, nick = nick, bike = bike, lastSeenMs = lastSeenMs, inGroup = inGroup)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main test class
@@ -116,12 +149,14 @@ class RidersViewModelTest {
         groupRepo: FakeGroupRepository = FakeGroupRepository(),
         feedRepo: FakeFeedRepository = FakeFeedRepository(),
         waveRepo: FakeWaveRepository = FakeWaveRepository(),
+        riderRepo: FakeRiderRepository = FakeRiderRepository(),
         networkMonitor: FakeNetworkMonitor = FakeNetworkMonitor(online = false),
         settingsSource: FakeSettingsSource = FakeSettingsSource(),
     ) = RidersViewModel(
         groupRepository = groupRepo,
         feedRepository = feedRepo,
         waveRepository = waveRepo,
+        riderRepository = riderRepo,
         networkMonitor = networkMonitor,
         settingsSource = settingsSource,
     )
@@ -285,24 +320,94 @@ class RidersViewModelTest {
     // ── waves mapping ─────────────────────────────────────────────────────────
 
     @Test
-    fun `waves are mapped to WaveUi`() = runTest {
+    fun `legacy wave lands in SPOTKANIA with LEGACY kind`() = runTest {
         val waveRepo = FakeWaveRepository(listOf(makeWave(nick = "Piotr", bikeName = "GSX-R", place = "Rynek", timeLabel = "14:00")))
         val vm = buildVm(waveRepo = waveRepo)
         vm.uiState.test {
-            val wave = awaitItem().waves.first()
-            assertEquals("Piotr", wave.nick)
-            assertEquals("GSX-R", wave.bikeName)
-            assertEquals("Rynek", wave.place)
-            assertEquals("14:00", wave.timeLabel)
+            val sections = awaitItem().waveSections
+            assertEquals(0, sections.group.size)
+            assertEquals(1, sections.meetups.size)
+            assertEquals("Piotr", sections.meetups.first().nick)
+            assertEquals(WaveKind.LEGACY, sections.meetups.first().kind)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `empty waves list is passed through`() = runTest {
+    fun `empty waves yields empty waveSections`() = runTest {
         val vm = buildVm(waveRepo = FakeWaveRepository(emptyList()))
         vm.uiState.test {
-            assertTrue(awaitItem().waves.isEmpty())
+            val sections = awaitItem().waveSections
+            assertTrue(sections.group.isEmpty())
+            assertTrue(sections.meetups.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── waveSections — inGroup split ──────────────────────────────────────────
+
+    @Test
+    fun `group rider wave goes to GRUPO section with RODE_TOGETHER kind`() = runTest {
+        val waveRepo = FakeWaveRepository(listOf(
+            makeWave(shortId = "ABCD", firstSeenMs = 1_000L, lastSeenMs = 600_000L),
+        ))
+        val riderRepo = FakeRiderRepository(listOf(makeRider(shortId = "ABCD", inGroup = true)))
+        val vm = buildVm(waveRepo = waveRepo, riderRepo = riderRepo)
+        vm.uiState.test {
+            val sections = awaitItem().waveSections
+            assertEquals(1, sections.group.size)
+            assertEquals(0, sections.meetups.size)
+            assertEquals(WaveKind.RODE_TOGETHER, sections.group.first().kind)
+            assertEquals(599_000L, sections.group.first().durationMs)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `non-group rider wave with long duration goes to SPOTKANIA as RODE_TOGETHER`() = runTest {
+        val waveRepo = FakeWaveRepository(listOf(
+            makeWave(shortId = "WXYZ", firstSeenMs = 1_000L, lastSeenMs = 300_000L),
+        ))
+        val vm = buildVm(waveRepo = waveRepo, riderRepo = FakeRiderRepository())
+        vm.uiState.test {
+            val sections = awaitItem().waveSections
+            assertEquals(0, sections.group.size)
+            assertEquals(1, sections.meetups.size)
+            assertEquals(WaveKind.RODE_TOGETHER, sections.meetups.first().kind)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `non-group rider wave with short duration goes to SPOTKANIA as PASS`() = runTest {
+        val waveRepo = FakeWaveRepository(listOf(
+            makeWave(shortId = "WXYZ", firstSeenMs = 1_000L, lastSeenMs = 10_000L),
+        ))
+        val vm = buildVm(waveRepo = waveRepo, riderRepo = FakeRiderRepository())
+        vm.uiState.test {
+            val sections = awaitItem().waveSections
+            assertEquals(WaveKind.PASS, sections.meetups.first().kind)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `rider transitions from stranger to group splits wave into correct section`() = runTest {
+        val waveRepo = FakeWaveRepository(listOf(makeWave(shortId = "ABCD", firstSeenMs = 1_000L, lastSeenMs = 600_000L)))
+        val riderRepo = FakeRiderRepository(listOf(makeRider(shortId = "ABCD", inGroup = false)))
+        val vm = buildVm(
+            waveRepo = waveRepo,
+            riderRepo = riderRepo,
+        )
+        vm.uiState.test {
+            val initial = awaitItem().waveSections
+            assertEquals(0, initial.group.size)
+            assertEquals(1, initial.meetups.size)
+
+            riderRepo.emit(listOf(makeRider(shortId = "ABCD", inGroup = true)))
+            val updated = awaitItem().waveSections
+            assertEquals(1, updated.group.size)
+            assertEquals(0, updated.meetups.size)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -410,6 +515,7 @@ class RidersViewModelFeedAvailableTest(
             groupRepository = FakeGroupRepository(),
             feedRepository = FakeFeedRepository(),
             waveRepository = FakeWaveRepository(),
+            riderRepository = FakeRiderRepository(),
             networkMonitor = FakeNetworkMonitor(online = isOnline),
             settingsSource = FakeSettingsSource(AppSettings(noInternet = noInternet)),
         )

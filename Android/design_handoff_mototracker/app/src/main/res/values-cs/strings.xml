@@ -505,4 +505,10 @@
     <!-- Wave haptic signal on encounter start (X3) -->
     <string name="settings_signal_waves">Signalizovat pozdravy při jízdě</string>
     <string name="settings_signal_waves_desc">Vibrace při setkání s novým jezdcem během jízdy</string>
+
+    <!-- Waves list UI — GRUPO vs SPOTKANIA (X4) -->
+    <string name="waves_section_group">SKUPINA</string>
+    <string name="waves_section_meetups">SETKÁNÍ</string>
+    <string name="wave_rode_together">jeli spolu %1$s</string>
+    <string name="wave_pass">míjení</string>
 </resources>

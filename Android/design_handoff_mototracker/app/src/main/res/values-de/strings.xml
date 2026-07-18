@@ -505,4 +505,10 @@
     <!-- Wave haptic signal on encounter start (X3) -->
     <string name="settings_signal_waves">Winken während der Fahrt signalisieren</string>
     <string name="settings_signal_waves_desc">Vibration beim Treffen eines neuen Fahrers während der Fahrt</string>
+
+    <!-- Waves list UI — GRUPO vs SPOTKANIA (X4) -->
+    <string name="waves_section_group">GRUPPE</string>
+    <string name="waves_section_meetups">BEGEGNUNGEN</string>
+    <string name="wave_rode_together">zusammen gefahren %1$s</string>
+    <string name="wave_pass">Vorbeifahrt</string>
 </resources>

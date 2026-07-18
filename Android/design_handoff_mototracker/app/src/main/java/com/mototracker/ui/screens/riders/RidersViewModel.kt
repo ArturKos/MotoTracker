@@ -5,10 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.mototracker.data.model.FeedEvent
 import com.mototracker.data.model.FeedType
 import com.mototracker.data.model.GroupMember
+import com.mototracker.data.model.Rider
 import com.mototracker.data.model.Wave
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.repository.FeedRepository
 import com.mototracker.data.repository.GroupRepository
+import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.repository.WaveRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -27,8 +29,12 @@ import javax.inject.Inject
  * ViewModel for the Riders screen (B5).
  *
  * Combines [GroupRepository.observeGroup], [FeedRepository.observeFeed],
- * [WaveRepository.observeAll], [NetworkMonitor.isOnline], and
- * [AppSettingsSource.settings] into a single [StateFlow]<[RidersUiState]>.
+ * [WaveRepository.observeAll], [RiderRepository.observeAll],
+ * [NetworkMonitor.isOnline], and [AppSettingsSource.settings] into a single
+ * [StateFlow]<[RidersUiState]>.
+ *
+ * Waves and riders are nested-combined first (to stay within the typed 5-arg
+ * [combine] limit), then combined with the remaining flows.
  *
  * One-shot [RidersEvent]s are delivered via [events] using a [Channel] to ensure
  * they are consumed exactly once regardless of recomposition.
@@ -36,6 +42,7 @@ import javax.inject.Inject
  * @param groupRepository   Source of riding-group members.
  * @param feedRepository    Source of live-feed events (static seed; real push out of scope).
  * @param waveRepository    Source of all Bluetooth waves (empty until BT is real, 🔬).
+ * @param riderRepository   Source of all known BLE riders, providing inGroup flags (X4).
  * @param networkMonitor    Provides current internet connectivity.
  * @param settingsSource    Provides [AppSettings.noInternet] flag.
  */
@@ -44,6 +51,7 @@ class RidersViewModel @Inject constructor(
     private val groupRepository: GroupRepository,
     private val feedRepository: FeedRepository,
     private val waveRepository: WaveRepository,
+    private val riderRepository: RiderRepository,
     private val networkMonitor: NetworkMonitor,
     private val settingsSource: AppSettingsSource,
 ) : ViewModel() {
@@ -53,15 +61,21 @@ class RidersViewModel @Inject constructor(
     /** One-shot UI events (e.g. invite-sent toast). Collect in the Composable. */
     val events: Flow<RidersEvent> = _events.receiveAsFlow()
 
+    /** Waves and riders combined first to stay within the 5-arg combine limit. */
+    private val wavesAndRiders = combine(
+        waveRepository.observeAll(),
+        riderRepository.observeAll(),
+    ) { waves, riders -> Pair(waves, riders) }
+
     /** Live UI state exposed to [RidersScreen]. */
     val uiState: StateFlow<RidersUiState> = combine(
         groupRepository.observeGroup(),
         feedRepository.observeFeed(),
-        waveRepository.observeAll(),
+        wavesAndRiders,
         networkMonitor.isOnline,
         settingsSource.settings,
-    ) { members, feed, waves, isOnline, settings ->
-        buildUiState(members, feed, waves, isOnline, settings)
+    ) { members, feed, (waves, riders), isOnline, settings ->
+        buildUiState(members, feed, waves, riders, isOnline, settings)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -89,16 +103,18 @@ class RidersViewModel @Inject constructor(
         members: List<GroupMember>,
         feed: List<FeedEvent>,
         waves: List<Wave>,
+        riders: List<Rider>,
         isOnline: Boolean,
         settings: AppSettings,
     ): RidersUiState {
         val feedAvailable = isOnline && !settings.noInternet
+        val inGroupShortIds = riders.filter { it.inGroup }.map { it.shortId }.toSet()
         return RidersUiState(
             members = members.map { it.toUi() },
             memberCount = members.size,
             feedAvailable = feedAvailable,
             feed = feed.map { it.toUi() },
-            waves = waves.map { it.toUi() },
+            waveSections = WaveGrouping.group(waves, inGroupShortIds),
             wavesEnabled = settings.wavesEnabled,
         )
     }
@@ -126,11 +142,4 @@ class RidersViewModel @Inject constructor(
             type = type,
         )
     }
-
-    private fun Wave.toUi() = WaveUi(
-        nick = nick,
-        bikeName = bikeName,
-        place = place,
-        timeLabel = timeLabel,
-    )
 }

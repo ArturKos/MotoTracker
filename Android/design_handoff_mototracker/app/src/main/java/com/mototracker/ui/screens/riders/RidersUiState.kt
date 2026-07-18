@@ -48,18 +48,42 @@ data class FeedEventUi(
 )
 
 /**
- * Presentation model for a single row in the WAVES section.
+ * Classification of a BLE wave encounter for display in the SPOTKANIA / GRUPO sections.
  *
- * @param nick      The other rider's display nickname.
- * @param bikeName  The other rider's bike model.
- * @param place     Human-readable location label where the wave occurred.
- * @param timeLabel Formatted timestamp of the wave, e.g. "14:32".
+ * - [RODE_TOGETHER] — encounter duration met or exceeded the rode-together threshold.
+ * - [PASS]          — short encounter, just a passing.
+ * - [LEGACY]        — row predates encounter tracking; no reliable duration data.
  */
-data class WaveUi(
+enum class WaveKind { RODE_TOGETHER, PASS, LEGACY }
+
+/**
+ * Presentation model for a single wave encounter entry in the WAVES section.
+ *
+ * @param nick       The other rider's display nickname.
+ * @param bikeName   The other rider's bike model.
+ * @param place      Human-readable location label where the encounter occurred.
+ * @param timeLabel  Formatted timestamp of the first sighting, e.g. "14:32".
+ * @param kind       [WaveKind] classification that drives the secondary label.
+ * @param durationMs Encounter duration in milliseconds; 0 for [WaveKind.LEGACY].
+ */
+data class WaveEntryUi(
     val nick: String,
     val bikeName: String,
     val place: String,
     val timeLabel: String,
+    val kind: WaveKind,
+    val durationMs: Long,
+)
+
+/**
+ * Container for the two sub-sections of the WAVES list.
+ *
+ * @param group   GRUPO entries — riders currently in the active group.
+ * @param meetups SPOTKANIA entries — stranger encounters, ordered newest-first.
+ */
+data class WaveSections(
+    val group: List<WaveEntryUi>,
+    val meetups: List<WaveEntryUi>,
 )
 
 /**
@@ -79,7 +103,7 @@ sealed interface RidersEvent {
  * @param memberCount    Total count of [members]; pre-computed for the header label.
  * @param feedAvailable  `true` when online AND offline-only mode is off — gates the feed section.
  * @param feed           Live-feed event rows; only shown when [feedAvailable] is `true`.
- * @param waves          Bluetooth wave rows (from DB — empty until BT is real, 🔬).
+ * @param waveSections   GRUPO + SPOTKANIA wave sub-sections (from DB — empty until BT is real, 🔬).
  * @param wavesEnabled   `true` when the BLE waves setting is on; hides the waves section when `false`.
  */
 data class RidersUiState(
@@ -87,6 +111,6 @@ data class RidersUiState(
     val memberCount: Int = 0,
     val feedAvailable: Boolean = false,
     val feed: List<FeedEventUi> = emptyList(),
-    val waves: List<WaveUi> = emptyList(),
+    val waveSections: WaveSections = WaveSections(emptyList(), emptyList()),
     val wavesEnabled: Boolean = true,
 )

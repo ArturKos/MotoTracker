@@ -211,6 +211,7 @@ fun RidersContent(
                 )
             }
 
+            val allEmpty = state.waveSections.group.isEmpty() && state.waveSections.meetups.isEmpty()
             when {
                 !wavesEnabled -> {
                     item {
@@ -221,12 +222,25 @@ fun RidersContent(
                         )
                     }
                 }
-                state.waves.isEmpty() -> {
+                allEmpty -> {
                     item { Spacer(Modifier.height(8.dp)) }
                 }
                 else -> {
-                    items(state.waves) { wave ->
-                        WaveRow(wave = wave)
+                    if (state.waveSections.group.isNotEmpty()) {
+                        item {
+                            WaveSubHeader(title = stringResource(R.string.waves_section_group))
+                        }
+                        items(state.waveSections.group) { entry ->
+                            WaveRow(entry = entry)
+                        }
+                    }
+                    if (state.waveSections.meetups.isNotEmpty()) {
+                        item {
+                            WaveSubHeader(title = stringResource(R.string.waves_section_meetups))
+                        }
+                        items(state.waveSections.meetups) { entry ->
+                            WaveRow(entry = entry)
+                        }
                     }
                 }
             }
@@ -416,16 +430,49 @@ private fun FeedEventRow(event: FeedEventUi) {
     }
 }
 
+// ── Wave sub-header ────────────────────────────────────────────────────────────
+
+/**
+ * Dim uppercase sub-header used inside the WAVES section for GRUPO and SPOTKANIA labels.
+ *
+ * @param title Sub-section label; caller passes uppercased text.
+ */
+@Composable
+private fun WaveSubHeader(title: String) {
+    Text(
+        text = title,
+        style = MotoTracker.typography.label,
+        color = MotoTracker.colors.dim,
+        letterSpacing = 0.5.sp,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
 // ── Wave row ───────────────────────────────────────────────────────────────────
 
 /**
- * A single Bluetooth wave row: accent-tinted panel tile, nick · bike bold, place · time dim mono.
+ * A single Bluetooth wave row: accent-tinted panel tile, nick · bike bold, place · kind dim mono.
  *
- * @param wave The [WaveUi] to render.
+ * The secondary line shows the place and a kind-based label:
+ * - [WaveKind.RODE_TOGETHER]: formatted duration via [wave_rode_together] resource.
+ * - [WaveKind.PASS]: [wave_pass] resource.
+ * - [WaveKind.LEGACY]: time label only (no reliable duration).
+ *
+ * @param entry The [WaveEntryUi] to render.
  */
 @Composable
-private fun WaveRow(wave: WaveUi) {
+private fun WaveRow(entry: WaveEntryUi) {
     val colors = MotoTracker.colors
+    val kindSuffix = when (entry.kind) {
+        WaveKind.RODE_TOGETHER -> " · " + stringResource(
+            R.string.wave_rode_together,
+            WaveDuration.format(entry.durationMs),
+        )
+        WaveKind.PASS -> " · " + stringResource(R.string.wave_pass)
+        WaveKind.LEGACY -> ""
+    }
+    val secondaryText = "${stringResource(R.string.label_wave_at)} ${entry.place} · ${entry.timeLabel}$kindSuffix"
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -456,7 +503,7 @@ private fun WaveRow(wave: WaveUi) {
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${wave.nick} · ${wave.bikeName}",
+                text = "${entry.nick} · ${entry.bikeName}",
                 style = MotoTracker.typography.body,
                 fontWeight = FontWeight.Bold,
                 color = colors.text,
@@ -464,7 +511,7 @@ private fun WaveRow(wave: WaveUi) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${stringResource(R.string.label_wave_at)} ${wave.place} · ${wave.timeLabel}",
+                text = secondaryText,
                 style = MotoTracker.typography.bodySmall,
                 fontFamily = JetBrainsMonoFamily,
                 color = colors.dim,

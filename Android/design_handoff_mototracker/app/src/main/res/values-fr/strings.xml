@@ -505,4 +505,10 @@
     <!-- Wave haptic signal on encounter start (X3) -->
     <string name="settings_signal_waves">Signaler les saluts en roulant</string>
     <string name="settings_signal_waves_desc">Vibration lors de la rencontre d\'un nouveau motard pendant le trajet</string>
+
+    <!-- Waves list UI — GRUPO vs SPOTKANIA (X4) -->
+    <string name="waves_section_group">GROUPE</string>
+    <string name="waves_section_meetups">RENCONTRES</string>
+    <string name="wave_rode_together">roulé ensemble %1$s</string>
+    <string name="wave_pass">croisement</string>
 </resources>

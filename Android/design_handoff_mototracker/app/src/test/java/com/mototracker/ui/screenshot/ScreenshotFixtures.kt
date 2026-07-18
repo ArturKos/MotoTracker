@@ -18,7 +18,9 @@ import com.mototracker.ui.screens.riders.FeedDotColor
 import com.mototracker.ui.screens.riders.FeedEventUi
 import com.mototracker.ui.screens.riders.GroupMemberUi
 import com.mototracker.ui.screens.riders.RidersUiState
-import com.mototracker.ui.screens.riders.WaveUi
+import com.mototracker.ui.screens.riders.WaveEntryUi
+import com.mototracker.ui.screens.riders.WaveKind
+import com.mototracker.ui.screens.riders.WaveSections
 import com.mototracker.ui.screens.routes.RouteCardUi
 import com.mototracker.ui.screens.routes.RoutesUiState
 import com.mototracker.ui.screens.settings.BikeUi
@@ -388,12 +390,17 @@ object ScreenshotFixtures {
                 type = FeedType.FINISH,
             ),
         ),
-        waves = listOf(
-            WaveUi(
-                nick = "MX-Rider",
-                bikeName = "BMW R1250GS",
-                place = "ul. Krakowska, Warszawa",
-                timeLabel = "14:32",
+        waveSections = WaveSections(
+            group = emptyList(),
+            meetups = listOf(
+                WaveEntryUi(
+                    nick = "MX-Rider",
+                    bikeName = "BMW R1250GS",
+                    place = "ul. Krakowska, Warszawa",
+                    timeLabel = "14:32",
+                    kind = WaveKind.PASS,
+                    durationMs = 0L,
+                ),
             ),
         ),
     )

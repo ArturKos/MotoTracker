@@ -535,4 +535,10 @@
     <!-- Wave haptic signal on encounter start (X3) -->
     <string name="settings_signal_waves">Signal waves while riding</string>
     <string name="settings_signal_waves_desc">Vibrate when a new rider is encountered during the ride</string>
+
+    <!-- Waves list UI — GRUPO vs SPOTKANIA (X4) -->
+    <string name="waves_section_group">GROUP</string>
+    <string name="waves_section_meetups">MEETUPS</string>
+    <string name="wave_rode_together">rode together %1$s</string>
+    <string name="wave_pass">passing</string>
 </resources>

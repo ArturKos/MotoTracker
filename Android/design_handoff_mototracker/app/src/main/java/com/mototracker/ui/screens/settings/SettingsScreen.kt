@@ -221,6 +221,7 @@ fun SettingsScreen(
             appStateVm.setUnits(if (key == "imperial") Units.IMPERIAL else Units.METRIC)
         },
         onServerAddress = viewModel::setServerAddress,
+        onOsrmBaseUrl = viewModel::setOsrmBaseUrl,
         onNoInternet = viewModel::setNoInternet,
         onSyncEnabled = viewModel::setSyncEnabled,
         onSyncNow = viewModel::syncNow,
@@ -278,6 +279,7 @@ fun SettingsScreen(
  * @param onLanguage           Called with the BCP-47 language tag.
  * @param onUnits              Called with the units key ("metric"|"imperial").
  * @param onServerAddress      Called when the server-address field changes.
+ * @param onOsrmBaseUrl        Called when the OSRM server-address field changes (W1).
  * @param onNoInternet         Called when the master network kill-switch changes (U1).
  * @param onSyncEnabled        Called when the sync-enabled switch changes (U1).
  * @param onSyncNow            Called when the user taps the Sync-all button.
@@ -312,6 +314,7 @@ fun SettingsContent(
     onLanguage: (String) -> Unit = {},
     onUnits: (String) -> Unit = {},
     onServerAddress: (String) -> Unit = {},
+    onOsrmBaseUrl: (String) -> Unit = {},
     onNoInternet: (Boolean) -> Unit = {},
     onSyncEnabled: (Boolean) -> Unit = {},
     onSyncNow: () -> Unit = {},
@@ -464,9 +467,11 @@ fun SettingsContent(
                         SectionHeader(title = stringResource(R.string.section_server))
                         NetworkSection(
                             serverAddress = state.serverAddress,
+                            osrmBaseUrl = state.osrmBaseUrl,
                             noInternet = state.noInternet,
                             syncEnabled = state.syncEnabled,
                             onServerAddress = onServerAddress,
+                            onOsrmBaseUrl = onOsrmBaseUrl,
                             onNoInternet = onNoInternet,
                             onSyncEnabled = onSyncEnabled,
                         )
@@ -950,28 +955,33 @@ private fun AccentColorRow(
 }
 
 /**
- * Network section: server address, master no-internet switch, and sync-enabled switch.
+ * Network section: server address, OSRM server address, master no-internet switch, and sync-enabled switch.
  *
  * The [syncEnabled] row is visually greyed and non-interactive while [noInternet] is `true` (U1).
  *
- * @param serverAddress  Current server base URL.
- * @param noInternet     Whether all network access is blocked (master switch).
- * @param syncEnabled    Whether upload to server is enabled.
+ * @param serverAddress   Current GPStrack server base URL.
+ * @param osrmBaseUrl     Current OSRM map-matching server base URL (W1).
+ * @param noInternet      Whether all network access is blocked (master switch).
+ * @param syncEnabled     Whether upload to server is enabled.
  * @param onServerAddress Called when the server-address field is committed.
+ * @param onOsrmBaseUrl   Called when the OSRM server-address field is committed (W1).
  * @param onNoInternet    Called when the master switch changes.
  * @param onSyncEnabled   Called when the sync switch changes.
  */
 @Composable
 private fun NetworkSection(
     serverAddress: String,
+    osrmBaseUrl: String,
     noInternet: Boolean,
     syncEnabled: Boolean,
     onServerAddress: (String) -> Unit,
+    onOsrmBaseUrl: (String) -> Unit,
     onNoInternet: (Boolean) -> Unit,
     onSyncEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var addressDraft by rememberSaveable { mutableStateOf(serverAddress) }
+    var osrmDraft by rememberSaveable { mutableStateOf(osrmBaseUrl) }
     Column(modifier = modifier) {
         OutlinedTextField(
             value = addressDraft,
@@ -982,6 +992,24 @@ private fun NetworkSection(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onServerAddress(addressDraft) }),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MotoTracker.colors.text,
+                unfocusedTextColor = MotoTracker.colors.text,
+                focusedBorderColor = MotoTracker.colors.accent,
+                unfocusedBorderColor = MotoTracker.colors.line,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        OutlinedTextField(
+            value = osrmDraft,
+            onValueChange = { osrmDraft = it },
+            label = {
+                Text(stringResource(R.string.label_osrm_server), color = MotoTracker.colors.dim, style = MotoTracker.typography.label)
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onOsrmBaseUrl(osrmDraft) }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = MotoTracker.colors.text,
                 unfocusedTextColor = MotoTracker.colors.text,

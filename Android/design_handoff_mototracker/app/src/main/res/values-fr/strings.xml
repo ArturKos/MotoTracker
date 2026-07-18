@@ -28,6 +28,8 @@
     <string name="btn_google_sign_in">Se connecter avec Google</string>
     <string name="label_or">ou</string>
     <string name="label_server_address">Adresse du serveur</string>
+    <string name="label_osrm_server">Serveur OSRM</string>
+    <string name="desc_osrm_server">Adresse du serveur de correction GPS (OSRM)</string>
     <string name="label_email">E-mail</string>
     <string name="label_password">Mot de passe</string>
     <string name="btn_sign_in_sync">Se connecter &amp; sync.</string>

@@ -65,6 +65,7 @@ private class FakeSettingsStore(
     var lastCurrency: String? = null
     var lastWavesEnabled: Boolean? = null
     var lastCoordFormat: String? = null
+    var lastOsrmBaseUrl: String? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -88,6 +89,7 @@ private class FakeSettingsStore(
     override suspend fun setCurrency(currency: String) { lastCurrency = currency; _flow.value = _flow.value.copy(currency = currency) }
     override suspend fun setWavesEnabled(value: Boolean) { lastWavesEnabled = value; _flow.value = _flow.value.copy(wavesEnabled = value) }
     override suspend fun setCoordFormat(value: String) { lastCoordFormat = value; _flow.value = _flow.value.copy(coordFormat = value) }
+    override suspend fun setOsrmBaseUrl(url: String) { lastOsrmBaseUrl = url; _flow.value = _flow.value.copy(osrmBaseUrl = url) }
 }
 
 private class FakeBikeRepository : BikeRepository {
@@ -945,5 +947,65 @@ class SettingsViewModelTest {
             assertEquals("dms", awaitItem().coordFormat)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // ── setOsrmBaseUrl / normalizeOsrmUrl (W1) ────────────────────────────────
+
+    @Test
+    fun `setOsrmBaseUrl persists trimmed url to store`() = runTest {
+        vm.setOsrmBaseUrl("  http://10.0.0.1:5001  ")
+        assertEquals("http://10.0.0.1:5001", store.lastOsrmBaseUrl)
+    }
+
+    @Test
+    fun `setOsrmBaseUrl blank input restores default`() = runTest {
+        vm.setOsrmBaseUrl("   ")
+        assertEquals("http://192.168.1.142:5001", store.lastOsrmBaseUrl)
+    }
+
+    @Test
+    fun `setOsrmBaseUrl empty string restores default`() = runTest {
+        vm.setOsrmBaseUrl("")
+        assertEquals("http://192.168.1.142:5001", store.lastOsrmBaseUrl)
+    }
+
+    @Test
+    fun `setOsrmBaseUrl propagates to uiState osrmBaseUrl`() = runTest {
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.setOsrmBaseUrl("http://192.168.1.99:5001")
+            val state = awaitItem()
+            assertEquals("http://192.168.1.99:5001", state.osrmBaseUrl)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `store emit osrmBaseUrl propagates to uiState`() = runTest {
+        store.emit(AppSettings(osrmBaseUrl = "http://osrm.example.com"))
+        vm.uiState.test {
+            assertEquals("http://osrm.example.com", awaitItem().osrmBaseUrl)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `normalizeOsrmUrl trims whitespace from valid url`() {
+        assertEquals("http://10.0.0.1:5001", normalizeOsrmUrl("  http://10.0.0.1:5001  "))
+    }
+
+    @Test
+    fun `normalizeOsrmUrl returns default for blank input`() {
+        assertEquals("http://192.168.1.142:5001", normalizeOsrmUrl("   "))
+    }
+
+    @Test
+    fun `normalizeOsrmUrl returns default for empty input`() {
+        assertEquals("http://192.168.1.142:5001", normalizeOsrmUrl(""))
+    }
+
+    @Test
+    fun `normalizeOsrmUrl preserves non-blank url unchanged`() {
+        assertEquals("http://192.168.1.200:5001", normalizeOsrmUrl("http://192.168.1.200:5001"))
     }
 }

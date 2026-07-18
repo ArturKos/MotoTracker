@@ -81,6 +81,8 @@ data class SyncQueueItemUi(
  * @param wavesEnabled         Whether the BLE waves (pomachania) feature is enabled.
  *                             When `false`, the Settings toggle is off and no BLE advertise/scan occurs.
  * @param coordFormat          Coordinate display format key: "dd", "dms", or "utm" (P2).
+ * @param osrmBaseUrl          OSRM map-matching server base URL for GPS road-correction (W1);
+ *                             default "http://192.168.1.142:5001".
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -109,4 +111,5 @@ data class SettingsUiState(
     val currency: String = "PLN",
     val wavesEnabled: Boolean = true,
     val coordFormat: String = "dd",
+    val osrmBaseUrl: String = "http://192.168.1.142:5001",
 )

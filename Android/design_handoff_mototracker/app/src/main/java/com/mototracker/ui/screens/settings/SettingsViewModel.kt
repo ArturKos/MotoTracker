@@ -38,6 +38,22 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
+private const val DEFAULT_OSRM_URL = "http://192.168.1.142:5001"
+
+/**
+ * Normalises a raw OSRM URL entered by the user: trims whitespace and restores the
+ * default when the result is blank.
+ *
+ * Extracted as a top-level function so it can be unit-tested without a ViewModel instance.
+ *
+ * @param raw Untrimmed string from the UI text field.
+ * @return Trimmed URL, or [DEFAULT_OSRM_URL] when blank.
+ */
+internal fun normalizeOsrmUrl(raw: String): String {
+    val trimmed = raw.trim()
+    return if (trimmed.isBlank()) DEFAULT_OSRM_URL else trimmed
+}
+
 /**
  * ViewModel for the Settings screen (B7).
  *
@@ -183,6 +199,7 @@ class SettingsViewModel @Inject constructor(
             currency = settings.currency,
             wavesEnabled = settings.wavesEnabled,
             coordFormat = settings.coordFormat,
+            osrmBaseUrl = settings.osrmBaseUrl,
         )
     }
 
@@ -319,6 +336,18 @@ class SettingsViewModel @Inject constructor(
     /** Persists the GPStrack server address. */
     fun setServerAddress(address: String) {
         viewModelScope.launch { settingsStore.setServerAddress(address) }
+    }
+
+    /**
+     * Persists the OSRM map-matching server base URL (W1).
+     *
+     * Trims whitespace; blank or whitespace-only input restores the default
+     * "http://192.168.1.142:5001" via [normalizeOsrmUrl].
+     *
+     * @param url Raw URL string entered in the Settings text field.
+     */
+    fun setOsrmBaseUrl(url: String) {
+        viewModelScope.launch { settingsStore.setOsrmBaseUrl(normalizeOsrmUrl(url)) }
     }
 
     /** Persists the master network kill-switch flag (U1). */

@@ -33,6 +33,8 @@
     <string name="btn_google_sign_in">Sign in with Google</string>
     <string name="label_or">or</string>
     <string name="label_server_address">Server address</string>
+    <string name="label_osrm_server">OSRM server</string>
+    <string name="desc_osrm_server">Address of the OSRM map-matching server for GPS road-correction</string>
     <string name="label_email">E-mail</string>
     <string name="label_password">Password</string>
     <string name="btn_sign_in_sync">Sign in &amp; sync</string>

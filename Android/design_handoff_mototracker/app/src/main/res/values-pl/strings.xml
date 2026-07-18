@@ -28,6 +28,8 @@
     <string name="btn_google_sign_in">Zaloguj przez Google</string>
     <string name="label_or">lub</string>
     <string name="label_server_address">Adres serwera</string>
+    <string name="label_osrm_server">Serwer OSRM</string>
+    <string name="desc_osrm_server">Adres serwera korygowania GPS (OSRM)</string>
     <string name="label_email">E-mail</string>
     <string name="label_password">Hasło</string>
     <string name="btn_sign_in_sync">Zaloguj i synchronizuj</string>

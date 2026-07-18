@@ -28,6 +28,8 @@
     <string name="btn_google_sign_in">Войти через Google</string>
     <string name="label_or">или</string>
     <string name="label_server_address">Адрес сервера</string>
+    <string name="label_osrm_server">OSRM-сервер</string>
+    <string name="desc_osrm_server">Адрес сервера коррекции GPS (OSRM)</string>
     <string name="label_email">E-mail</string>
     <string name="label_password">Пароль</string>
     <string name="btn_sign_in_sync">Войти и синхрон.</string>

@@ -28,6 +28,8 @@
     <string name="btn_google_sign_in">Přihlásit přes Google</string>
     <string name="label_or">nebo</string>
     <string name="label_server_address">Adresa serveru</string>
+    <string name="label_osrm_server">OSRM server</string>
+    <string name="desc_osrm_server">Adresa serveru mapové korekce GPS (OSRM)</string>
     <string name="label_email">E-mail</string>
     <string name="label_password">Heslo</string>
     <string name="btn_sign_in_sync">Přihlásit a synchron.</string>

@@ -59,6 +59,7 @@ class LocationClientTest {
     fun `locationUpdates flow closes with SecurityException when permission denied`() =
         runTest(testDispatcher) {
             val locationManager = mockk<LocationManager>()
+            every { locationManager.allProviders } returns emptyList()
             // Match the 5-arg overload used after the M1 Looper fix.
             every {
                 locationManager.requestLocationUpdates(
@@ -99,6 +100,7 @@ class LocationClientTest {
             val locationManager = mockk<LocationManager>()
             var capturedLooper: Looper? = null
 
+            every { locationManager.allProviders } returns emptyList()
             every {
                 locationManager.requestLocationUpdates(
                     any<String>(),

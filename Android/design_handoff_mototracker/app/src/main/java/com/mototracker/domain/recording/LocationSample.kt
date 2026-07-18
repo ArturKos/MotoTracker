@@ -1,7 +1,7 @@
 package com.mototracker.domain.recording
 
 /**
- * A single GPS fix delivered by the location provider.
+ * A single location fix delivered by a location provider.
  *
  * @param lat        Latitude in decimal degrees.
  * @param lng        Longitude in decimal degrees.
@@ -12,6 +12,8 @@ package com.mototracker.domain.recording
  * @param accuracyM  Horizontal accuracy radius in metres reported by the location provider.
  *                   A value of 0.0 means the provider did not report accuracy (unknown);
  *                   treat it as acceptable and do not reject on accuracy grounds.
+ * @param provider   Which location technology produced this fix. Defaults to [LocationProvider.GPS]
+ *                   so all existing call sites keep compiling unchanged.
  */
 data class LocationSample(
     val lat: Double,
@@ -21,4 +23,5 @@ data class LocationSample(
     val bearingDeg: Float,
     val timeMs: Long,
     val accuracyM: Double = 0.0,
+    val provider: LocationProvider = LocationProvider.GPS,
 )

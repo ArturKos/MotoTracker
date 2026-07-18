@@ -512,6 +512,11 @@
     <string name="dialog_fuel_correction_confirm">Confirm</string>
     <string name="action_fuel_correction">Adjust fuel level</string>
 
+    <!-- Coordinate clipboard toasts (V1) -->
+    <string name="coord_copied_toast">Coordinates copied to clipboard</string>
+    <string name="coord_maps_link_copied_toast">Google Maps link copied</string>
+    <string name="coord_no_position_toast">No position</string>
+
     <!-- Splash screen status labels (T1) -->
     <string name="splash_status_initializing">Loading…</string>
     <string name="splash_status_migrating_db">Migrating database…</string>

@@ -482,6 +482,11 @@
     <string name="dialog_fuel_correction_confirm">Подтвердить</string>
     <string name="action_fuel_correction">Скорректировать уровень топлива</string>
 
+    <!-- Сообщения буфера обмена координат (V1) -->
+    <string name="coord_copied_toast">Координаты скопированы в буфер обмена</string>
+    <string name="coord_maps_link_copied_toast">Ссылка Google Maps скопирована</string>
+    <string name="coord_no_position_toast">Нет позиции</string>
+
     <!-- Статусные сообщения экрана-заставки (T1) -->
     <string name="splash_status_initializing">Загрузка…</string>
     <string name="splash_status_migrating_db">Миграция базы…</string>

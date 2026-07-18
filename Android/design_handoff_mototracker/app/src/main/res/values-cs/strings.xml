@@ -482,6 +482,11 @@
     <string name="dialog_fuel_correction_confirm">Potvrdit</string>
     <string name="action_fuel_correction">Upravit hladinu paliva</string>
 
+    <!-- Zprávy schránky pro souřadnice (V1) -->
+    <string name="coord_copied_toast">Souřadnice zkopírovány do schránky</string>
+    <string name="coord_maps_link_copied_toast">Odkaz Google Maps zkopírován</string>
+    <string name="coord_no_position_toast">Žádná pozice</string>
+
     <!-- Stavové zprávy úvodní obrazovky (T1) -->
     <string name="splash_status_initializing">Načítání…</string>
     <string name="splash_status_migrating_db">Migrace databáze…</string>

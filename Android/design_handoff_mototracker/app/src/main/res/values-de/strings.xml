@@ -482,6 +482,11 @@
     <string name="dialog_fuel_correction_confirm">Bestätigen</string>
     <string name="action_fuel_correction">Kraftstoffstand anpassen</string>
 
+    <!-- Koordinaten-Zwischenablage-Meldungen (V1) -->
+    <string name="coord_copied_toast">Koordinaten in die Zwischenablage kopiert</string>
+    <string name="coord_maps_link_copied_toast">Google Maps-Link kopiert</string>
+    <string name="coord_no_position_toast">Keine Position</string>
+
     <!-- Splash-Screen-Statusmeldungen (T1) -->
     <string name="splash_status_initializing">Laden…</string>
     <string name="splash_status_migrating_db">Datenbank migrieren…</string>

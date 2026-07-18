@@ -482,6 +482,11 @@
     <string name="dialog_fuel_correction_confirm">Confirmer</string>
     <string name="action_fuel_correction">Corriger le niveau de carburant</string>
 
+    <!-- Messages presse-papiers des coordonnées (V1) -->
+    <string name="coord_copied_toast">Coordonnées copiées dans le presse-papiers</string>
+    <string name="coord_maps_link_copied_toast">Lien Google Maps copié</string>
+    <string name="coord_no_position_toast">Pas de position</string>
+
     <!-- Messages d'état de l'écran de démarrage (T1) -->
     <string name="splash_status_initializing">Chargement…</string>
     <string name="splash_status_migrating_db">Migration de la base…</string>

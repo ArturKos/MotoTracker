@@ -59,6 +59,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.core.format.CoordFormat
+import com.mototracker.core.format.CoordinateClipboard
 import com.mototracker.core.format.CoordinateFormatter
 import com.mototracker.data.battery.BatteryOptimizationIntents
 import com.mototracker.domain.fuel.FuelCostCalculator
@@ -399,6 +405,10 @@ private fun InfoChip(
  * enabled (no ellipsis) so the widest UTM string (≈18 chars) always fits on ~360dp
  * screens without clipping.
  *
+ * **Tap** copies all three coordinate formats (DD/DMS/UTM) to the clipboard.
+ * **Double-tap** copies a Google Maps URL to the clipboard.
+ * Both gestures no-op and show a toast when there is no GPS fix (lat/lng are null).
+ *
  * @param lat         Live WGS-84 latitude in decimal degrees, or null before first fix.
  * @param lng         Live WGS-84 longitude in decimal degrees, or null before first fix.
  * @param coordFormat Desired display format (DD / DMS / UTM).
@@ -413,6 +423,11 @@ private fun CoordReadout(
     textAlign: TextAlign = TextAlign.Center,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val copiedMsg = stringResource(R.string.coord_copied_toast)
+    val mapsMsg = stringResource(R.string.coord_maps_link_copied_toast)
+    val noPositionMsg = stringResource(R.string.coord_no_position_toast)
+
     val text = if (lat != null && lng != null) {
         CoordinateFormatter.format(lat, lng, coordFormat)
     } else {
@@ -424,8 +439,33 @@ private fun CoordReadout(
         color = MotoTracker.colors.dim,
         softWrap = true,
         textAlign = textAlign,
-        modifier = modifier,
+        modifier = modifier.pointerInput(lat, lng) {
+            detectTapGestures(
+                onTap = {
+                    if (lat != null && lng != null) {
+                        context.copyToClipboard(CoordinateClipboard.clipboardText(lat, lng))
+                        Toast.makeText(context, copiedMsg, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, noPositionMsg, Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onDoubleTap = {
+                    if (lat != null && lng != null) {
+                        context.copyToClipboard(CoordinateClipboard.mapsUrl(lat, lng))
+                        Toast.makeText(context, mapsMsg, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, noPositionMsg, Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )
+        },
     )
+}
+
+/** Copies [text] to the system clipboard with a blank label. */
+private fun Context.copyToClipboard(text: String) {
+    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("", text))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

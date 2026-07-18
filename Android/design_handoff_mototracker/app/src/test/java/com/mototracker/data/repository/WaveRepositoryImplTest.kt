@@ -33,6 +33,11 @@ private class FakeWaveDao : WaveDao {
 
     override fun getByRouteId(routeId: String): Flow<List<WaveEntity>> =
         MutableStateFlow(store.values.filter { it.routeId == routeId })
+
+    override suspend fun updateLastSeen(id: String, lastSeenMs: Long) {
+        store[id]?.let { store[id] = it.copy(lastSeenMs = lastSeenMs) }
+        allFlow.value = store.values.toList()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

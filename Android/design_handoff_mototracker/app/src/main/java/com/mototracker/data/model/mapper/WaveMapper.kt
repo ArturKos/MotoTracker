@@ -11,6 +11,9 @@ fun WaveEntity.toDomain(): Wave = Wave(
     place = place,
     timeLabel = timeLabel,
     routeId = routeId,
+    shortId = shortId,
+    firstSeenMs = firstSeenMs,
+    lastSeenMs = lastSeenMs,
 )
 
 /** Converts a [Wave] domain model to its Room entity counterpart. */
@@ -21,4 +24,7 @@ fun Wave.toEntity(): WaveEntity = WaveEntity(
     place = place,
     timeLabel = timeLabel,
     routeId = routeId,
+    shortId = shortId,
+    firstSeenMs = firstSeenMs,
+    lastSeenMs = lastSeenMs,
 )

@@ -167,4 +167,23 @@ class SettingsDataStoreTest {
     fun `default accent colour aligns with TEAL swatch hex`() {
         assertEquals("#00D1B2", AppSettings().accent)
     }
+
+    // ── X1 encounterGapMinutes ────────────────────────────────────────────────
+
+    /** [SettingsDataStore.setEncounterGapMinutes] defaults to 10 and persists custom values. */
+    @Test
+    fun `encounterGapMinutes defaults to 10 and persists via setEncounterGapMinutes`() = runTest {
+        val (store, dsScope) = createStore("encounterGap.preferences_pb")
+        store.settings.test {
+            assertEquals("default encounterGapMinutes must be 10", 10, awaitItem().encounterGapMinutes)
+
+            store.setEncounterGapMinutes(5)
+            assertEquals("encounterGapMinutes should now be 5", 5, awaitItem().encounterGapMinutes)
+
+            store.setEncounterGapMinutes(30)
+            assertEquals("encounterGapMinutes should now be 30", 30, awaitItem().encounterGapMinutes)
+            cancelAndIgnoreRemainingEvents()
+        }
+        dsScope.cancel()
+    }
 }

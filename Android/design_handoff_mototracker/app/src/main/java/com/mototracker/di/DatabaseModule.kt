@@ -8,6 +8,7 @@ import com.mototracker.data.local.dao.CorrectionQueueDao
 import com.mototracker.data.local.dao.FuelAdjustmentEventDao
 import com.mototracker.data.local.dao.GroupDao
 import com.mototracker.data.local.dao.RefuelEventDao
+import com.mototracker.data.local.dao.RiderDao
 import com.mototracker.data.local.dao.RouteDao
 import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.dao.SyncQueueDao
@@ -79,4 +80,8 @@ object DatabaseModule {
     /** Provides the [FuelAdjustmentEventDao] from the singleton database (R1). */
     @Provides
     fun provideFuelAdjustmentEventDao(db: MotoDatabase): FuelAdjustmentEventDao = db.fuelAdjustmentEventDao()
+
+    /** Provides the [RiderDao] from the singleton database (X1). */
+    @Provides
+    fun provideRiderDao(db: MotoDatabase): RiderDao = db.riderDao()
 }

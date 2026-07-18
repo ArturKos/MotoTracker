@@ -43,6 +43,9 @@ package com.mototracker.data.settings
  *                               the app is not yet exempt.
  * @param coordFormat            Coordinate display format: "dd" (decimal degrees), "dms"
  *                               (degrees/minutes/seconds), or "utm". Defaults to "dd".
+ * @param encounterGapMinutes    Minutes of radio silence that splits one encounter into two.
+ *                               For in-group riders this is effectively infinite (handled in
+ *                               [com.mototracker.service.RecordingService]). Defaults to 10.
  */
 data class AppSettings(
     val noInternet: Boolean = false,
@@ -67,4 +70,5 @@ data class AppSettings(
     val wavesEnabled: Boolean = true,
     val batteryPromptDismissed: Boolean = false,
     val coordFormat: String = "dd",
+    val encounterGapMinutes: Int = 10,
 )

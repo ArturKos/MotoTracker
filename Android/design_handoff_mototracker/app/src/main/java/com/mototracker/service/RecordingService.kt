@@ -14,8 +14,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mototracker.R
 import com.mototracker.data.bluetooth.BleWaveSource
+import com.mototracker.data.bluetooth.EncounterEvent
+import com.mototracker.data.bluetooth.EncounterTracker
 import com.mototracker.data.bluetooth.WaveFactory
 import com.mototracker.data.bluetooth.WavePayload
+import com.mototracker.data.local.dao.RiderDao
 import com.mototracker.data.local.dao.WaveDao
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.mapper.toEntity
@@ -40,10 +43,14 @@ import javax.inject.Inject
  * Started by [com.mototracker.ui.screens.record.RecordingScreen] when recording begins
  * and stopped when the session finishes or is abandoned.
  *
- * B21 wiring: while the service is running, the BLE advertiser broadcasts the rider's
- * own [WavePayload] and the scanner collects [com.mototracker.data.bluetooth.DiscoveredRider]
- * events which are mapped to [com.mototracker.data.model.Wave] rows via [WaveFactory] and
- * upserted into [WaveDao], surfacing through the existing [com.mototracker.data.repository.WaveRepository].
+ * X1 wiring: instantiates one [EncounterTracker] per session. On each raw BLE sighting
+ * the service determines the rider's gap threshold (infinite for in-group members, otherwise
+ * [AppSettings.encounterGapMinutes] × 60 000 ms), upserts the rider into [RiderDao], and
+ * calls [EncounterTracker.onSighting]. A [EncounterEvent.Started] result opens a new [Wave]
+ * row; [EncounterEvent.Extended] updates only [WaveDao.updateLastSeen].
+ *
+ * All timestamps use [System.currentTimeMillis] (wall clock) for consistent gap arithmetic
+ * and persistence — elapsed-realtime would drift relative to persisted epoch values.
  *
  * On-device behaviour only (🔬) — the service is not invoked in unit tests because GPS,
  * FusedLocationProvider, BLE radio, and foreground-service lifecycle are device-dependent.
@@ -55,6 +62,7 @@ class RecordingService : Service() {
     @Inject lateinit var settingsStore: SettingsStore
     @Inject lateinit var bikeRepository: BikeRepository
     @Inject lateinit var waveDao: WaveDao
+    @Inject lateinit var riderDao: RiderDao
     @Inject lateinit var dataStore: DataStore<Preferences>
     @Inject lateinit var rideLocationCollector: RideLocationCollector
 
@@ -110,16 +118,47 @@ class RecordingService : Service() {
             val payload = WavePayload(shortId = shortId, nick = settings.bcName, bike = bikeName)
             bleWaveSource.start(payload)
 
+            val encounterTracker = EncounterTracker()
+            // shortId → active wave row UUID for this encounter
+            val activeWaveIds = mutableMapOf<String, String>()
             val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+
             bleWaveSource.discoveries.collect { rider ->
-                val wave = WaveFactory.toWave(
-                    rider = rider,
-                    place = "",
-                    timeLabel = timeFmt.format(Date()),
-                    routeId = activeRouteId,
-                    id = UUID.randomUUID().toString(),
+                val nowMs = System.currentTimeMillis()
+                val currentSettings = settingsStore.settings.first()
+                val inGroup = riderDao.get(rider.shortId)?.inGroup ?: false
+                val gapMs = if (inGroup) Long.MAX_VALUE
+                            else currentSettings.encounterGapMinutes * 60_000L
+
+                riderDao.upsertSighting(
+                    shortId = rider.shortId,
+                    nick = rider.nick,
+                    bike = rider.bike,
+                    lastSeenMs = nowMs,
                 )
-                waveDao.upsert(wave.toEntity())
+
+                when (val event = encounterTracker.onSighting(rider.shortId, nowMs, gapMs)) {
+                    is EncounterEvent.Started -> {
+                        val waveId = UUID.randomUUID().toString()
+                        activeWaveIds[rider.shortId] = waveId
+                        val wave = WaveFactory.toWave(
+                            rider = rider,
+                            place = "",
+                            timeLabel = timeFmt.format(Date(nowMs)),
+                            routeId = activeRouteId,
+                            id = waveId,
+                            firstSeenMs = event.atMs,
+                            lastSeenMs = event.atMs,
+                        )
+                        waveDao.upsert(wave.toEntity())
+                    }
+                    is EncounterEvent.Extended -> {
+                        val waveId = activeWaveIds[rider.shortId]
+                        if (waveId != null) {
+                            waveDao.updateLastSeen(waveId, event.atMs)
+                        }
+                    }
+                }
             }
         }
     }

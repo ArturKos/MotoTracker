@@ -106,4 +106,13 @@ interface SettingsStore : WritableSettingsSource {
      * Test fakes that implement [SettingsStore] are not required to override this.
      */
     suspend fun setCoordFormat(value: String) {}
+
+    /**
+     * Persists the encounter-gap threshold in minutes (X1).
+     *
+     * Determines how many minutes of radio silence split one encounter into two separate ones.
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setEncounterGapMinutes(value: Int) {}
 }

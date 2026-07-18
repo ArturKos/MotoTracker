@@ -14,12 +14,14 @@ import com.mototracker.data.local.dao.RefuelEventDao
 import com.mototracker.data.local.dao.RouteDao
 import com.mototracker.data.local.dao.RouteTraceChunkDao
 import com.mototracker.data.local.dao.SyncQueueDao
+import com.mototracker.data.local.dao.RiderDao
 import com.mototracker.data.local.dao.WaveDao
 import com.mototracker.data.local.entity.BikeEntity
 import com.mototracker.data.local.entity.CorrectionQueueEntity
 import com.mototracker.data.local.entity.FuelAdjustmentEventEntity
 import com.mototracker.data.local.entity.GroupMemberEntity
 import com.mototracker.data.local.entity.RefuelEventEntity
+import com.mototracker.data.local.entity.RiderEntity
 import com.mototracker.data.local.entity.RouteEntity
 import com.mototracker.data.local.entity.RouteTraceChunkEntity
 import com.mototracker.data.local.entity.SyncQueueEntity
@@ -45,6 +47,7 @@ import com.mototracker.data.local.entity.WaveEntity
  * - 6 → 7: Added autoUpdateConsumption (INTEGER NOT NULL DEFAULT 0) to bikes (K2).
  * - 7 → 8: Added leanHistogramJson (TEXT, nullable) to routes (Q1 lean-angle histogram).
  * - 8 → 9: Added fuel_adjustment_event table with bikeId index (R1 manual fuel-level correction).
+ * - 9 → 10: Added rider table; added shortId/firstSeenMs/lastSeenMs columns to waves (X1 encounter model).
  */
 @Database(
     entities = [
@@ -57,8 +60,9 @@ import com.mototracker.data.local.entity.WaveEntity
         CorrectionQueueEntity::class,
         RefuelEventEntity::class,
         FuelAdjustmentEventEntity::class,
+        RiderEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -80,6 +84,9 @@ abstract class MotoDatabase : RoomDatabase() {
     /** Provides the DAO for the per-bike fuel-adjustment correction events (R1). */
     abstract fun fuelAdjustmentEventDao(): FuelAdjustmentEventDao
 
+    /** Provides the DAO for the encountered-rider directory (X1). */
+    abstract fun riderDao(): RiderDao
+
     companion object {
         /** File name used by Room when building the on-device database. */
         const val DATABASE_NAME = "moto_tracker.db"
@@ -90,7 +97,7 @@ abstract class MotoDatabase : RoomDatabase() {
          * Add `Migration(fromVersion, toVersion) { db -> db.execSQL("...") }` here
          * whenever the schema changes. Keep version numbers contiguous.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
     }
 }
 
@@ -359,5 +366,33 @@ private val MIGRATION_8_9 = object : Migration(8, 9) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_fuel_adjustment_event_bikeId ON fuel_adjustment_event (bikeId)",
         )
+    }
+}
+
+/**
+ * Schema migration from version 9 to 10 (X1 — encounter-model core).
+ *
+ * 1. Creates the `rider` table: a directory of all BLE peer riders ever encountered.
+ *    [inGroup] defaults to 0; [shortId] is the primary key.
+ * 2. Adds three columns to `waves` for encounter-session data.
+ *    Legacy rows (pre-X1) get empty/zero defaults and remain valid — [Wave] and
+ *    [WaveMapper] treat empty/zero as "no encounter data".
+ */
+private val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS rider (
+                shortId TEXT NOT NULL PRIMARY KEY,
+                nick TEXT NOT NULL,
+                bike TEXT NOT NULL,
+                lastSeenMs INTEGER NOT NULL,
+                inGroup INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("ALTER TABLE waves ADD COLUMN shortId TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE waves ADD COLUMN firstSeenMs INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE waves ADD COLUMN lastSeenMs INTEGER NOT NULL DEFAULT 0")
     }
 }

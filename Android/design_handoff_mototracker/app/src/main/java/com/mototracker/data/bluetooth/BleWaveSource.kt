@@ -30,7 +30,7 @@ enum class BleWaveCapability {
  */
 interface BleWaveSource {
 
-    /** Cold/hot stream of [DiscoveredRider] objects that passed the [WaveDedupTracker] gate. */
+    /** Cold/hot stream of [DiscoveredRider] objects that passed the [SightingThrottle] gate. */
     val discoveries: Flow<DiscoveredRider>
 
     /**

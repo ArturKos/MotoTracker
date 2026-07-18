@@ -44,7 +44,7 @@ class AndroidBleWaveSource @Inject constructor(
     private val _discoveries = MutableSharedFlow<DiscoveredRider>(extraBufferCapacity = 64)
     override val discoveries: Flow<DiscoveredRider> = _discoveries.asSharedFlow()
 
-    private val dedup = WaveDedupTracker()
+    private val throttle = SightingThrottle()
     private val serviceParcelUuid = ParcelUuid(WavePayloadCodec.SERVICE_UUID)
 
     @Volatile private var advertiser: BluetoothLeAdvertiser? = null
@@ -151,7 +151,7 @@ class AndroidBleWaveSource @Inject constructor(
         val bytes = result.scanRecord?.getServiceData(serviceParcelUuid) ?: return
         val payload = WavePayloadCodec.decode(bytes) ?: return
         val nowMs = SystemClock.elapsedRealtime()
-        if (!dedup.accept(payload.shortId, nowMs)) return
+        if (!throttle.accept(payload.shortId, nowMs)) return
         val rider = DiscoveredRider(
             shortId = payload.shortId,
             nick = payload.nick,

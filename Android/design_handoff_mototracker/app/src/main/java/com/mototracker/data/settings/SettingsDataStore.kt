@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -56,6 +57,7 @@ class SettingsDataStore @Inject constructor(
         val WAVES_ENABLED = booleanPreferencesKey("waves_enabled")
         val BATTERY_PROMPT_DISMISSED = booleanPreferencesKey("battery_prompt_dismissed")
         val COORD_FORMAT = stringPreferencesKey("coord_format")
+        val ENCOUNTER_GAP_MINUTES = intPreferencesKey("encounter_gap_minutes")
     }
 
     private val defaults = AppSettings()
@@ -88,6 +90,7 @@ class SettingsDataStore @Inject constructor(
             wavesEnabled = prefs[Keys.WAVES_ENABLED] ?: defaults.wavesEnabled,
             batteryPromptDismissed = prefs[Keys.BATTERY_PROMPT_DISMISSED] ?: defaults.batteryPromptDismissed,
             coordFormat = prefs[Keys.COORD_FORMAT] ?: defaults.coordFormat,
+            encounterGapMinutes = prefs[Keys.ENCOUNTER_GAP_MINUTES] ?: defaults.encounterGapMinutes,
         )
     }
 
@@ -206,5 +209,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the coordinate display format (P2): "dd", "dms", or "utm". */
     override suspend fun setCoordFormat(value: String) {
         dataStore.edit { it[Keys.COORD_FORMAT] = value }
+    }
+
+    /** Persists the encounter-gap threshold in minutes (X1). */
+    override suspend fun setEncounterGapMinutes(value: Int) {
+        dataStore.edit { it[Keys.ENCOUNTER_GAP_MINUTES] = value }
     }
 }

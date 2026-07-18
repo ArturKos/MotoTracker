@@ -42,4 +42,16 @@ interface WaveDao {
      */
     @Query("SELECT * FROM waves WHERE routeId = :routeId")
     fun getByRouteId(routeId: String): Flow<List<WaveEntity>>
+
+    /**
+     * Updates [lastSeenMs] for the encounter row identified by [id].
+     *
+     * Called by [com.mototracker.service.RecordingService] on each [EncounterEvent.Extended]
+     * to keep the encounter's end-time accurate without altering any other field.
+     *
+     * @param id         Wave UUID (primary key).
+     * @param lastSeenMs New wall-clock timestamp in milliseconds.
+     */
+    @Query("UPDATE waves SET lastSeenMs = :lastSeenMs WHERE id = :id")
+    suspend fun updateLastSeen(id: String, lastSeenMs: Long)
 }

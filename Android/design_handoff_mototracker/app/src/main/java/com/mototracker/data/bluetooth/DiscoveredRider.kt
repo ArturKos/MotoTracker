@@ -4,7 +4,7 @@ package com.mototracker.data.bluetooth
  * A nearby rider detected via a BLE advertisement scan.
  *
  * Created from a decoded [WavePayload] plus the BLE signal metadata reported by the
- * OS scan callback. Passed through [WaveDedupTracker] before being emitted on
+ * OS scan callback. Passed through [SightingThrottle] before being emitted on
  * [BleWaveSource.discoveries].
  *
  * @param shortId          4-character stable device identifier from the sender's payload.

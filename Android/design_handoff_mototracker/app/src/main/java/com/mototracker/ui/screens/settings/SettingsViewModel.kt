@@ -10,6 +10,7 @@ import com.mototracker.data.model.Bike
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.repository.BackupRepository
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -70,6 +72,7 @@ internal fun normalizeOsrmUrl(raw: String): String {
  * @param rideLogStore       Read-only access to ride-log files (size + delete).
  * @param shareIntentFactory Selects the file to share in the Diagnostics section.
  * @param backupRepository   Handles JSON backup export and import.
+ * @param riderRepository    Domain repository for BLE-discovered riders (X2).
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -80,6 +83,7 @@ class SettingsViewModel @Inject constructor(
     private val rideLogStore: RideLogStore,
     private val shareIntentFactory: RideLogShareIntentFactory,
     private val backupRepository: BackupRepository,
+    private val riderRepository: RiderRepository,
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(SettingsTab.ACCOUNT)
@@ -110,12 +114,17 @@ class SettingsViewModel @Inject constructor(
 
     /** Live UI state for the Settings screen. */
     val uiState: StateFlow<SettingsUiState> = combine(
-        settingsStore.settings,
-        bikeRepository.observeAll(),
-        routeRepository.observeSummaries(),
-        _rideLogUsedBytes,
-    ) { settings, bikes, summaries, logBytes ->
-        build(settings, bikes, summaries, logBytes)
+        combine(
+            settingsStore.settings,
+            bikeRepository.observeAll(),
+            routeRepository.observeSummaries(),
+            _rideLogUsedBytes,
+        ) { settings, bikes, summaries, logBytes ->
+            Quadruple(settings, bikes, summaries, logBytes)
+        },
+        riderRepository.observeAll(),
+    ) { quad, riders ->
+        build(quad.first, quad.second, quad.third, quad.fourth, riders)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -129,6 +138,7 @@ class SettingsViewModel @Inject constructor(
         bikes: List<Bike>,
         summaries: List<RouteSummaryModel>,
         rideLogUsedBytes: Long = 0L,
+        riders: List<com.mototracker.data.model.Rider> = emptyList(),
     ): SettingsUiState {
         val units = if (settings.units == "imperial") Units.IMPERIAL else Units.METRIC
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
@@ -200,6 +210,8 @@ class SettingsViewModel @Inject constructor(
             wavesEnabled = settings.wavesEnabled,
             coordFormat = settings.coordFormat,
             osrmBaseUrl = settings.osrmBaseUrl,
+            groupTreatedSeparately = settings.groupTreatedSeparately,
+            knownRiders = riders,
         )
     }
 
@@ -448,6 +460,26 @@ class SettingsViewModel @Inject constructor(
      */
     fun getShareTargetFile(): File? = shareIntentFactory.shareTargetFile(rideLogStore)
 
+    /**
+     * Sets the group-membership flag for [shortId] from the Settings group editor (X2).
+     *
+     * @param shortId BLE device identifier.
+     * @param inGroup New group-membership state.
+     */
+    fun setRiderInGroup(shortId: String, inGroup: Boolean) {
+        viewModelScope.launch { riderRepository.setInGroup(shortId, inGroup) }
+    }
+
+    /**
+     * Persists the group-treated-separately master toggle (X2).
+     *
+     * @param value `true` to give in-group riders an infinite encounter gap; `false` to treat
+     *              them as ordinary encounters subject to the [encounterGapMinutes] threshold.
+     */
+    fun setGroupTreatedSeparately(value: Boolean) {
+        viewModelScope.launch { settingsStore.setGroupTreatedSeparately(value) }
+    }
+
     // ── Backup / restore (B16) ────────────────────────────────────────────────
 
     /**
@@ -487,3 +519,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 }
+
+/** Holder for the four-flow combine used by [SettingsViewModel.uiState] (X2). */
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

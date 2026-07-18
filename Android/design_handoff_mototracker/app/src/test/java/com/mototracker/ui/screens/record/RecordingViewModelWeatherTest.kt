@@ -269,6 +269,7 @@ class RecordingViewModelWeatherTest {
             override fun observeForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<com.mototracker.domain.fuel.FuelAdjustmentEvent>> = MutableStateFlow(emptyList())
             override suspend fun latestForBike(bikeId: String): com.mototracker.domain.fuel.FuelAdjustmentEvent? = null
         },
+        riderRepository = FakeRiderRepository(),
     )
 
     private val sampleFix = LocationSample(

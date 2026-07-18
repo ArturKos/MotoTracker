@@ -493,4 +493,12 @@
     <string name="splash_status_initializing">Загрузка…</string>
     <string name="splash_status_migrating_db">Миграция базы…</string>
     <string name="splash_status_loading_routes">Загрузка маршрутов…</string>
+
+    <!-- Управление группой (X2) -->
+    <string name="label_group_roster">Группа</string>
+    <string name="label_riders_in_range">Мотоциклисты рядом</string>
+    <string name="label_no_riders_in_range">Нет мотоциклистов рядом</string>
+    <string name="label_treat_group_separately">Группа как отдельная встреча</string>
+    <string name="desc_treat_group_separately">Члены группы считаются как одна непрерывная встреча независимо от перерывов</string>
+    <string name="label_known_riders">Известные мотоциклисты</string>
 </resources>

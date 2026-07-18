@@ -29,22 +29,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -73,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
+import com.mototracker.data.model.Rider
 import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.core.format.CoordFormat
 import com.mototracker.core.format.CoordinateClipboard
@@ -262,6 +271,15 @@ fun RecordingContent(
             currentRemainingL = state.fuelCorrectionCurrentRemaining,
             onConfirm = { mode, value -> onEvent(RecordingEvent.ConfirmFuelCorrection(mode, value)) },
             onDismiss = { onEvent(RecordingEvent.DismissFuelCorrectionDialog) },
+        )
+    }
+
+    // X2: In-range group roster sheet.
+    if (state.showGroupRosterSheet) {
+        GroupRosterSheet(
+            riders = state.inRangeRiders,
+            onToggleGroup = { shortId, inGroup -> onEvent(RecordingEvent.ToggleGroup(shortId, inGroup)) },
+            onDismiss = { onEvent(RecordingEvent.DismissGroupRoster) },
         )
     }
 
@@ -934,6 +952,18 @@ private fun RecordingControlRow(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // X2: Group roster icon always visible in the control row.
+        OutlinedIconButton(
+            onClick = { onEvent(RecordingEvent.ShowGroupRoster) },
+            modifier = Modifier.size(sizing.controlButtonDp.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.People,
+                contentDescription = stringResource(R.string.label_group_roster),
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+
         controls.forEachIndexed { index, control ->
             if (index > 0) Spacer(Modifier.width(16.dp))
             when (control) {
@@ -1350,4 +1380,107 @@ private fun startRecordingService(context: Context, routeId: String?) {
 
 private fun stopRecordingService(context: Context) {
     context.stopService(Intent(context, RecordingService::class.java))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Group roster sheet (X2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Modal bottom sheet listing riders currently in BLE range (last seen within ~30 s).
+ *
+ * Each row shows the rider's nick and bike name alongside an add/remove-from-group Switch.
+ * Usable while Idle, Recording, or Paused — the sheet does not interrupt recording.
+ *
+ * @param riders         In-range riders, newest-first.
+ * @param onToggleGroup  Called when the user changes a rider's group membership.
+ * @param onDismiss      Called when the sheet should be dismissed.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GroupRosterSheet(
+    riders: List<Rider>,
+    onToggleGroup: (shortId: String, inGroup: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MotoTracker.colors.panel,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(color = MotoTracker.colors.dim.copy(alpha = 0.3f))
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 40.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.label_riders_in_range).uppercase(),
+                style = MotoTracker.typography.label,
+                color = MotoTracker.colors.dim,
+                letterSpacing = 0.6.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            if (riders.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.label_no_riders_in_range),
+                    style = MotoTracker.typography.body,
+                    color = MotoTracker.colors.dim,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+            } else {
+                riders.forEachIndexed { index, rider ->
+                    if (index > 0) HorizontalDivider(color = MotoTracker.colors.line.copy(alpha = 0.4f))
+                    RiderRosterRow(
+                        rider = rider,
+                        onToggle = { inGroup -> onToggleGroup(rider.shortId, inGroup) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Single row in the group-roster sheet: rider nick + bike alongside an inGroup Switch.
+ *
+ * @param rider    Rider to display.
+ * @param onToggle Called with the new [Rider.inGroup] value when the switch is toggled.
+ */
+@Composable
+private fun RiderRosterRow(rider: Rider, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = rider.nick.ifEmpty { rider.shortId },
+                style = MotoTracker.typography.body,
+                fontWeight = FontWeight.SemiBold,
+                color = MotoTracker.colors.text,
+            )
+            if (rider.bike.isNotEmpty()) {
+                Text(
+                    text = rider.bike,
+                    style = MotoTracker.typography.bodySmall,
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        }
+        Switch(
+            checked = rider.inGroup,
+            onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MotoTracker.colors.onAccent,
+                checkedTrackColor = MotoTracker.colors.accent,
+            ),
+        )
+    }
 }

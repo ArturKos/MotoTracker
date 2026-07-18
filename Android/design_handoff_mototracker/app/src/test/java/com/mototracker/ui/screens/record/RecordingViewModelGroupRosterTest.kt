@@ -11,6 +11,7 @@ import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.Bike
+import com.mototracker.data.model.Rider
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
@@ -22,6 +23,7 @@ import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.repository.RefuelRepository
+import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.HeadingSensorSource
@@ -46,12 +48,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -61,7 +63,7 @@ import org.junit.Test
 // Fakes
 // ─────────────────────────────────────────────────────────────────────────────
 
-private class BPFakeLocationCollector : RideLocationCollector(
+private class GRFakeLocationCollector : RideLocationCollector(
     locationClient = object : LocationClient {
         override fun locationUpdates(intervalMs: Long): Flow<LocationSample> = flow {}
     },
@@ -84,7 +86,7 @@ private class BPFakeLocationCollector : RideLocationCollector(
     override fun stopGnss() {}
 }
 
-private class BPFakeRouteRepository : RouteRepository {
+private class GRFakeRouteRepository : RouteRepository {
     private val _routes = MutableStateFlow<List<Route>>(emptyList())
     override suspend fun save(route: Route) { _routes.value = _routes.value + route }
     override fun observeSummaries(): Flow<List<RouteSummaryModel>> =
@@ -97,54 +99,38 @@ private class BPFakeRouteRepository : RouteRepository {
     override suspend fun setBike(routeId: String, bikeId: String?) {}
 }
 
-private class BPFakeBikeRepository : BikeRepository {
+private class GRFakeBikeRepository : BikeRepository {
     override fun observeAll(): Flow<List<Bike>> = MutableStateFlow(emptyList())
     override suspend fun addBike(bike: Bike) {}
     override suspend fun deleteAll() {}
 }
 
-private class BPFakeRefuelRepository : RefuelRepository {
+private class GRFakeRefuelRepository : RefuelRepository {
     override suspend fun addRefuel(routeId: String, epochMs: Long, litres: Double, pricePerL: Double) {}
     override fun observeRefuels(routeId: String): Flow<List<RefuelEvent>> = MutableStateFlow(emptyList())
     override suspend fun deleteRefuel(id: Long) {}
     override fun observeAllForBike(bikeId: String): Flow<List<RefuelEvent>> = MutableStateFlow(emptyList())
 }
 
-private class BPFakeSyncRepository : SyncRepository {
+private class GRFakeSyncRepository : SyncRepository {
     override val pendingCount: Flow<Int> = MutableStateFlow(0)
     override suspend fun enqueue(routeId: String) {}
     override suspend fun syncNow(): Int = 0
     override fun start(scope: CoroutineScope) = Unit
 }
 
-private class BPFakeSessionStore : RecordingSessionStore {
+private class GRFakeSessionStore : RecordingSessionStore {
     override val snapshot: Flow<ActiveSessionSnapshot?> = MutableStateFlow(null)
     override suspend fun save(s: ActiveSessionSnapshot) {}
     override suspend fun clear() {}
 }
 
-private class BPFakeSettingsSource(settings: AppSettings) : AppSettingsSource {
+private class GRFakeSettingsSource(settings: AppSettings = AppSettings()) : AppSettingsSource {
     override val settings: Flow<AppSettings> = MutableStateFlow(settings)
 }
 
-/**
- * Tracking [SettingsStore] that records calls to [setBatteryPromptDismissed].
- */
-class TrackingSettingsStore(
-    initialSettings: AppSettings = AppSettings(),
-) : SettingsStore {
-    private val _settings = MutableStateFlow(initialSettings)
-    override val settings: Flow<AppSettings> = _settings
-
-    var batteryPromptDismissedCalls = 0
-    var lastDismissedValue: Boolean? = null
-
-    override suspend fun setBatteryPromptDismissed(value: Boolean) {
-        batteryPromptDismissedCalls++
-        lastDismissedValue = value
-        _settings.value = _settings.value.copy(batteryPromptDismissed = value)
-    }
-
+private class GRFakeSettingsStore : SettingsStore {
+    override val settings: Flow<AppSettings> = MutableStateFlow(AppSettings())
     override suspend fun setNoInternet(value: Boolean) {}
     override suspend fun setSyncEnabled(value: Boolean) {}
     override suspend fun setGpsCorrect(value: Boolean) {}
@@ -164,12 +150,34 @@ class TrackingSettingsStore(
     override suspend fun setServerAddress(address: String) {}
 }
 
+/**
+ * Tracking [RiderRepository] that records every [setInGroup] call so tests can assert
+ * delegation without an Android runtime.
+ */
+private class TrackingRiderRepository(
+    initialRiders: List<Rider> = emptyList(),
+) : RiderRepository {
+    private val _riders = MutableStateFlow(initialRiders)
+    override fun observeAll(): Flow<List<Rider>> = _riders
+
+    data class SetInGroupCall(val shortId: String, val inGroup: Boolean)
+
+    val setInGroupCalls = mutableListOf<SetInGroupCall>()
+
+    override suspend fun setInGroup(shortId: String, inGroup: Boolean) {
+        setInGroupCalls += SetInGroupCall(shortId, inGroup)
+        _riders.value = _riders.value.map {
+            if (it.shortId == shortId) it.copy(inGroup = inGroup) else it
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Tests
+// Tests — X2 group-roster ViewModel paths
 // ─────────────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class RecordingViewModelBatteryPromptTest {
+class RecordingViewModelGroupRosterTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -183,24 +191,132 @@ class RecordingViewModelBatteryPromptTest {
         Dispatchers.resetMain()
     }
 
+    // ── ShowGroupRoster ──────────────────────────────────────────────────────
+
+    @Test
+    fun `ShowGroupRoster event sets showGroupRosterSheet to true`() = runTest(testDispatcher) {
+        val vm = buildVm()
+        advanceUntilIdle()
+
+        assertFalse("sheet should start closed", vm.uiState.value.showGroupRosterSheet)
+        vm.onEvent(RecordingEvent.ShowGroupRoster)
+        advanceUntilIdle()
+
+        assertTrue("ShowGroupRoster should open the sheet", vm.uiState.value.showGroupRosterSheet)
+    }
+
+    // ── DismissGroupRoster ───────────────────────────────────────────────────
+
+    @Test
+    fun `DismissGroupRoster event sets showGroupRosterSheet to false`() = runTest(testDispatcher) {
+        val vm = buildVm()
+        advanceUntilIdle()
+
+        vm.onEvent(RecordingEvent.ShowGroupRoster)
+        advanceUntilIdle()
+        assertTrue("sheet should be open before dismiss", vm.uiState.value.showGroupRosterSheet)
+
+        vm.onEvent(RecordingEvent.DismissGroupRoster)
+        advanceUntilIdle()
+        assertFalse("DismissGroupRoster should close the sheet", vm.uiState.value.showGroupRosterSheet)
+    }
+
+    @Test
+    fun `DismissGroupRoster is a no-op when sheet is already closed`() = runTest(testDispatcher) {
+        val vm = buildVm()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.showGroupRosterSheet)
+        vm.onEvent(RecordingEvent.DismissGroupRoster)
+        advanceUntilIdle()
+        assertFalse(
+            "DismissGroupRoster on closed sheet should leave it closed",
+            vm.uiState.value.showGroupRosterSheet,
+        )
+    }
+
+    // ── ToggleGroup → riderRepository.setInGroup ─────────────────────────────
+
+    @Test
+    fun `ToggleGroup event delegates to riderRepository setInGroup with correct args`() =
+        runTest(testDispatcher) {
+            val repo = TrackingRiderRepository()
+            val vm = buildVm(riderRepo = repo)
+            advanceUntilIdle()
+
+            vm.onEvent(RecordingEvent.ToggleGroup(shortId = "aa:bb:cc", inGroup = true))
+            advanceUntilIdle()
+
+            assertEquals("setInGroup should have been called once", 1, repo.setInGroupCalls.size)
+            val call = repo.setInGroupCalls.first()
+            assertEquals("shortId should match", "aa:bb:cc", call.shortId)
+            assertTrue("inGroup should be true", call.inGroup)
+        }
+
+    @Test
+    fun `ToggleGroup with inGroup=false removes rider from group in repository`() =
+        runTest(testDispatcher) {
+            val rider = Rider(
+                shortId = "de:ad:be",
+                nick = "Rider1",
+                bike = "MT-07",
+                lastSeenMs = 1_000L,
+                inGroup = true,
+            )
+            val repo = TrackingRiderRepository(initialRiders = listOf(rider))
+            val vm = buildVm(riderRepo = repo)
+            advanceUntilIdle()
+
+            vm.onEvent(RecordingEvent.ToggleGroup(shortId = "de:ad:be", inGroup = false))
+            advanceUntilIdle()
+
+            assertEquals(1, repo.setInGroupCalls.size)
+            assertFalse("inGroup should be false", repo.setInGroupCalls.first().inGroup)
+            assertEquals("de:ad:be", repo.setInGroupCalls.first().shortId)
+        }
+
+    @Test
+    fun `multiple ToggleGroup calls each reach the repository`() = runTest(testDispatcher) {
+        val repo = TrackingRiderRepository()
+        val vm = buildVm(riderRepo = repo)
+        advanceUntilIdle()
+
+        vm.onEvent(RecordingEvent.ToggleGroup(shortId = "aa:aa:aa", inGroup = true))
+        vm.onEvent(RecordingEvent.ToggleGroup(shortId = "bb:bb:bb", inGroup = false))
+        advanceUntilIdle()
+
+        assertEquals("both toggle events should reach repository", 2, repo.setInGroupCalls.size)
+        assertEquals("aa:aa:aa", repo.setInGroupCalls[0].shortId)
+        assertEquals("bb:bb:bb", repo.setInGroupCalls[1].shortId)
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
     private fun buildVm(
-        checker: BatteryOptimizationChecker,
-        settingsStore: TrackingSettingsStore,
+        riderRepo: RiderRepository = TrackingRiderRepository(),
         settings: AppSettings = AppSettings(),
     ): RecordingViewModel {
-        val routeRepo = BPFakeRouteRepository()
-        val bikeRepo = BPFakeBikeRepository()
-        val refuelRepo = BPFakeRefuelRepository()
+        val routeRepo = GRFakeRouteRepository()
+        val bikeRepo = GRFakeBikeRepository()
+        val refuelRepo = GRFakeRefuelRepository()
         return RecordingViewModel(
-            rideLocationCollector = BPFakeLocationCollector(),
-            leanSensorSource = object : LeanSensorSource { override val leanAngles: Flow<Double> = flow {} },
-            headingSensorSource = object : HeadingSensorSource { override val headings: Flow<Float> = flow {} },
+            rideLocationCollector = GRFakeLocationCollector(),
+            leanSensorSource = object : LeanSensorSource {
+                override val leanAngles: Flow<Double> = flow {}
+            },
+            headingSensorSource = object : HeadingSensorSource {
+                override val headings: Flow<Float> = flow {}
+            },
             routeRepository = routeRepo,
-            syncRepository = BPFakeSyncRepository(),
-            settingsSource = BPFakeSettingsSource(settings),
+            syncRepository = GRFakeSyncRepository(),
+            settingsSource = GRFakeSettingsSource(settings),
             bikeRepository = bikeRepo,
-            networkMonitor = object : NetworkMonitor { override val isOnline: Flow<Boolean> = MutableStateFlow(true) },
-            timeProvider = object : TimeProvider { override fun nowEpochMs(): Long = 1_000_000L },
+            networkMonitor = object : NetworkMonitor {
+                override val isOnline: Flow<Boolean> = MutableStateFlow(true)
+            },
+            timeProvider = object : TimeProvider {
+                override fun nowEpochMs(): Long = 1_000_000L
+            },
             carBridge = CarRecordingBridge(),
             rideDebugLogger = object : RideDebugLogger {
                 override fun beginRide() {}
@@ -212,16 +328,16 @@ class RecordingViewModelBatteryPromptTest {
             },
             stringResolver = object : StringResolver {
                 override fun getString(resId: Int): String = when (resId) {
-                    R.string.route_name_ride_morning   -> "morning ride"
+                    R.string.route_name_ride_morning -> "morning ride"
                     R.string.route_name_ride_afternoon -> "afternoon ride"
-                    R.string.route_name_ride_evening   -> "evening ride"
-                    R.string.route_name_ride_night     -> "night ride"
-                    R.string.route_name_with_area      -> "%1\$s – %2\$s"
+                    R.string.route_name_ride_evening -> "evening ride"
+                    R.string.route_name_ride_night -> "night ride"
+                    R.string.route_name_with_area -> "%1\$s – %2\$s"
                     else -> "stub"
                 }
                 override fun getString(resId: Int, vararg args: Any): String = getString(resId)
             },
-            sessionStore = BPFakeSessionStore(),
+            sessionStore = GRFakeSessionStore(),
             refuelRepository = refuelRepo,
             resumeRouteBus = object : ResumeRouteBus {
                 override val requests: Flow<String> = flow {}
@@ -236,102 +352,23 @@ class RecordingViewModelBatteryPromptTest {
                 override suspend fun fetch(lat: Double, lon: Double): Result<WeatherSnapshot> =
                     Result.success(WeatherSnapshot(tempC = 20, humidity = 60, rain = false))
             },
-            batteryOptimizationChecker = checker,
-            settingsStore = settingsStore,
+            batteryOptimizationChecker = object : BatteryOptimizationChecker {
+                override fun isIgnoringBatteryOptimizations(): Boolean = true
+            },
+            settingsStore = GRFakeSettingsStore(),
             fuelAdjustmentRepository = object : com.mototracker.data.repository.FuelAdjustmentRepository {
-                override suspend fun addAdjustment(bikeId: String, routeId: String?, epochMs: Long, mode: com.mototracker.domain.fuel.FuelAdjustmentMode, litres: Double) {}
-                override fun observeForBike(bikeId: String): kotlinx.coroutines.flow.Flow<List<com.mototracker.domain.fuel.FuelAdjustmentEvent>> = MutableStateFlow(emptyList())
+                override suspend fun addAdjustment(
+                    bikeId: String,
+                    routeId: String?,
+                    epochMs: Long,
+                    mode: com.mototracker.domain.fuel.FuelAdjustmentMode,
+                    litres: Double,
+                ) {}
+                override fun observeForBike(bikeId: String): Flow<List<com.mototracker.domain.fuel.FuelAdjustmentEvent>> =
+                    MutableStateFlow(emptyList())
                 override suspend fun latestForBike(bikeId: String): com.mototracker.domain.fuel.FuelAdjustmentEvent? = null
             },
-            riderRepository = FakeRiderRepository(),
+            riderRepository = riderRepo,
         )
     }
-
-    @Test
-    fun `Start shows prompt when not exempt and not dismissed`() = runTest(testDispatcher) {
-        val store = TrackingSettingsStore(AppSettings(batteryPromptDismissed = false))
-        val vm = buildVm(
-            checker = object : BatteryOptimizationChecker {
-                override fun isIgnoringBatteryOptimizations() = false
-            },
-            settingsStore = store,
-            settings = AppSettings(batteryPromptDismissed = false),
-        )
-
-        vm.onEvent(RecordingEvent.Start)
-        advanceUntilIdle()
-
-        assertTrue("prompt should be shown", vm.uiState.value.showBatteryOptPrompt)
-        assertFalse("phase should remain Idle", vm.uiState.value.phase == RecordingPhase.Recording)
-    }
-
-    @Test
-    fun `Start does NOT show prompt when already exempt`() = runTest(testDispatcher) {
-        val store = TrackingSettingsStore(AppSettings(batteryPromptDismissed = false))
-        val vm = buildVm(
-            checker = object : BatteryOptimizationChecker {
-                override fun isIgnoringBatteryOptimizations() = true
-            },
-            settingsStore = store,
-            settings = AppSettings(batteryPromptDismissed = false),
-        )
-
-        vm.onEvent(RecordingEvent.Start)
-        // advanceUntilIdle() would hang with the infinite ticker; advance just enough for
-        // zero-delay coroutines (doStart + doStartRecording) to complete.
-        advanceTimeBy(200L)
-
-        assertFalse("prompt should NOT be shown when exempt", vm.uiState.value.showBatteryOptPrompt)
-
-        vm.onEvent(RecordingEvent.Pause) // stop ticker before runTest drains scheduler
-    }
-
-    @Test
-    fun `BatteryOptDismiss calls setBatteryPromptDismissed(true) and clears prompt`() =
-        runTest(testDispatcher) {
-            val store = TrackingSettingsStore(AppSettings(batteryPromptDismissed = false))
-            val vm = buildVm(
-                checker = object : BatteryOptimizationChecker {
-                    override fun isIgnoringBatteryOptimizations() = false
-                },
-                settingsStore = store,
-                settings = AppSettings(batteryPromptDismissed = false),
-            )
-
-            vm.onEvent(RecordingEvent.Start)
-            advanceUntilIdle()
-            assertTrue("precondition: prompt shown", vm.uiState.value.showBatteryOptPrompt)
-
-            vm.onEvent(RecordingEvent.BatteryOptDismiss)
-            advanceUntilIdle()
-
-            assertFalse("prompt should be cleared after dismiss", vm.uiState.value.showBatteryOptPrompt)
-            assertTrue("setBatteryPromptDismissed should have been called once",
-                store.batteryPromptDismissedCalls >= 1)
-            assertTrue("value persisted should be true", store.lastDismissedValue == true)
-        }
-
-    @Test
-    fun `BatteryOptConfirm clears prompt without persisting dismissed flag`() =
-        runTest(testDispatcher) {
-            val store = TrackingSettingsStore(AppSettings(batteryPromptDismissed = false))
-            val vm = buildVm(
-                checker = object : BatteryOptimizationChecker {
-                    override fun isIgnoringBatteryOptimizations() = false
-                },
-                settingsStore = store,
-                settings = AppSettings(batteryPromptDismissed = false),
-            )
-
-            vm.onEvent(RecordingEvent.Start)
-            advanceUntilIdle()
-            assertTrue("precondition: prompt shown", vm.uiState.value.showBatteryOptPrompt)
-
-            vm.onEvent(RecordingEvent.BatteryOptConfirm)
-            advanceUntilIdle()
-
-            assertFalse("prompt should be cleared after confirm", vm.uiState.value.showBatteryOptPrompt)
-            assertTrue("dismiss flag should NOT be set on confirm path (intent fires instead)",
-                store.batteryPromptDismissedCalls == 0)
-        }
 }

@@ -523,4 +523,12 @@
     <string name="splash_status_initializing">Loading…</string>
     <string name="splash_status_migrating_db">Migrating database…</string>
     <string name="splash_status_loading_routes">Loading routes…</string>
+
+    <!-- Group roster management (X2) -->
+    <string name="label_group_roster">Group</string>
+    <string name="label_riders_in_range">Riders nearby</string>
+    <string name="label_no_riders_in_range">No riders nearby right now</string>
+    <string name="label_treat_group_separately">Treat group separately</string>
+    <string name="desc_treat_group_separately">Group members are counted as one continuous encounter regardless of breaks</string>
+    <string name="label_known_riders">Known riders</string>
 </resources>

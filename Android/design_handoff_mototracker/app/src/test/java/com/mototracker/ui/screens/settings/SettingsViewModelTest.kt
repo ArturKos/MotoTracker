@@ -5,11 +5,13 @@ import com.mototracker.data.diagnostics.RideLogShareIntentFactory
 import com.mototracker.data.diagnostics.RideLogStore
 import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
+import com.mototracker.data.model.Rider
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.repository.BackupRepository
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
@@ -66,6 +68,7 @@ private class FakeSettingsStore(
     var lastWavesEnabled: Boolean? = null
     var lastCoordFormat: String? = null
     var lastOsrmBaseUrl: String? = null
+    var lastGroupTreatedSeparately: Boolean? = null
 
     fun emit(s: AppSettings) { _flow.value = s }
 
@@ -90,6 +93,20 @@ private class FakeSettingsStore(
     override suspend fun setWavesEnabled(value: Boolean) { lastWavesEnabled = value; _flow.value = _flow.value.copy(wavesEnabled = value) }
     override suspend fun setCoordFormat(value: String) { lastCoordFormat = value; _flow.value = _flow.value.copy(coordFormat = value) }
     override suspend fun setOsrmBaseUrl(url: String) { lastOsrmBaseUrl = url; _flow.value = _flow.value.copy(osrmBaseUrl = url) }
+    override suspend fun setGroupTreatedSeparately(value: Boolean) { lastGroupTreatedSeparately = value; _flow.value = _flow.value.copy(groupTreatedSeparately = value) }
+}
+
+private class FakeRiderRepository : RiderRepository {
+    private val _flow = MutableStateFlow<List<Rider>>(emptyList())
+    var lastSetInGroupId: String? = null
+    var lastSetInGroupValue: Boolean? = null
+
+    fun emit(riders: List<Rider>) { _flow.value = riders }
+    override fun observeAll(): Flow<List<Rider>> = _flow
+    override suspend fun setInGroup(shortId: String, inGroup: Boolean) {
+        lastSetInGroupId = shortId
+        lastSetInGroupValue = inGroup
+    }
 }
 
 private class FakeBikeRepository : BikeRepository {
@@ -210,6 +227,7 @@ class SettingsViewModelTest {
     private lateinit var syncRepo: FakeSyncRepository
     private lateinit var logStore: FakeRideLogStore
     private lateinit var backupRepo: FakeBackupRepository
+    private lateinit var riderRepo: FakeRiderRepository
     private lateinit var vm: SettingsViewModel
 
     @Before
@@ -221,7 +239,8 @@ class SettingsViewModelTest {
         syncRepo = FakeSyncRepository()
         logStore = FakeRideLogStore()
         backupRepo = FakeBackupRepository()
-        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo)
+        riderRepo = FakeRiderRepository()
+        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo)
     }
 
     @After
@@ -707,7 +726,7 @@ class SettingsViewModelTest {
     @Test
     fun `rideLogUsedBytes reflects store totalBytes on init`() = runTest {
         logStore.setBytes(2048L)
-        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo)
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo)
         // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
         // Drain until we find the non-zero value emitted after the init block completes.
         localVm.uiState.test {
@@ -721,7 +740,7 @@ class SettingsViewModelTest {
     @Test
     fun `clearRideLogs calls store clear and updates rideLogUsedBytes to 0`() = runTest {
         logStore.setBytes(4096L)
-        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo)
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo)
         // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
         // Drain until we see the init-loaded state (4096L) before testing clear.
         localVm.uiState.test {
@@ -1007,5 +1026,46 @@ class SettingsViewModelTest {
     @Test
     fun `normalizeOsrmUrl preserves non-blank url unchanged`() {
         assertEquals("http://192.168.1.200:5001", normalizeOsrmUrl("http://192.168.1.200:5001"))
+    }
+
+    // ── X2: Group management ──────────────────────────────────────────────────
+
+    @Test
+    fun `setGroupTreatedSeparately persists to store`() = runTest {
+        vm.setGroupTreatedSeparately(false)
+        assertEquals(false, store.lastGroupTreatedSeparately)
+    }
+
+    @Test
+    fun `setGroupTreatedSeparately propagates to uiState`() = runTest {
+        vm.uiState.test {
+            awaitItem() // consume initial
+            vm.setGroupTreatedSeparately(false)
+            val state = awaitItem()
+            assertEquals(false, state.groupTreatedSeparately)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setRiderInGroup delegates to riderRepository`() = runTest {
+        vm.setRiderInGroup("A1B2", true)
+        assertEquals("A1B2", riderRepo.lastSetInGroupId)
+        assertEquals(true, riderRepo.lastSetInGroupValue)
+    }
+
+    @Test
+    fun `knownRiders from riderRepository are exposed in uiState`() = runTest {
+        val riders = listOf(
+            Rider(shortId = "AA11", nick = "Alice", bike = "CB500", lastSeenMs = 1000L, inGroup = false),
+            Rider(shortId = "BB22", nick = "Bob", bike = "MT07", lastSeenMs = 2000L, inGroup = true),
+        )
+        riderRepo.emit(riders)
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(2, state.knownRiders.size)
+            assertEquals("AA11", state.knownRiders[0].shortId)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

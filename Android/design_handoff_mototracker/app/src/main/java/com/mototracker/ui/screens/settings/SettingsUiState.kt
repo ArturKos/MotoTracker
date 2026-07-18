@@ -1,6 +1,7 @@
 package com.mototracker.ui.screens.settings
 
 import com.mototracker.data.local.entity.BikeStatus
+import com.mototracker.data.model.Rider
 
 /**
  * Represents a single motorcycle row in the Settings → My motorcycles section.
@@ -80,9 +81,12 @@ data class SyncQueueItemUi(
  * @param currency             ISO 4217 currency code used for fuel cost display, e.g. "PLN".
  * @param wavesEnabled         Whether the BLE waves (pomachania) feature is enabled.
  *                             When `false`, the Settings toggle is off and no BLE advertise/scan occurs.
- * @param coordFormat          Coordinate display format key: "dd", "dms", or "utm" (P2).
- * @param osrmBaseUrl          OSRM map-matching server base URL for GPS road-correction (W1);
- *                             default "http://192.168.1.142:5001".
+ * @param coordFormat              Coordinate display format key: "dd", "dms", or "utm" (P2).
+ * @param osrmBaseUrl              OSRM map-matching server base URL for GPS road-correction (W1);
+ *                                 default "http://192.168.1.142:5001".
+ * @param groupTreatedSeparately   Master toggle: when `true`, in-group riders get an infinite
+ *                                 encounter gap (X2).
+ * @param knownRiders              All known BLE-discovered riders, newest-first (X2).
  */
 data class SettingsUiState(
     val bikes: List<BikeUi> = emptyList(),
@@ -112,4 +116,6 @@ data class SettingsUiState(
     val wavesEnabled: Boolean = true,
     val coordFormat: String = "dd",
     val osrmBaseUrl: String = "http://192.168.1.142:5001",
+    val groupTreatedSeparately: Boolean = true,
+    val knownRiders: List<Rider> = emptyList(),
 )

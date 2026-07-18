@@ -1,6 +1,7 @@
 package com.mototracker.ui.screens.record
 
 import com.mototracker.core.format.CoordFormat
+import com.mototracker.data.model.Rider
 import com.mototracker.data.recording.ActiveSessionSnapshot
 import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.domain.recording.RecordingMetrics
@@ -82,6 +83,9 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param showFuelCorrectionDialog `true` when the fuel-correction dialog should be visible (R1).
  * @param fuelCorrectionCurrentRemaining Pre-computed current remaining fuel (litres) shown as context
  *                                       in the fuel-correction dialog (R1).
+ * @param inRangeRiders            Riders currently in BLE range (sighted within the last ~30 s),
+ *                                 newest-first. Populated reactively from the rider DB (X2).
+ * @param showGroupRosterSheet     `true` when the group-roster bottom sheet should be visible (X2).
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -109,6 +113,8 @@ data class RecordingUiState(
     val showBatteryOptPrompt: Boolean = false,
     val showFuelCorrectionDialog: Boolean = false,
     val fuelCorrectionCurrentRemaining: Double = 0.0,
+    val inRangeRiders: List<Rider> = emptyList(),
+    val showGroupRosterSheet: Boolean = false,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */
@@ -207,6 +213,20 @@ sealed class RecordingEvent {
 
     /** User dismissed the fuel-correction dialog without confirming (R1). */
     data object DismissFuelCorrectionDialog : RecordingEvent()
+
+    /** User tapped the group-roster person icon to open the in-range riders sheet (X2). */
+    data object ShowGroupRoster : RecordingEvent()
+
+    /** User dismissed the group-roster bottom sheet (X2). */
+    data object DismissGroupRoster : RecordingEvent()
+
+    /**
+     * User toggled the group-membership switch for a rider in the in-range roster sheet (X2).
+     *
+     * @param shortId BLE device identifier of the rider.
+     * @param inGroup New group-membership state.
+     */
+    data class ToggleGroup(val shortId: String, val inGroup: Boolean) : RecordingEvent()
 }
 
 /** One-shot side-effects emitted by the ViewModel to the UI layer. */

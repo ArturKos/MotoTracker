@@ -115,4 +115,14 @@ interface SettingsStore : WritableSettingsSource {
      * Test fakes that implement [SettingsStore] are not required to override this.
      */
     suspend fun setEncounterGapMinutes(value: Int) {}
+
+    /**
+     * Persists the group-treated-separately master toggle (X2).
+     *
+     * When `true`, in-group riders receive an infinite encounter gap.
+     * When `false`, group members are treated as ordinary encounters.
+     * Default implementation is a no-op; override in [SettingsDataStore] for real persistence.
+     * Test fakes that implement [SettingsStore] are not required to override this.
+     */
+    suspend fun setGroupTreatedSeparately(value: Boolean) {}
 }

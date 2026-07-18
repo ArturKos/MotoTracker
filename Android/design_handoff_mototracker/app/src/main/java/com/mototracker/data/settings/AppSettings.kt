@@ -44,8 +44,14 @@ package com.mototracker.data.settings
  * @param coordFormat            Coordinate display format: "dd" (decimal degrees), "dms"
  *                               (degrees/minutes/seconds), or "utm". Defaults to "dd".
  * @param encounterGapMinutes    Minutes of radio silence that splits one encounter into two.
- *                               For in-group riders this is effectively infinite (handled in
- *                               [com.mototracker.service.RecordingService]). Defaults to 10.
+ *                               For in-group riders this gap is overridden by [groupTreatedSeparately]
+ *                               logic in [com.mototracker.service.RecordingService]. Defaults to 10.
+ * @param groupTreatedSeparately Master toggle for special group handling (X2).
+ *                               When `true`, in-group riders receive an infinite encounter gap so
+ *                               they are always treated as a single continuous encounter.
+ *                               When `false`, group members are treated as ordinary encounters and
+ *                               the standard [encounterGapMinutes] threshold applies.
+ *                               Defaults to `true`.
  */
 data class AppSettings(
     val noInternet: Boolean = false,
@@ -71,4 +77,5 @@ data class AppSettings(
     val batteryPromptDismissed: Boolean = false,
     val coordFormat: String = "dd",
     val encounterGapMinutes: Int = 10,
+    val groupTreatedSeparately: Boolean = true,
 )

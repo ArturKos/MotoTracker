@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mototracker.R
 import com.mototracker.data.bluetooth.BleWaveSource
 import com.mototracker.data.bluetooth.EncounterEvent
+import com.mototracker.data.bluetooth.EncounterGap
 import com.mototracker.data.bluetooth.EncounterTracker
 import com.mototracker.data.bluetooth.WaveFactory
 import com.mototracker.data.bluetooth.WavePayload
@@ -127,8 +128,11 @@ class RecordingService : Service() {
                 val nowMs = System.currentTimeMillis()
                 val currentSettings = settingsStore.settings.first()
                 val inGroup = riderDao.get(rider.shortId)?.inGroup ?: false
-                val gapMs = if (inGroup) Long.MAX_VALUE
-                            else currentSettings.encounterGapMinutes * 60_000L
+                val gapMs = EncounterGap.resolve(
+                    isInGroup = inGroup,
+                    groupTreatedSeparately = currentSettings.groupTreatedSeparately,
+                    encounterGapMinutes = currentSettings.encounterGapMinutes,
+                )
 
                 riderDao.upsertSighting(
                     shortId = rider.shortId,

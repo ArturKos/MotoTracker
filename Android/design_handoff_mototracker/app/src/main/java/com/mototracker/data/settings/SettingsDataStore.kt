@@ -58,6 +58,7 @@ class SettingsDataStore @Inject constructor(
         val BATTERY_PROMPT_DISMISSED = booleanPreferencesKey("battery_prompt_dismissed")
         val COORD_FORMAT = stringPreferencesKey("coord_format")
         val ENCOUNTER_GAP_MINUTES = intPreferencesKey("encounter_gap_minutes")
+        val GROUP_TREATED_SEPARATELY = booleanPreferencesKey("group_treated_separately")
     }
 
     private val defaults = AppSettings()
@@ -91,6 +92,7 @@ class SettingsDataStore @Inject constructor(
             batteryPromptDismissed = prefs[Keys.BATTERY_PROMPT_DISMISSED] ?: defaults.batteryPromptDismissed,
             coordFormat = prefs[Keys.COORD_FORMAT] ?: defaults.coordFormat,
             encounterGapMinutes = prefs[Keys.ENCOUNTER_GAP_MINUTES] ?: defaults.encounterGapMinutes,
+            groupTreatedSeparately = prefs[Keys.GROUP_TREATED_SEPARATELY] ?: defaults.groupTreatedSeparately,
         )
     }
 
@@ -214,5 +216,10 @@ class SettingsDataStore @Inject constructor(
     /** Persists the encounter-gap threshold in minutes (X1). */
     override suspend fun setEncounterGapMinutes(value: Int) {
         dataStore.edit { it[Keys.ENCOUNTER_GAP_MINUTES] = value }
+    }
+
+    /** Persists the group-treated-separately master toggle (X2). */
+    override suspend fun setGroupTreatedSeparately(value: Boolean) {
+        dataStore.edit { it[Keys.GROUP_TREATED_SEPARATELY] = value }
     }
 }

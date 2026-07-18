@@ -1693,5 +1693,6 @@ class RecordingViewModelTest {
         weatherClient = weatherClient,
         batteryOptimizationChecker = batteryOptimizationChecker,
         settingsStore = settingsStore,
+        riderRepository = FakeRiderRepository(),
     )
 }

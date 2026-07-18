@@ -493,4 +493,12 @@
     <string name="splash_status_initializing">Laden…</string>
     <string name="splash_status_migrating_db">Datenbank migrieren…</string>
     <string name="splash_status_loading_routes">Routen laden…</string>
+
+    <!-- Gruppenverwaltung (X2) -->
+    <string name="label_group_roster">Gruppe</string>
+    <string name="label_riders_in_range">Fahrer in der Nähe</string>
+    <string name="label_no_riders_in_range">Keine Fahrer in der Nähe</string>
+    <string name="label_treat_group_separately">Gruppe separat behandeln</string>
+    <string name="desc_treat_group_separately">Gruppenmitglieder werden als eine kontinuierliche Begegnung gezählt</string>
+    <string name="label_known_riders">Bekannte Fahrer</string>
 </resources>

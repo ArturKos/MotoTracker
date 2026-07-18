@@ -73,6 +73,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.R
 import com.mototracker.data.local.entity.BikeStatus
+import com.mototracker.data.model.Rider
 import com.mototracker.domain.backup.RestoreMode
 import com.mototracker.ui.state.AppStateViewModel
 import com.mototracker.ui.state.Language
@@ -245,6 +246,8 @@ fun SettingsScreen(
         onAutoPause = viewModel::setAutoPause,
         onKeepScreenOn = viewModel::setKeepScreenOn,
         onWavesEnabled = viewModel::setWavesEnabled,
+        onGroupTreatedSeparately = viewModel::setGroupTreatedSeparately,
+        onSetRiderInGroup = viewModel::setRiderInGroup,
         onOpenBatterySettings = {
             try {
                 ctx.startActivity(BatteryOptimizationIntents.requestIgnoreIntent(ctx.packageName))
@@ -327,6 +330,8 @@ fun SettingsContent(
     onAutoPause: (Boolean) -> Unit = {},
     onKeepScreenOn: (Boolean) -> Unit = {},
     onWavesEnabled: (Boolean) -> Unit = {},
+    onGroupTreatedSeparately: (Boolean) -> Unit = {},
+    onSetRiderInGroup: (shortId: String, inGroup: Boolean) -> Unit = { _, _ -> },
     onOpenBatterySettings: () -> Unit = {},
     onCoordFormat: (String) -> Unit = {},
     onExportBackup: () -> Unit = {},
@@ -513,10 +518,28 @@ fun SettingsContent(
                             checked = state.wavesEnabled,
                             onChecked = onWavesEnabled,
                         )
+                        // X2: Group toggle + group editor
+                        LabeledSwitch(
+                            label = stringResource(R.string.label_treat_group_separately),
+                            desc = stringResource(R.string.desc_treat_group_separately),
+                            checked = state.groupTreatedSeparately,
+                            onChecked = onGroupTreatedSeparately,
+                        )
                         BroadcastSection(
                             state = state,
                             onSave = onSaveBroadcastProfile,
                         )
+                    }
+                    if (state.knownRiders.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = stringResource(R.string.label_known_riders))
+                        }
+                        items(state.knownRiders) { rider ->
+                            KnownRiderRow(
+                                rider = rider,
+                                onToggle = { inGroup -> onSetRiderInGroup(rider.shortId, inGroup) },
+                            )
+                        }
                     }
                 }
 
@@ -1504,6 +1527,50 @@ private fun RestoreModeDialog(
             }
         },
     )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Known-rider row (X2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Single row in the Settings → Pomachania group editor.
+ *
+ * Displays the rider's nick and bike name with a Checkbox controlling [Rider.inGroup].
+ *
+ * @param rider    Rider to display.
+ * @param onToggle Called with the new [Rider.inGroup] value when the checkbox is toggled.
+ */
+@Composable
+private fun KnownRiderRow(rider: Rider, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!rider.inGroup) }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = rider.inGroup,
+            onCheckedChange = onToggle,
+            colors = CheckboxDefaults.colors(checkedColor = MotoTracker.colors.accent),
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = rider.nick.ifEmpty { rider.shortId },
+                style = MotoTracker.typography.body,
+                color = MotoTracker.colors.text,
+            )
+            if (rider.bike.isNotEmpty()) {
+                Text(
+                    text = rider.bike,
+                    style = MotoTracker.typography.bodySmall,
+                    color = MotoTracker.colors.dim,
+                )
+            }
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

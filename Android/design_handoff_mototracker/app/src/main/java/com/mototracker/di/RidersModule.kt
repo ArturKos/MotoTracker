@@ -4,6 +4,8 @@ import com.mototracker.data.repository.FeedRepository
 import com.mototracker.data.repository.FeedRepositoryImpl
 import com.mototracker.data.repository.GroupRepository
 import com.mototracker.data.repository.GroupRepositoryImpl
+import com.mototracker.data.repository.RiderRepository
+import com.mototracker.data.repository.RiderRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -28,4 +30,9 @@ abstract class RidersModule {
     @Binds
     @Singleton
     abstract fun bindFeedRepository(impl: FeedRepositoryImpl): FeedRepository
+
+    /** Binds [RiderRepositoryImpl] as the [RiderRepository] singleton (X2). */
+    @Binds
+    @Singleton
+    abstract fun bindRiderRepository(impl: RiderRepositoryImpl): RiderRepository
 }

@@ -493,4 +493,12 @@
     <string name="splash_status_initializing">Chargement…</string>
     <string name="splash_status_migrating_db">Migration de la base…</string>
     <string name="splash_status_loading_routes">Chargement des trajets…</string>
+
+    <!-- Gestion du groupe (X2) -->
+    <string name="label_group_roster">Groupe</string>
+    <string name="label_riders_in_range">Motards à proximité</string>
+    <string name="label_no_riders_in_range">Aucun motard à proximité</string>
+    <string name="label_treat_group_separately">Traiter le groupe séparément</string>
+    <string name="desc_treat_group_separately">Les membres du groupe comptent comme une rencontre continue sans égard aux pauses</string>
+    <string name="label_known_riders">Motards connus</string>
 </resources>

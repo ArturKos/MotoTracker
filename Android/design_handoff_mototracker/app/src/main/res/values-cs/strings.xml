@@ -493,4 +493,12 @@
     <string name="splash_status_initializing">Načítání…</string>
     <string name="splash_status_migrating_db">Migrace databáze…</string>
     <string name="splash_status_loading_routes">Načítání tras…</string>
+
+    <!-- Správa skupiny (X2) -->
+    <string name="label_group_roster">Skupina</string>
+    <string name="label_riders_in_range">Motorkáři v blízkosti</string>
+    <string name="label_no_riders_in_range">Žádní motorkáři v blízkosti</string>
+    <string name="label_treat_group_separately">Skupina jako samostatná setkání</string>
+    <string name="desc_treat_group_separately">Členové skupiny se počítají jako jedno nepřetržité setkání bez ohledu na přestávky</string>
+    <string name="label_known_riders">Známí motorkáři</string>
 </resources>

@@ -374,6 +374,7 @@ class RecordingViewModelFuelCorrectionTest {
                 override suspend fun setBatteryPromptDismissed(value: Boolean) {}
                 override suspend fun setCoordFormat(format: String) {}
             },
+            riderRepository = FakeRiderRepository(),
         )
     }
 }

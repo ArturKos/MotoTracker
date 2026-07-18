@@ -30,6 +30,8 @@ import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.sensor.HeadingSensorSource
 import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.battery.BatteryOptimizationIntents
+import com.mototracker.data.bluetooth.InRangeFilter
+import com.mototracker.data.repository.RiderRepository
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.data.settings.SettingsStore
 import com.mototracker.domain.battery.BatteryOptimizationChecker
@@ -43,6 +45,7 @@ import com.mototracker.ui.map.GeoCoord
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -55,7 +58,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -109,6 +114,8 @@ import javax.inject.Inject
  * @param batteryOptimizationChecker        Checks whether the app is exempt from battery optimization (O1).
  * @param settingsStore                     Write access to persisted settings, used to record prompt-dismissed (O1).
  * @param fuelAdjustmentRepository          Persistence for per-bike fuel-level correction events (R1).
+ * @param riderRepository                   Domain repository for BLE-discovered riders; used to
+ *                                          populate the in-range roster sheet (X2).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -134,6 +141,7 @@ class RecordingViewModel @Inject constructor(
     private val batteryOptimizationChecker: BatteryOptimizationChecker,
     private val settingsStore: SettingsStore,
     private val fuelAdjustmentRepository: FuelAdjustmentRepository,
+    private val riderRepository: RiderRepository,
 ) : ViewModel() {
 
     private val engine = RecordingEngine()
@@ -339,6 +347,20 @@ class RecordingViewModel @Inject constructor(
         // start() is idempotent; doStart()'s defensive start() and the service's start() are
         // both unaffected.
         rideLocationCollector.start()
+
+        // X2: Maintain the in-range rider list by combining the full rider DB with a ~2 s tick.
+        // The tick keeps the list fresh even when no new BLE sightings arrive (so riders that
+        // drop out of the 30-second window are removed automatically).
+        combine(
+            riderRepository.observeAll(),
+            // flowOn(Default) keeps the 2-second delay off the test scheduler so
+            // advanceUntilIdle() in unit tests doesn't spin forever on this infinite flow.
+            tickerFlow(intervalMs = 2_000L).flowOn(Dispatchers.Default),
+        ) { riders, _ ->
+            InRangeFilter.filter(riders, System.currentTimeMillis())
+        }.onEach { inRange ->
+            _uiState.update { it.copy(inRangeRiders = inRange) }
+        }.launchIn(viewModelScope)
     }
 
     /**
@@ -385,7 +407,22 @@ class RecordingViewModel @Inject constructor(
             is RecordingEvent.ShowFuelCorrectionDialog -> doShowFuelCorrectionDialog()
             is RecordingEvent.ConfirmFuelCorrection -> doConfirmFuelCorrection(event.mode, event.value)
             is RecordingEvent.DismissFuelCorrectionDialog -> _uiState.update { it.copy(showFuelCorrectionDialog = false) }
+            is RecordingEvent.ShowGroupRoster -> _uiState.update { it.copy(showGroupRosterSheet = true) }
+            is RecordingEvent.DismissGroupRoster -> _uiState.update { it.copy(showGroupRosterSheet = false) }
+            is RecordingEvent.ToggleGroup -> toggleGroup(event.shortId, event.inGroup)
         }
+    }
+
+    /**
+     * Toggles the group-membership flag for [shortId] (X2).
+     *
+     * Delegates to [RiderRepository.setInGroup] on the IO dispatcher.
+     *
+     * @param shortId BLE device identifier.
+     * @param inGroup New group-membership state.
+     */
+    fun toggleGroup(shortId: String, inGroup: Boolean) {
+        viewModelScope.launch { riderRepository.setInGroup(shortId, inGroup) }
     }
 
     // ── State machine ────────────────────────────────────────────────────────
@@ -813,6 +850,14 @@ class RecordingViewModel @Inject constructor(
         if (points.size <= maxCount) return points
         val step = points.size.toDouble() / maxCount
         return List(maxCount) { i -> points[(i * step).toInt()] }
+    }
+
+    /** Produces a cold flow that emits [Unit] at [intervalMs] intervals, starting immediately. */
+    private fun tickerFlow(intervalMs: Long) = flow {
+        while (true) {
+            emit(Unit)
+            delay(intervalMs)
+        }
     }
 }
 

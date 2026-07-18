@@ -493,4 +493,12 @@
     <string name="splash_status_initializing">Ładowanie…</string>
     <string name="splash_status_migrating_db">Migracja bazy…</string>
     <string name="splash_status_loading_routes">Wczytywanie tras…</string>
+
+    <!-- Zarządzanie grupą (X2) -->
+    <string name="label_group_roster">Grupa</string>
+    <string name="label_riders_in_range">Motocykliści w pobliżu</string>
+    <string name="label_no_riders_in_range">Brak motocyklistów w pobliżu</string>
+    <string name="label_treat_group_separately">Traktuj grupę osobno</string>
+    <string name="desc_treat_group_separately">Członkowie grupy liczone jako jedno spotkanie bez względu na przerwy</string>
+    <string name="label_known_riders">Znani motocykliści</string>
 </resources>

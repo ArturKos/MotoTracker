@@ -551,4 +551,5 @@
     <string name="hint_sms_recipients_empty">No recipients added</string>
     <string name="perm_contacts_denied">Contacts permission denied. Grant permission to add recipients.</string>
     <string name="sms_default_template">MotoTracker: I\'m here %s</string>
+    <string name="sms_permission_denied">SMS location sharing is enabled, but the SEND_SMS permission was denied. SMS messages will not be sent during this ride.</string>
 </resources>

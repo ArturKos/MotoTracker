@@ -127,10 +127,25 @@ fun RecordingScreen(
         feature = AppFeaturePermission.LOCATION,
         companion = listOf(AppFeaturePermission.NOTIFICATIONS),
     )
+    val smsPerm = rememberFeaturePermission(AppFeaturePermission.SEND_SMS)
+
+    // Show a non-blocking note when SEND_SMS is denied while sharing is enabled.
+    val smsDeniedMsg = androidx.compose.ui.res.stringResource(R.string.sms_permission_denied)
+    androidx.compose.runtime.LaunchedEffect(smsPerm.denied, state.smsShareEnabled) {
+        if (smsPerm.denied && state.smsShareEnabled) {
+            snackbarHostState.showSnackbar(smsDeniedMsg)
+        }
+    }
 
     fun dispatchEvent(event: RecordingEvent) {
         if (event is RecordingEvent.Start) {
-            locationPerm.requestThen { viewModel.onEvent(event) }
+            locationPerm.requestThen {
+                // Request SMS permission when sharing is on — non-blocking: recording always starts.
+                if (state.smsShareEnabled) {
+                    smsPerm.requestThen { /* granted; SMS loop in service will proceed */ }
+                }
+                viewModel.onEvent(event)
+            }
         } else {
             viewModel.onEvent(event)
         }

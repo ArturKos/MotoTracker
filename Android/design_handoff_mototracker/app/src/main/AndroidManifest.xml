@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Y1: read contacts to populate SMS location-sharing recipients -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Y2: send periodic GPS location SMS to configured recipients during a ride -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- Required by lint: SEND_SMS implies telephony; required=false so the app installs on tablets/Chromebooks. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!-- Bluetooth waves — modern perms (API 31+) -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"

@@ -521,4 +521,5 @@
     <string name="hint_sms_recipients_empty">Keine Empfänger</string>
     <string name="perm_contacts_denied">Kontaktzugriff verweigert. Erteile die Berechtigung, um Empfänger hinzuzufügen.</string>
     <string name="sms_default_template">MotoTracker: Ich bin hier %s</string>
+    <string name="sms_permission_denied">SMS-Standortfreigabe ist aktiviert, aber die SEND_SMS-Berechtigung wurde verweigert. Während dieser Fahrt werden keine SMS gesendet.</string>
 </resources>

@@ -13,6 +13,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mototracker.R
+import com.mototracker.core.sms.SmsLocationMessageBuilder
+import com.mototracker.core.sms.SmsSendScheduler
 import com.mototracker.data.bluetooth.BleWaveSource
 import com.mototracker.data.bluetooth.EncounterEvent
 import com.mototracker.data.bluetooth.EncounterGap
@@ -26,11 +28,14 @@ import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.mapper.toEntity
 import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.settings.SettingsStore
+import com.mototracker.data.sms.SmsSender
+import com.mototracker.domain.recording.LocationSample
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -68,11 +73,15 @@ class RecordingService : Service() {
     @Inject lateinit var dataStore: DataStore<Preferences>
     @Inject lateinit var rideLocationCollector: RideLocationCollector
     @Inject lateinit var rideSignaler: RideSignaler
+    @Inject lateinit var smsSender: SmsSender
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Route UUID received from the intent; wires BLE-discovered waves to the active route. */
     @Volatile private var activeRouteId: String? = null
+
+    /** Most recent GPS sample; updated by the location-collector coroutine. */
+    @Volatile private var lastSample: LocationSample? = null
 
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -96,6 +105,8 @@ class RecordingService : Service() {
         }
 
         rideLocationCollector.start()
+        startLocationSampleCollector()
+        startSmsLoop()
         startBleWaves()
 
         return START_STICKY
@@ -109,6 +120,57 @@ class RecordingService : Service() {
         wakeLock = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
+    }
+
+    /** Keeps [lastSample] up-to-date with the latest GPS fix. */
+    private fun startLocationSampleCollector() {
+        serviceScope.launch {
+            rideLocationCollector.samples.collect { sample ->
+                lastSample = sample
+            }
+        }
+    }
+
+    /**
+     * Periodic loop that sends an SMS location update to configured recipients when all
+     * conditions in [SmsSendScheduler.shouldSend] are met.
+     *
+     * Runs on [Dispatchers.IO] inside [serviceScope] so it stops automatically when
+     * [onDestroy] cancels the scope.  The tick period is re-read from settings each iteration
+     * so a settings change takes effect on the next tick.
+     */
+    private fun startSmsLoop() {
+        serviceScope.launch(Dispatchers.IO) {
+            var lastSentMs: Long? = null
+            while (true) {
+                val settings = settingsStore.settings.first()
+                val intervalMinutes = settings.smsIntervalMinutes
+                delay(intervalMinutes.coerceAtLeast(1) * 60_000L)
+
+                val nowMs = System.currentTimeMillis()
+                val currentSettings = settingsStore.settings.first()
+                val sample = lastSample
+
+                if (SmsSendScheduler.shouldSend(
+                        enabled = currentSettings.smsShareEnabled,
+                        recipientCount = currentSettings.smsRecipients.size,
+                        hasFix = sample != null,
+                        lastSentMs = lastSentMs,
+                        nowMs = nowMs,
+                        intervalMinutes = currentSettings.smsIntervalMinutes,
+                    )
+                ) {
+                    val messages = SmsLocationMessageBuilder.build(
+                        recipients = currentSettings.smsRecipients,
+                        lat = sample!!.lat,
+                        lng = sample.lng,
+                        template = getString(R.string.sms_default_template),
+                    )
+                    messages.forEach { smsSender.send(it) }
+                    lastSentMs = nowMs
+                }
+            }
+        }
     }
 
     private fun startBleWaves() {

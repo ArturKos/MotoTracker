@@ -42,6 +42,9 @@ object PermissionRequirements {
 
         AppFeaturePermission.CONTACTS ->
             listOf(Manifest.permission.READ_CONTACTS)
+
+        AppFeaturePermission.SEND_SMS ->
+            listOf(Manifest.permission.SEND_SMS)
     }
 }
 

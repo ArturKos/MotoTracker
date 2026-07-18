@@ -29,4 +29,13 @@ enum class AppFeaturePermission {
      * Requires [android.Manifest.permission.READ_CONTACTS] on all supported SDK versions.
      */
     CONTACTS,
+
+    /**
+     * Sending SMS messages — required for periodic GPS location SMS during a ride (Y2).
+     * Requires [android.Manifest.permission.SEND_SMS] on all supported SDK versions.
+     *
+     * Requested at the recording entry point only when SMS sharing is enabled in settings.
+     * Denial is non-blocking: recording proceeds normally; the SMS feature stays silent.
+     */
+    SEND_SMS,
 }

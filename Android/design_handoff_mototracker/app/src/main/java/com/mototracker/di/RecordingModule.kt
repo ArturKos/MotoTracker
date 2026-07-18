@@ -4,6 +4,8 @@ import com.mototracker.core.resource.ContextStringResolver
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.data.bluetooth.AndroidBleWaveSource
 import com.mototracker.data.bluetooth.BleWaveSource
+import com.mototracker.data.sms.AndroidSmsSender
+import com.mototracker.data.sms.SmsSender
 import com.mototracker.service.RideSignaler
 import com.mototracker.service.VibratorRideSignaler
 import com.mototracker.data.location.AndroidGnssStatusClient
@@ -112,6 +114,11 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindGnssStatusClient(impl: AndroidGnssStatusClient): GnssStatusClient
+
+    /** Binds [AndroidSmsSender] as the [SmsSender] singleton (Y2). */
+    @Binds
+    @Singleton
+    abstract fun bindSmsSender(impl: AndroidSmsSender): SmsSender
 
     companion object {
 

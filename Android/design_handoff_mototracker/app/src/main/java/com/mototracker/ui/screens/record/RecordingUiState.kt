@@ -86,6 +86,10 @@ data class WeatherInfo(val tempC: Int, val humPct: Int, val rain: Boolean)
  * @param inRangeRiders            Riders currently in BLE range (sighted within the last ~30 s),
  *                                 newest-first. Populated reactively from the rider DB (X2).
  * @param showGroupRosterSheet     `true` when the group-roster bottom sheet should be visible (X2).
+ * @param smsShareEnabled          `true` when periodic SMS location sharing is active (Y2).
+ *                                 Mirrors [com.mototracker.data.settings.AppSettings.smsShareEnabled]
+ *                                 so [com.mototracker.ui.screens.record.RecordingScreen] can request
+ *                                 SEND_SMS at the recording entry point only when the feature is on.
  */
 data class RecordingUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
@@ -115,6 +119,7 @@ data class RecordingUiState(
     val fuelCorrectionCurrentRemaining: Double = 0.0,
     val inRangeRiders: List<Rider> = emptyList(),
     val showGroupRosterSheet: Boolean = false,
+    val smsShareEnabled: Boolean = false,
 )
 
 /** One-shot events dispatched from the Recording screen to the ViewModel. */

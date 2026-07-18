@@ -211,6 +211,7 @@ class RecordingViewModel @Inject constructor(
                         gpsOnRoad = s.gpsCorrect,
                         keepScreenOn = s.keepScreenOn,
                         coordFormat = CoordFormat.fromKey(s.coordFormat),
+                        smsShareEnabled = s.smsShareEnabled,
                     )
                 }
                 carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)

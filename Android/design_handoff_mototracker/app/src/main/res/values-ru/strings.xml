@@ -521,4 +521,5 @@
     <string name="hint_sms_recipients_empty">Нет получателей</string>
     <string name="perm_contacts_denied">Доступ к контактам запрещён. Предоставьте разрешение для добавления получателей.</string>
     <string name="sms_default_template">MotoTracker: я здесь %s</string>
+    <string name="sms_permission_denied">Отправка местоположения по SMS включена, но разрешение SEND_SMS было отклонено. SMS не будут отправляться во время этой поездки.</string>
 </resources>

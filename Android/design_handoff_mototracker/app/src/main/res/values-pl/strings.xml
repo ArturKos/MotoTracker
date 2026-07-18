@@ -521,4 +521,5 @@
     <string name="hint_sms_recipients_empty">Brak odbiorców</string>
     <string name="perm_contacts_denied">Brak dostępu do kontaktów. Zezwól na uprawnienie, aby dodać odbiorców.</string>
     <string name="sms_default_template">MotoTracker: jestem tu %s</string>
+    <string name="sms_permission_denied">Udostępnianie lokalizacji przez SMS jest włączone, ale uprawnienie SEND_SMS zostało odrzucone. SMS-y nie będą wysyłane podczas tej jazdy.</string>
 </resources>

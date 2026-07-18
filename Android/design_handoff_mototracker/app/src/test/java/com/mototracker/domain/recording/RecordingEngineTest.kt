@@ -400,6 +400,68 @@ class RecordingEngineTest {
         assertFalse(snap.lowFuel)
     }
 
+    // ── T2: Idle fuel baseline fix ───────────────────────────────────────────
+    //
+    // Before T2, anchorLitres defaulted to 0.0 and was never seeded by updateFuelConfig,
+    // so a configured bike sitting in the garage showed 0 L remaining + low-fuel alarm.
+    // After T2, updateFuelConfig seeds anchorLitres=cap when sessionStarted==false (Idle).
+
+    @Test
+    fun `updateFuelConfig in Idle without reset seeds remaining fuel to full capacity`() {
+        // No reset() called — engine is pristine/Idle (sessionStarted == false).
+        val cap = 17.0
+        engine.updateFuelConfig(fuelLper100km = 5.0, tankCapacityL = cap)
+        val snap = engine.snapshot()
+        assertEquals("Idle should show full tank after updateFuelConfig", cap, snap.remainingFuelL!!, 0.001)
+        assertFalse("lowFuel must be false in Idle with full tank", snap.lowFuel)
+    }
+
+    @Test
+    fun `after reset Idle still reports full tank and lowFuel false`() {
+        val cap = 15.0
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = cap)
+        val snap = engine.snapshot()
+        assertEquals("reset should anchor to full cap", cap, snap.remainingFuelL!!, 0.001)
+        assertFalse("lowFuel must be false immediately after reset with full tank", snap.lowFuel)
+    }
+
+    @Test
+    fun `updateFuelConfig mid-session does NOT reset anchorLitres to cap — ledger preserved`() {
+        // Start a session, drive some distance, apply a fuel correction to a known level.
+        val cap = 20.0
+        engine.reset(fuelLper100km = 5.0, tankCapacityL = cap)
+        engine.onLocation(sample(lat = 0.0, lng = 0.0))
+        engine.onLocation(sample(lat = 1.0, lng = 0.0)) // ~111 km
+        engine.fillToFull()
+        engine.onLocation(sample(lat = 1.1, lng = 0.0)) // drive ~11 km after fill
+        val correctedLevel = 8.0
+        engine.applyFuelCorrection(com.mototracker.domain.fuel.FuelAdjustmentMode.SET_ABSOLUTE, correctedLevel)
+        val snapAfterCorrection = engine.snapshot()
+        assertEquals("precondition: fuel at corrected level", correctedLevel, snapAfterCorrection.remainingFuelL!!, 0.1)
+
+        // Reactive re-fire of updateFuelConfig (e.g. bike-config combine emits) with a new cap.
+        val newCap = 25.0
+        engine.updateFuelConfig(fuelLper100km = 6.0, tankCapacityL = newCap)
+
+        val snapAfterUpdate = engine.snapshot()
+        // anchorLitres must NOT be reset to newCap; the corrected level must still be honoured.
+        // Remaining = correctedLevel - (distSinceAnchor * newRate / 100); the key assertion is
+        // that it is NOT equal to newCap (which would indicate the anchor was erroneously reset).
+        val remaining = snapAfterUpdate.remainingFuelL!!
+        assertTrue("updateFuelConfig mid-session must not reset remaining to newCap; was: $remaining", remaining < newCap)
+        // And it should still be close to the corrected level (only a tiny bit of distance since anchor).
+        assertTrue("remaining should be close to corrected level after updateFuelConfig", remaining < correctedLevel + 1.0)
+    }
+
+    @Test
+    fun `updateFuelConfig in Idle with null tankCapacityL yields null remaining and lowFuel false`() {
+        // Pristine engine, no reset — null cap still leaves fuel readout disabled.
+        engine.updateFuelConfig(fuelLper100km = 5.0, tankCapacityL = null)
+        val snap = engine.snapshot()
+        assertNull("remainingFuelL must be null when cap is null in Idle", snap.remainingFuelL)
+        assertFalse("lowFuel must be false when cap is null", snap.lowFuel)
+    }
+
     // ── Moving-time accumulation (E5) ────────────────────────────────────────
 
     @Test

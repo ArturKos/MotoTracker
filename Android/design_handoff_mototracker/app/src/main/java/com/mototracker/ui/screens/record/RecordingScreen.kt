@@ -551,9 +551,10 @@ private fun TimersRow(state: RecordingUiState, sizing: RecordSizing) {
 /**
  * Fuel-tank readout row shown when the current bike has a tank capacity configured.
  *
- * Displays remaining fuel, remaining range, running fuel cost (when [RecordingUiState.fuelPricePerL]
- * is set), and an optional low-fuel warning. The fill-to-full action has moved to the control strip
- * (G2); this composable is a pure readout with no interactive elements.
+ * Displays remaining fuel, remaining range, and running fuel cost (when [RecordingUiState.fuelPricePerL]
+ * is set). Low-fuel state is conveyed by the tinted fuel icon in [FuelRangeIndicator]; no separate
+ * warning row is rendered here. The fill-to-full action has moved to the control strip (G2); this
+ * composable is a pure readout with no interactive elements.
  *
  * Hidden entirely when [RecordingUiState.metrics.tankCapacityL] is null.
  *
@@ -601,17 +602,6 @@ private fun FuelTankRow(state: RecordingUiState, sizing: RecordSizing) {
                 modifier = Modifier.weight(1f),
             )
         }
-    }
-    // Low-fuel warning
-    if (metrics.lowFuel) {
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.warn_low_fuel),
-            style = MotoTracker.typography.label,
-            color = MotoTracker.colors.accent2,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
     }
 }
 

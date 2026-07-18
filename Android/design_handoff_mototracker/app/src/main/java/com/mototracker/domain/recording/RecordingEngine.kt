@@ -40,6 +40,15 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     /** Remaining-fuel level at the last fill/correction anchor in litres. */
     private var anchorLitres: Double = 0.0
 
+    /**
+     * True once [reset] or [restore] has been called, indicating an active or restored session.
+     *
+     * Used by [updateFuelConfig] to distinguish pristine-Idle state (engine just constructed,
+     * never started) from an in-progress session. In Idle the anchor can safely be seeded to
+     * full; mid-session the existing ledger must be preserved.
+     */
+    private var sessionStarted: Boolean = false
+
     companion object {
         /** Remaining-fuel fraction below which the low-fuel warning is raised (15 %). */
         const val LOW_FUEL_FRACTION = 0.15
@@ -312,6 +321,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         this.tankCapacityL = tankCapacityL
         anchorKm = 0.0
         anchorLitres = tankCapacityL ?: 0.0
+        sessionStarted = true
         prevLat = null; prevLng = null; prevAlt = null; prevTimeMs = null
         distanceKm = 0.0; durationSec = 0L; movingSec = 0L
         currentSpeedKmh = 0.0; maxSpeedKmh = 0.0
@@ -326,9 +336,16 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
      * Updates the fuel-model constants without disturbing any accumulated session state.
      *
      * Unlike [reset], this method only overwrites [sessionFuelLper100km] and [tankCapacityL];
-     * [anchorKm], [anchorLitres], [distanceKm], and all other accumulators are left completely untouched.
-     * This allows the live fuel estimate to be recomputed reactively whenever the bike
-     * configuration resolves or changes — including after recording has already started.
+     * [anchorKm], [anchorLitres], [distanceKm], and all other accumulators are left completely untouched
+     * **during an active or restored session** ([sessionStarted] == true). This allows the live fuel
+     * estimate to be recomputed reactively whenever the bike configuration resolves or changes —
+     * including after recording has already started — without clobbering any fill-to-full or
+     * fuel-correction anchors already applied.
+     *
+     * **Idle / pristine seeding:** When [sessionStarted] is false (engine constructed but [reset] and
+     * [restore] have never been called), [anchorLitres] is seeded to the full tank capacity so that
+     * [snapshot] shows an assumed-full tank in the Idle state rather than 0 L / low-fuel alarm.
+     * The seed is only applied once; once a session starts, this branch is never taken again.
      *
      * @param fuelLper100km New consumption constant in L/100km.
      * @param tankCapacityL New tank capacity in litres; null when the bike has no capacity set
@@ -337,6 +354,9 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     fun updateFuelConfig(fuelLper100km: Double, tankCapacityL: Double?) {
         sessionFuelLper100km = fuelLper100km
         this.tankCapacityL = tankCapacityL
+        if (!sessionStarted) {
+            anchorLitres = tankCapacityL ?: 0.0
+        }
     }
 
     /**
@@ -441,6 +461,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         tankCapacityL = state.tankCapacityL
         anchorKm = state.anchorKm
         anchorLitres = state.anchorLitres
+        sessionStarted = true
         leanBucketCounts.fill(0)
         state.leanBucketCounts.forEachIndexed { i, v -> if (i < leanBucketCounts.size) leanBucketCounts[i] = v }
         pathPoints.clear(); pathPoints.addAll(state.pathPoints)

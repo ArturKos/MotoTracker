@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Window background painted by the OS during cold-start (before the first
+  Compose frame).  Fills the screen with the cockpit dark colour and centres
+  the static moto mark so the launch experience is fully branded from the
+  first rendered pixel — eliminating the white flash.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Layer 1: solid dark background matching the Compose splash bg -->
+    <item android:drawable="@color/moto_splash_bg" />
+    <!-- Layer 2: static moto mark centred at 200 dp -->
+    <item
+        android:width="200dp"
+        android:height="200dp"
+        android:gravity="center"
+        android:drawable="@drawable/moto_splash" />
+</layer-list>

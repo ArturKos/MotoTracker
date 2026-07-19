@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Cockpit background — mirrors MotoTracker.colors.bg (#0A0B0D) closely enough to
+        eliminate the OS white-flash on cold start.  Used by the launch-window theme so
+        the OS-drawn window matches the Compose splash background before the first frame.
+    -->
+    <color name="moto_splash_bg">#0E1114</color>
+</resources>

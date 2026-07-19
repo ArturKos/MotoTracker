@@ -40,12 +40,21 @@ import kotlinx.coroutines.delay
  * so it is always seen on fast devices, and a hard cap ([SplashGate.DEFAULT_MAX_MS]) to prevent
  * an infinite hang — preventing a Login flash for users who previously signed in or chose guest
  * mode (B22).
+ *
+ * **Launch-theme handoff:** the activity is declared in the manifest with
+ * `Theme.MotoTracker.Launch`, which sets a branded dark `windowBackground` so the OS paints
+ * the cockpit colour + moto mark during cold-start before the first Compose frame — eliminating
+ * the white flash on Android 9+.  The first line of [onCreate] (after `super`) swaps back to
+ * `Theme.MotoTracker` so the launch theme never leaks into the running app.
  */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Swap launch theme → app theme before the window is laid out so the
+        // running app inherits the correct base style (no windowBackground override).
+        setTheme(R.style.Theme_MotoTracker)
         enableEdgeToEdge()
         setContent {
             val appViewModel: com.mototracker.ui.state.AppStateViewModel =

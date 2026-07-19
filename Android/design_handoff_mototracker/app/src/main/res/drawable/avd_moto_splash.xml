@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   AnimatedVectorDrawable for the splash screen.
-  Animates the moto_track path's trimPathEnd from 0→1 (drawing the route)
-  in 1 200 ms.  Compose's AnimatedImageVector toggles atEnd to loop the effect.
+
+  Three concurrent animations driven by Compose's AnimatedImageVector toggle (atEnd):
+    1. moto_track  — trimPathEnd 0→1 (draws the route over 1 200 ms)
+    2. rear_wheel_group — rotation 0→360 (rear wheel spins one full turn)
+    3. front_wheel_group — rotation 0→360 (front wheel spins one full turn)
+
+  Because atEnd is toggled every 1 200 ms, the forward pass (0→1 / 0→360) and the
+  reverse pass (1→0 / 360→0) both produce a visually continuous clockwise spin for
+  the wheels (360° forward then 360° backward look identical to the eye).
 -->
 <animated-vector
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:drawable="@drawable/moto_splash">
 
+    <!-- 1. Draw the motorcycle route path -->
     <target android:name="moto_track">
         <aapt:attr name="android:animation">
             <objectAnimator
@@ -17,6 +25,30 @@
                 android:valueTo="1"
                 android:duration="1200"
                 android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+
+    <!-- 2. Spin the rear wheel -->
+    <target android:name="rear_wheel_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:duration="1200"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+
+    <!-- 3. Spin the front wheel (same speed — both wheels share the same chassis speed) -->
+    <target android:name="front_wheel_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:duration="1200"
+                android:interpolator="@android:interpolator/linear" />
         </aapt:attr>
     </target>
 

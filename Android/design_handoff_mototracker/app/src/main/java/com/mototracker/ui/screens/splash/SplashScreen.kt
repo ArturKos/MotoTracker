@@ -74,11 +74,12 @@ fun SplashScreen(
                 modifier = Modifier.size(160.dp),
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
             Text(
                 text = stringResource(SplashStatus.labelFor(phase)),
-                color = MotoTracker.colors.dim,
+                // Reduced alpha for a subtler caption below the animation mark.
+                color = MotoTracker.colors.dim.copy(alpha = 0.55f),
                 style = MotoTracker.typography.label,
             )
         }

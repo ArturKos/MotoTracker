@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Static vector mark derived from icon.svg.
-  The moto_track path carries android:name so the AVD animator can target it.
-  trimPathEnd starts at 0 (invisible) and is driven to 1 by avd_moto_splash.xml.
+  trimPathEnd="1" so the static drawable (used in splash_window_background) shows
+  the complete track.  avd_moto_splash.xml explicitly sets valueFrom="0" so the
+  animated version still draws the path from scratch on each cycle.
+
+  Wheel paths are wrapped in named groups with the correct pivotX/pivotY so the
+  AVD can rotate them to simulate rolling wheels during the Compose splash.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="256dp"
@@ -18,22 +22,54 @@
         android:strokeWidth="30"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:trimPathEnd="0" />
+        android:trimPathEnd="1" />
 
-    <!-- Rear wheel outer ring -->
-    <path
-        android:pathData="M154,372 A26,26 0 1,1 102,372 A26,26 0 1,1 154,372 Z"
-        android:fillColor="#00000000"
-        android:strokeColor="#00d1b2"
-        android:strokeWidth="18" />
+    <!--
+        Rear wheel — center (128, 372), outer radius 26.
+        Grouped with pivot at the wheel center so AVD can animate rotation.
+        A single radial spoke makes the rotation visually apparent.
+    -->
+    <group
+        android:name="rear_wheel_group"
+        android:pivotX="128"
+        android:pivotY="372">
+        <!-- Outer ring -->
+        <path
+            android:pathData="M154,372 A26,26 0 1,1 102,372 A26,26 0 1,1 154,372 Z"
+            android:fillColor="#00000000"
+            android:strokeColor="#00d1b2"
+            android:strokeWidth="18" />
+        <!-- Radial spoke: center to top of ring (visible when rotating) -->
+        <path
+            android:pathData="M128,372 L128,346"
+            android:strokeColor="#00d1b2"
+            android:strokeWidth="5"
+            android:strokeLineCap="round" />
+    </group>
 
-    <!-- Front wheel disc -->
-    <path
-        android:pathData="M430,150 A42,42 0 1,1 346,150 A42,42 0 1,1 430,150 Z"
-        android:fillColor="#00d1b2" />
+    <!--
+        Front wheel — center (388, 150), outer radius 42.
+        Grouped with pivot at the wheel center so AVD can animate rotation.
+        A radial spoke drawn in the cutout colour provides rotation cue.
+    -->
+    <group
+        android:name="front_wheel_group"
+        android:pivotX="388"
+        android:pivotY="150">
+        <!-- Front wheel disc -->
+        <path
+            android:pathData="M430,150 A42,42 0 1,1 346,150 A42,42 0 1,1 430,150 Z"
+            android:fillColor="#00d1b2" />
+        <!-- Centre cutout -->
+        <path
+            android:pathData="M404,150 A16,16 0 1,1 372,150 A16,16 0 1,1 404,150 Z"
+            android:fillColor="#0e1114" />
+        <!-- Radial spoke: center to top of disc (visible when rotating) -->
+        <path
+            android:pathData="M388,150 L388,108"
+            android:strokeColor="#0e1114"
+            android:strokeWidth="5"
+            android:strokeLineCap="round" />
+    </group>
 
-    <!-- Front wheel centre cutout -->
-    <path
-        android:pathData="M404,150 A16,16 0 1,1 372,150 A16,16 0 1,1 404,150 Z"
-        android:fillColor="#0e1114" />
 </vector>

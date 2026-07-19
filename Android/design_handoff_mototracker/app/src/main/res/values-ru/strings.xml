@@ -512,6 +512,10 @@
     <string name="wave_rode_together">ехали вместе %1$s</string>
     <string name="wave_pass">встречный проезд</string>
 
+    <!-- Вкладка настроек Приветствия + пустое состояние известных мотоциклистов (Z1) -->
+    <string name="settings_tab_waves">Приветствия</string>
+    <string name="label_no_known_riders">Известных мотоциклистов пока нет — они появятся здесь после обнаружения по Bluetooth</string>
+
     <!-- Отправка местоположения по SMS (Y1) -->
     <string name="section_sms_sharing">Отправка местоположения</string>
     <string name="label_sms_share_enabled">Делиться позицией по SMS</string>

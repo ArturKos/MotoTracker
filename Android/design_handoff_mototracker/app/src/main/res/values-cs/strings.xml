@@ -512,6 +512,10 @@
     <string name="wave_rode_together">jeli spolu %1$s</string>
     <string name="wave_pass">míjení</string>
 
+    <!-- Záložka nastavení Mávání + prázdný stav známých jezdců (Z1) -->
+    <string name="settings_tab_waves">Mávání</string>
+    <string name="label_no_known_riders">Žádní známí jezdci — zobrazí se zde po detekci přes Bluetooth</string>
+
     <!-- Sdílení polohy přes SMS (Y1) -->
     <string name="section_sms_sharing">Sdílení polohy</string>
     <string name="label_sms_share_enabled">Sdílet polohu přes SMS</string>

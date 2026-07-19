@@ -381,6 +381,22 @@ class ScreenshotTest {
         snapshot("settings_light_populated")
     }
 
+    /** Z1 — WAVES tab with empty known-riders state (hint row visible). */
+    @Test
+    @Config(sdk = [33], qualifiers = "w411dp-h3000dp-xxhdpi")
+    fun settings_waves_tab_cockpit_empty_riders() {
+        composeRule.setContent {
+            MotoTrackerTheme(theme = MotoTheme.COCKPIT, accent = AccentColor.TEAL) {
+                SettingsContent(
+                    state = ScreenshotFixtures.settingsPopulated,
+                    selectedTab = com.mototracker.ui.screens.settings.SettingsTab.WAVES,
+                    authed = true,
+                )
+            }
+        }
+        snapshot("settings_waves_tab_cockpit_empty_riders")
+    }
+
     // ── Riders ────────────────────────────────────────────────────────────────
 
     @Test

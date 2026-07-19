@@ -573,8 +573,11 @@ fun SettingsContent(
                             onSend = onSyncNow,
                         )
                     }
+                }
+
+                // ── WAVES ─────────────────────────────────────────────────────
+                SettingsTab.WAVES -> {
                     item {
-                        SectionDivider()
                         SectionHeader(title = stringResource(R.string.section_broadcast))
                         LabeledSwitch(
                             label = stringResource(R.string.settings_waves_enabled),
@@ -601,10 +604,19 @@ fun SettingsContent(
                             onSave = onSaveBroadcastProfile,
                         )
                     }
-                    if (state.knownRiders.isNotEmpty()) {
+                    item {
+                        SectionHeader(title = stringResource(R.string.label_known_riders))
+                    }
+                    if (state.knownRiders.isEmpty()) {
                         item {
-                            SectionHeader(title = stringResource(R.string.label_known_riders))
+                            Text(
+                                text = stringResource(R.string.label_no_known_riders),
+                                color = MotoTracker.colors.dim,
+                                style = MotoTracker.typography.label,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                            )
                         }
+                    } else {
                         items(state.knownRiders) { rider ->
                             KnownRiderRow(
                                 rider = rider,

@@ -512,6 +512,10 @@
     <string name="wave_rode_together">zusammen gefahren %1$s</string>
     <string name="wave_pass">Vorbeifahrt</string>
 
+    <!-- Wellen-Einstellungs-Tab + leerer Zustand bekannter Fahrer (Z1) -->
+    <string name="settings_tab_waves">Winken</string>
+    <string name="label_no_known_riders">Noch keine bekannten Fahrer — sie erscheinen hier, sobald sie per Bluetooth erkannt wurden</string>
+
     <!-- SMS-Standortfreigabe (Y1) -->
     <string name="section_sms_sharing">Standort teilen</string>
     <string name="label_sms_share_enabled">Standort per SMS teilen</string>

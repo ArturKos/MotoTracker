@@ -512,6 +512,10 @@
     <string name="wave_rode_together">jechaliście razem %1$s</string>
     <string name="wave_pass">minięcie</string>
 
+    <!-- Zakładka ustawień Pomachania + pusty stan znanych motocyklistów (Z1) -->
+    <string name="settings_tab_waves">Pomachania</string>
+    <string name="label_no_known_riders">Brak znanych motocyklistów — pojawią się po wykryciu przez Bluetooth</string>
+
     <!-- Udostępnianie pozycji SMS (Y1) -->
     <string name="section_sms_sharing">Udostępnianie pozycji</string>
     <string name="label_sms_share_enabled">Udostępniaj pozycję przez SMS</string>

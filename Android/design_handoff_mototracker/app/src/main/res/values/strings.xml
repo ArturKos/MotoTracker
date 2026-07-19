@@ -542,6 +542,10 @@
     <string name="wave_rode_together">rode together %1$s</string>
     <string name="wave_pass">passing</string>
 
+    <!-- Waves settings tab label + known-riders empty state (Z1) -->
+    <string name="settings_tab_waves">Waves</string>
+    <string name="label_no_known_riders">No known riders yet — they will appear here after being detected via Bluetooth</string>
+
     <!-- SMS location sharing (Y1) -->
     <string name="section_sms_sharing">Location sharing</string>
     <string name="label_sms_share_enabled">Share location via SMS</string>

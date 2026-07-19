@@ -71,8 +71,15 @@ class MainActivity : AppCompatActivity() {
             val isReady = startupDecision is StartupDecision.Ready
 
             // Tick elapsed time every 50 ms while the splash might still be visible.
+            // minDurationMs = AVD_DURATION_MS: never dismiss before the AVD finishes.
+            // maxDurationMs = 2 500 ms: hard cap regardless of startup state.
             LaunchedEffect(isReady) {
-                while (!SplashGate.shouldDismiss(isReady, splashElapsedMs)) {
+                while (!SplashGate.shouldDismiss(
+                        isReady, splashElapsedMs,
+                        minDurationMs = SplashGate.AVD_DURATION_MS,
+                        maxDurationMs = 2_500L,
+                    )
+                ) {
                     delay(50L)
                     splashElapsedMs = SystemClock.elapsedRealtime() - splashStartMs
                 }
@@ -88,7 +95,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            val showSplash = !SplashGate.shouldDismiss(isReady, splashElapsedMs)
+            val showSplash = !SplashGate.shouldDismiss(
+                isReady, splashElapsedMs,
+                minDurationMs = SplashGate.AVD_DURATION_MS,
+                maxDurationMs = 2_500L,
+            )
 
             MotoTrackerTheme(
                 theme = uiState.theme,

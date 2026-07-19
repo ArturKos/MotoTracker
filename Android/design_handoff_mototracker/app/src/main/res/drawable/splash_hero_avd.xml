@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AnimatedVectorDrawable for the branded splash screen (AA3).
+  Animates splash_hero_vd.xml in four overlapping phases (~2.1 s total):
+    Phase 1 JAZDA  (0–900 ms)    — bike slides in from left + wheels spin
+    Phase 2 ŚLAD   (600–1300 ms) — trail fades in (fill; trimPathEnd not applicable)
+    Phase 3 PIN    (1300–1650 ms)— map pin scales + drops in + fades
+    Phase 4 LOGO   (1600–2100 ms)— wordmark fades in with slight scale
+
+  NOTE: scaleX/scaleY on groups scale around the group's pivot, which for
+  trail/bike/wordmark defaults to (0,0) unless pivotX/pivotY are set in the VD.
+  pin has pivotX=1280 pivotY=99 set in splash_hero_vd.xml for a centred drop-in.
+  wordmark uses a subtle 0.9→1 scale (visually indistinguishable from pivot drift).
+
+  Compose's rememberAnimatedVectorPainter supports this AVD subset:
+    translateX/Y, rotation, scaleX/Y, alpha on groups via objectAnimator.
+  clip-path reveals and trimPathEnd on fills are avoided for compatibility.
+-->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/splash_hero_vd">
+
+    <!-- Phase 1 JAZDA: whole bike body slides in from the left (fast-out-slow-in) -->
+    <target android:name="bike">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="translateX"
+                android:valueFrom="-560"
+                android:valueTo="0"
+                android:duration="900"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+
+    <!-- Phase 1 JAZDA: rear wheel spins 720° (two full turns) as bike rolls in -->
+    <target android:name="wheelRear">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="720"
+                android:duration="900"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+
+    <!-- Phase 1 JAZDA: front wheel spins 720° in sync with the rear wheel -->
+    <target android:name="wheelFront">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="720"
+                android:duration="900"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+
+    <!--
+      Phase 2 ŚLAD/TRASA: trail reveals via alpha fade (not trimPathEnd — the trail
+      group contains filled shapes, not strokes; trimPathEnd would have no effect).
+      Overlaps Phase 1 by 300 ms (starts at 600 ms, ends at 1300 ms).
+    -->
+    <target android:name="trail">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="alpha"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:duration="700"
+                android:startOffset="600"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+
+    <!--
+      Phase 3 PIN: map pin drops in with scale + translate + fade.
+      pivot is set on the pin group in splash_hero_vd.xml (pivotX=1280, pivotY=99).
+    -->
+    <target android:name="pin">
+        <aapt:attr name="android:animation">
+            <set xmlns:android="http://schemas.android.com/apk/res/android">
+                <objectAnimator
+                    android:propertyName="alpha"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="translateY"
+                    android:valueFrom="-24"
+                    android:valueTo="0"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+
+    <!--
+      Phase 4 LOGO: wordmark fades in with a subtle scale-up (0.9→1).
+      No separate tagline or green-ring groups exist in the VD — only wordmark.
+    -->
+    <target android:name="wordmark">
+        <aapt:attr name="android:animation">
+            <set xmlns:android="http://schemas.android.com/apk/res/android">
+                <objectAnimator
+                    android:propertyName="alpha"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="500"
+                    android:startOffset="1600"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueFrom="0.9"
+                    android:valueTo="1"
+                    android:duration="500"
+                    android:startOffset="1600"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueFrom="0.9"
+                    android:valueTo="1"
+                    android:duration="500"
+                    android:startOffset="1600"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+
+</animated-vector>

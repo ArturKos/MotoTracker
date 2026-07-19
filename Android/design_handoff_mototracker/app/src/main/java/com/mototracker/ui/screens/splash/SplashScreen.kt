@@ -10,9 +10,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,15 +27,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mototracker.R
 import com.mototracker.ui.theme.MotoTracker
-import kotlinx.coroutines.delay
 
 /**
  * Branded full-screen splash shown while the app is initialising.
  *
- * Renders the animated motorcycle vector mark centred on the themed background
- * ([MotoTracker.colors.bg]) with a status line below it driven by [phase].
- * The animation loops for as long as the composable is in the composition;
- * dismiss timing is governed by [SplashGate] at the call site.
+ * Hosts [splash_hero_avd] — a ~2.1 s AnimatedVectorDrawable that animates the
+ * 1536×440 hero banner through four overlapping phases (bike rolls in, trail
+ * reveals, pin drops, wordmark fades in). The AVD plays a single forward pass
+ * (atEnd false → true); dismiss timing is governed by [SplashGate] at the
+ * call site, which waits for [SplashGate.AVD_DURATION_MS] before dismissing.
  *
  * This composable is purely presentational — no side effects, no ViewModel.
  *
@@ -47,15 +48,12 @@ fun SplashScreen(
     phase: SplashPhase,
     modifier: Modifier = Modifier,
 ) {
-    val image = AnimatedImageVector.animatedVectorResource(R.drawable.avd_moto_splash)
+    val image = AnimatedImageVector.animatedVectorResource(R.drawable.splash_hero_avd)
     var atEnd by remember { mutableStateOf(false) }
 
-    // Toggle atEnd every 1 200 ms to drive the AVD back-and-forth (loop effect).
+    // Single forward pass: trigger the AVD start→end play once on composition entry.
     LaunchedEffect(Unit) {
-        while (true) {
-            delay(1_200L)
-            atEnd = !atEnd
-        }
+        atEnd = true
     }
 
     Box(
@@ -68,17 +66,20 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            // The hero VD is a 1536×440 wide banner — fill available width at the
+            // correct aspect ratio so it is never distorted or clipped.
             Image(
                 painter = rememberAnimatedVectorPainter(animatedImageVector = image, atEnd = atEnd),
                 contentDescription = null,
-                modifier = Modifier.size(160.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .aspectRatio(1536f / 440f),
             )
 
             Spacer(modifier = Modifier.height(36.dp))
 
             Text(
                 text = stringResource(SplashStatus.labelFor(phase)),
-                // Reduced alpha for a subtler caption below the animation mark.
                 color = MotoTracker.colors.dim.copy(alpha = 0.55f),
                 style = MotoTracker.typography.label,
             )

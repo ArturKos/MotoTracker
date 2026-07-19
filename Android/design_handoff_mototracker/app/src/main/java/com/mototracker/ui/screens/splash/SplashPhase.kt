@@ -52,6 +52,15 @@ object SplashGate {
     const val DEFAULT_MAX_MS: Long = 4_000L
 
     /**
+     * Total duration of the [splash_hero_avd] animation (≈ 2.1 s).
+     *
+     * The call site in [MainActivity] passes this as [minDurationMs] so the splash
+     * is never dismissed before the AVD has finished playing — even when the app
+     * finishes initialising faster than the animation completes.
+     */
+    const val AVD_DURATION_MS: Long = 2_000L
+
+    /**
      * Returns `true` when the splash should be dismissed.
      *
      * @param ready          Whether the app's startup decision is resolved.

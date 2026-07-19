@@ -8,7 +8,7 @@
         <path android:fillColor="#FFD2E1EA" android:fillAlpha="0.55" android:pathData="M784,126L777,142 782,137 785,144 789,136Z"/>
         <path android:fillColor="#FFD2E1EA" android:fillAlpha="0.55" android:pathData="M872,118L865,135 870,130 873,137 877,129Z"/>
     </group>
-    <group android:name="trail">
+    <group android:name="trail" android:alpha="0">
         <group android:scaleX="0.1" android:scaleY="-0.1" android:translateY="440">
             <path android:fillColor="#FF2DD4FF" android:pathData="M3493 3853c48-2 126-2 175 0 48 1 8 3-88 3-96 0-136-2-87-3z"/>
             <path android:fillColor="#FF2DD4FF" android:pathData="M12635 3230c-48-10-96-29-75-29 8 0 47 8 85 18 70 19 64 26-10 11z"/>
@@ -40,7 +40,7 @@
             <path android:fillColor="#FF2DD4FF" android:pathData="M6723 1633c-12-2-27-12-35-21-7-8-8-13-2-9 7 4 32 8 58 8 25 1 46 6 46 10 0 7-27 20-38 18-4-1-17-4-29-6z"/>
         </group>
     </group>
-    <group android:name="bike">
+    <group android:name="bike" android:translateX="-560">
         <group android:scaleX="0.1" android:scaleY="-0.1" android:translateY="440">
             <path android:fillColor="#FF2DD4FF" android:pathData="M1110 3280c-15-5 36-8 128-9 95-1 152 3 152 9 0 12-243 12-280 0z"/>
             <path android:fillColor="#FF2DD4FF" android:pathData="M1483 2913c37-2 96-2 130 0 34 2 4 3-68 3-71 0-99-1-62-3z"/>
@@ -190,13 +190,13 @@
             </group>
         </group>
     </group>
-    <group android:name="pin">
+    <group android:name="pin" android:alpha="0" android:pivotX="1280" android:pivotY="99">
         <path android:strokeColor="#FF00E676" android:strokeWidth="5" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M1280,126C1258,100,1256,88,1256,72A24,24,0,1,1,1304,72C1304,88,1302,100,1280,126Z"/>
         <path android:fillColor="#FF00E676" android:pathData="M1272,70A8,8,0,1,0,1288,70A8,8,0,1,0,1272,70Z"/>
         <path android:strokeColor="#FF00E676" android:strokeWidth="1" android:strokeAlpha="0.4" android:fillColor="#00000000" android:pathData="M1254,140A26,6.5,0,1,0,1306,140A26,6.5,0,1,0,1254,140Z"/>
         <path android:strokeColor="#FF00E676" android:strokeWidth="1" android:strokeAlpha="0.8" android:fillColor="#00000000" android:pathData="M1266,140A14,3.5,0,1,0,1294,140A14,3.5,0,1,0,1266,140Z"/>
     </group>
-    <group android:name="wordmark">
+    <group android:name="wordmark" android:alpha="0">
         <group android:scaleX="0.1" android:scaleY="-0.1" android:translateY="440">
             <path android:fillColor="#FF2DD4FF" android:pathData="M6686 1423c-7-7-76-17-211-31-70-8-70-8 35-22 157-22 429-17 514 9 151 47 143 50-105 51-124 0-229-3-233-7z"/>
             <path android:fillColor="#FF2DD4FF" android:pathData="M7188 1383c17-2 47-2 65 0 17 2 3 4-33 4-36 0-50-2-32-4z"/>

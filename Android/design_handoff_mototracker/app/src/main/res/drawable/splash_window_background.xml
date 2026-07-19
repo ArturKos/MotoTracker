@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Window background painted by the OS during cold-start (before the first
-  Compose frame).  Fills the screen with the cockpit dark colour and centres
-  the static moto mark so the launch experience is fully branded from the
-  first rendered pixel — eliminating the white flash.
+  Compose frame).  Fills the screen with the hero dark colour (#101114) and
+  centres the glowing hero raster so the launch experience is fully branded
+  from the first rendered pixel — eliminating the white flash. (AA1)
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Layer 1: solid dark background matching the Compose splash bg -->
-    <item android:drawable="@color/moto_splash_bg" />
-    <!-- Layer 2: static moto mark centred at 200 dp -->
+    <!-- Layer 1: solid dark background matching the hero artwork surround -->
+    <item android:drawable="@color/splash_hero_bg" />
+    <!-- Layer 2: hero raster centred, not stretched; letterboxes on portrait -->
     <item
-        android:width="200dp"
-        android:height="200dp"
         android:gravity="center"
-        android:drawable="@drawable/moto_splash" />
+        android:drawable="@drawable/splash_hero_hd" />
 </layer-list>

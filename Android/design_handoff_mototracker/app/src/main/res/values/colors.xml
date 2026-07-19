@@ -6,4 +6,6 @@
         the OS-drawn window matches the Compose splash background before the first frame.
     -->
     <color name="moto_splash_bg">#0E1114</color>
+    <!-- AA1: exact background for the hero splash (designer-approved) -->
+    <color name="splash_hero_bg">#101114</color>
 </resources>

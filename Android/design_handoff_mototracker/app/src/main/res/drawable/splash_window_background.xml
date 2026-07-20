@@ -2,14 +2,14 @@
 <!--
   Window background painted by the OS during cold-start (before the first
   Compose frame).  Fills the screen with the hero dark colour (#101114) and
-  centres the glowing hero raster so the launch experience is fully branded
-  from the first rendered pixel — eliminating the white flash. (AA1)
+  stretches the AE2 mountains layer full-canvas so the OS cold-start frame
+  matches the Compose mountains layer exactly — no scale/position jump. (AE3)
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Layer 1: solid dark background matching the hero artwork surround -->
     <item android:drawable="@color/splash_hero_bg" />
-    <!-- Layer 2: portrait start-frame (mountains/sky only), fill centre; matched to AVD t=0 -->
+    <!-- Layer 2: AE2 mountains layer, full-canvas fill; matches Compose SplashScreen t=0 -->
     <item
-        android:gravity="center|fill"
-        android:drawable="@drawable/splash_portrait_start" />
+        android:gravity="fill"
+        android:drawable="@drawable/splash_l_mountains" />
 </layer-list>

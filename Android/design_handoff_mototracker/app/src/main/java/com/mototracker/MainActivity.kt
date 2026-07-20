@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.ui.navigation.MotoApp
+import com.mototracker.ui.screens.splash.SplashChoreography
 import com.mototracker.ui.screens.splash.SplashGate
 import com.mototracker.ui.screens.splash.SplashPhase
 import com.mototracker.ui.screens.splash.SplashScreen
@@ -36,8 +37,8 @@ import kotlinx.coroutines.delay
  * [com.mototracker.ui.state.AppStateViewModel], and the navigation shell [MotoApp].
  *
  * While [StartupDecision.Loading] is pending (DataStore sources not yet emitted), a branded
- * [SplashScreen] is shown. The splash respects a minimum visible duration ([SplashGate.DEFAULT_MIN_MS])
- * so it is always seen on fast devices, and a hard cap ([SplashGate.DEFAULT_MAX_MS]) to prevent
+ * [SplashScreen] is shown. The splash respects a minimum visible duration ([SplashChoreography.TOTAL_MS])
+ * so the Compose entrance animation always finishes, and a hard cap of 3 000 ms to prevent
  * an infinite hang — preventing a Login flash for users who previously signed in or chose guest
  * mode (B22).
  *
@@ -71,13 +72,13 @@ class MainActivity : AppCompatActivity() {
             val isReady = startupDecision is StartupDecision.Ready
 
             // Tick elapsed time every 50 ms while the splash might still be visible.
-            // minDurationMs = AVD_DURATION_MS: never dismiss before the AVD finishes.
-            // maxDurationMs = 2 500 ms: hard cap regardless of startup state.
+            // minDurationMs = SplashChoreography.TOTAL_MS: never dismiss before the Compose animation finishes.
+            // maxDurationMs = 3 000 ms: hard cap regardless of startup state.
             LaunchedEffect(isReady) {
                 while (!SplashGate.shouldDismiss(
                         isReady, splashElapsedMs,
-                        minDurationMs = SplashGate.AVD_DURATION_MS,
-                        maxDurationMs = 2_500L,
+                        minDurationMs = SplashChoreography.TOTAL_MS,
+                        maxDurationMs = 3_000L,
                     )
                 ) {
                     delay(50L)
@@ -97,8 +98,8 @@ class MainActivity : AppCompatActivity() {
 
             val showSplash = !SplashGate.shouldDismiss(
                 isReady, splashElapsedMs,
-                minDurationMs = SplashGate.AVD_DURATION_MS,
-                maxDurationMs = 2_500L,
+                minDurationMs = SplashChoreography.TOTAL_MS,
+                maxDurationMs = 3_000L,
             )
 
             MotoTrackerTheme(
@@ -110,7 +111,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     when (val decision = startupDecision) {
                         is StartupDecision.Loading -> {
-                            // Still loading but past the max timeout — show splash until
+                            // Still loading but past the hard cap (3 000 ms) — show splash until
                             // the gate finally allows dismissal; this branch is unreachable
                             // in practice because the gate force-dismisses at maxDurationMs.
                             SplashScreen(phase = splashPhase)

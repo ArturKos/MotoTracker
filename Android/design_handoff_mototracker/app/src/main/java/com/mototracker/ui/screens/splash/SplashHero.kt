@@ -3,30 +3,32 @@ package com.mototracker.ui.screens.splash
 /**
  * Describes which rendering path [SplashScreen] should use for the hero banner.
  *
- * [ANIMATED] — the AVD drawable loaded and cast to [android.graphics.drawable.AnimatedVectorDrawable]
- * successfully; the [android.widget.ImageView]-hosted AVD path is active.
+ * [LAYERED] — all nine [com.mototracker.R.drawable.splash_l_*] layer PNGs loaded
+ * successfully; the full Compose-animated layered stack driven by [SplashChoreography]
+ * is active.
  *
- * [STATIC_FALLBACK] — the AVD drawable failed to load or cast; a plain raster
- * [R.drawable.splash_hero_hd] is shown instead so composition can never throw.
+ * [STATIC_FALLBACK] — one or more layer drawables failed to load; a plain raster
+ * [com.mototracker.R.drawable.splash_portrait_hd] is shown instead so composition
+ * can never throw due to a missing asset.
  */
-enum class SplashRenderMode { ANIMATED, STATIC_FALLBACK }
+enum class SplashRenderMode { LAYERED, STATIC_FALLBACK }
 
 /**
  * Pure, stateless helper that decides the hero render mode from a single Boolean flag.
  *
  * Keeping the decision in a pure function makes it unit-testable without any Android
- * framework or Compose dependency — the AVD load/cast attempt happens at the call site
- * inside [SplashScreen], which passes the result here as [avdLoadSucceeded].
+ * framework or Compose dependency — the layer-presence check happens at the call site
+ * inside [SplashScreen], which passes the result here as [allLayersPresent].
  */
 object SplashHero {
 
     /**
-     * Returns [SplashRenderMode.ANIMATED] when [avdLoadSucceeded] is `true`,
-     * otherwise [SplashRenderMode.STATIC_FALLBACK].
+     * Returns [SplashRenderMode.LAYERED] when all nine splash layer drawables resolved
+     * successfully, otherwise [SplashRenderMode.STATIC_FALLBACK].
      *
-     * @param avdLoadSucceeded `true` iff the AVD drawable loaded and cast to
-     *   [android.graphics.drawable.AnimatedVectorDrawable] without throwing.
+     * @param allLayersPresent `true` iff every [com.mototracker.R.drawable.splash_l_*]
+     *   drawable loaded without throwing via [androidx.core.content.ContextCompat.getDrawable].
      */
-    fun renderMode(avdLoadSucceeded: Boolean): SplashRenderMode =
-        if (avdLoadSucceeded) SplashRenderMode.ANIMATED else SplashRenderMode.STATIC_FALLBACK
+    fun renderMode(allLayersPresent: Boolean): SplashRenderMode =
+        if (allLayersPresent) SplashRenderMode.LAYERED else SplashRenderMode.STATIC_FALLBACK
 }

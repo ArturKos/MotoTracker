@@ -6,9 +6,12 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
 import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.SessionStore
 import com.mototracker.data.terms.TermsAcceptanceStore
+import com.mototracker.data.repository.RoutePreloadCache
+import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.ui.navigation.SyncState
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -56,6 +60,9 @@ import javax.inject.Inject
  * @param networkMonitor    Observes live network connectivity for [syncState].
  * @param settingsSource    Reads [AppSettings.noInternet] for [syncState] (U1).
  * @param syncRepository    Provides the pending sync queue count for [syncState].
+ * @param routeRepository   Source for [preloadedRoutes]; queried eagerly during splash (AE4).
+ * @param routePreloadCache Singleton cache written by [preloadedRoutes] and read by
+ *                          [com.mototracker.ui.screens.routes.RoutesViewModel] as its initial value.
  */
 @HiltViewModel
 class AppStateViewModel @Inject constructor(
@@ -67,6 +74,8 @@ class AppStateViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val settingsSource: AppSettingsSource,
     private val syncRepository: SyncRepository,
+    private val routeRepository: RouteRepository,
+    private val routePreloadCache: RoutePreloadCache,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
@@ -99,6 +108,22 @@ class AppStateViewModel @Inject constructor(
     ) { online, s, pending ->
         deriveSyncState(online, s.noInternet, pending)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SyncState.Offline)
+
+    /**
+     * Eagerly-started stream of route summaries, warmed during the splash animation (AE4).
+     *
+     * Because this ViewModel is activity-scoped and composed as soon as the splash renders,
+     * [SharingStarted.Eagerly] causes Room to evaluate [RouteRepository.observeSummaries] during
+     * the ~2.2 s splash window. Each emission is forwarded to [routePreloadCache] so that
+     * [com.mototracker.ui.screens.routes.RoutesViewModel] can read the cached snapshot as its
+     * [kotlinx.coroutines.flow.stateIn] initial value, populating the Routes tab instantly.
+     *
+     * **Does NOT gate splash dismissal.** The splash timing is controlled exclusively by
+     * [com.mototracker.ui.screens.splash.SplashChoreography.TOTAL_MS] and [startupDecision].
+     */
+    val preloadedRoutes: StateFlow<List<RouteSummaryModel>> = routeRepository.observeSummaries()
+        .onEach { routePreloadCache.seed(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /**
      * One-time startup navigation decision, updated whenever the persisted auth state, session

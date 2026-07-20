@@ -7,6 +7,7 @@ import com.mototracker.data.local.entity.BikeStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RoutePreloadCache
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -33,20 +34,32 @@ import javax.inject.Inject
  * route) for a list that only needs scalar fields and the precomputed thumbnail SVG
  * path. All list transformation is pure and testable — no Room/DAO involvement.
  *
- * @param routeRepository  Provides the live route summary list.
- * @param bikeRepository   Provides the live bike list for name resolution.
- * @param settingsSource   Provides the user's unit preference.
+ * @param routeRepository   Provides the live route summary list.
+ * @param bikeRepository    Provides the live bike list for name resolution.
+ * @param settingsSource    Provides the user's unit preference.
+ * @param routePreloadCache Singleton cache seeded by [com.mototracker.ui.state.AppStateViewModel]
+ *                          during splash; its snapshot is used as the [stateIn] initial value so
+ *                          the Routes tab is populated on the first frame without a spinner (AE4).
  */
 @HiltViewModel
 class RoutesViewModel @Inject constructor(
     private val routeRepository: RouteRepository,
     private val bikeRepository: BikeRepository,
     private val settingsSource: AppSettingsSource,
+    private val routePreloadCache: RoutePreloadCache,
 ) : ViewModel() {
 
     private val _filter = MutableStateFlow(RoutesFilter())
 
-    /** Live UI state exposed to the Routes screen. */
+    /**
+     * Live UI state exposed to the Routes screen.
+     *
+     * [SharingStarted.WhileSubscribed] keeps Room active while the screen is visible.
+     * The [initialValue] is seeded from [routePreloadCache] (which [AppStateViewModel] populates
+     * during splash), so the first frame renders real data instead of an empty placeholder.
+     * Bike name resolution falls back to "—" in the seed because bikes are not yet loaded;
+     * the first combine emission replaces it with the correct names.
+     */
     val uiState: StateFlow<RoutesUiState> = combine(
         routeRepository.observeSummaries(),
         bikeRepository.observeAll(),
@@ -57,7 +70,7 @@ class RoutesViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = RoutesUiState(),
+        initialValue = buildUiState(routePreloadCache.routes.value, emptyList(), AppSettings(), RoutesFilter()),
     )
 
     // ── Public filter / sort API ──────────────────────────────────────────────

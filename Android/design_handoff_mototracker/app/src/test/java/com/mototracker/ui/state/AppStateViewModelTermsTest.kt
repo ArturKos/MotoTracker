@@ -5,9 +5,13 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
 import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
+import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.SessionState
 import com.mototracker.data.network.SessionStore
+import com.mototracker.data.repository.RoutePreloadCache
+import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -74,6 +78,18 @@ private class TermsTestSyncRepository : SyncRepository {
     override fun start(scope: CoroutineScope) = Unit
 }
 
+private class TermsTestRouteRepository : RouteRepository {
+    private val _summaries = MutableStateFlow<List<RouteSummaryModel>>(emptyList())
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> = _summaries
+    override suspend fun save(route: Route) = Unit
+    override suspend fun getById(id: String): Route? = null
+    override fun observeById(id: String): Flow<Route?> = MutableStateFlow(null)
+    override suspend fun clearCorrectedTrace(id: String) = Unit
+    override suspend fun rename(id: String, name: String) = Unit
+    override suspend fun setBike(routeId: String, bikeId: String?) = Unit
+    override suspend fun deleteAll() = Unit
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -102,6 +118,8 @@ class AppStateViewModelTermsTest {
             networkMonitor = TermsTestNetworkMonitor(),
             settingsSource = TermsTestSettingsSource(),
             syncRepository = TermsTestSyncRepository(),
+            routeRepository = TermsTestRouteRepository(),
+            routePreloadCache = RoutePreloadCache(),
         )
     }
 

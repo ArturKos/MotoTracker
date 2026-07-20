@@ -5,10 +5,15 @@ import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.i18n.LocaleController
 import com.mototracker.data.auth.AuthState
 import com.mototracker.data.auth.AuthStateStore
+import com.mototracker.data.local.entity.CorrectionStatus
+import com.mototracker.data.model.Route
+import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.terms.TermsAcceptanceStore
 import com.mototracker.data.network.SessionState
 import com.mototracker.data.network.SessionStore
+import com.mototracker.data.repository.RoutePreloadCache
+import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -92,6 +97,23 @@ private class FakeTermsAcceptanceStore(initial: Boolean = false) : TermsAcceptan
     }
 }
 
+private class FakeRouteRepository(
+    initialSummaries: List<RouteSummaryModel> = emptyList(),
+) : RouteRepository {
+    private val _summaries = MutableStateFlow(initialSummaries)
+
+    fun emitSummaries(summaries: List<RouteSummaryModel>) { _summaries.value = summaries }
+
+    override fun observeSummaries(): Flow<List<RouteSummaryModel>> = _summaries
+    override suspend fun save(route: Route) = Unit
+    override suspend fun getById(id: String): Route? = null
+    override fun observeById(id: String): Flow<Route?> = MutableStateFlow(null)
+    override suspend fun clearCorrectedTrace(id: String) = Unit
+    override suspend fun rename(id: String, name: String) = Unit
+    override suspend fun setBike(routeId: String, bikeId: String?) = Unit
+    override suspend fun deleteAll() = Unit
+}
+
 private class FakeSyncRepository(initialPending: Int = 0) : SyncRepository {
     private val _pending = MutableStateFlow(initialPending)
     fun emitPending(count: Int) { _pending.value = count }
@@ -111,6 +133,8 @@ class AppStateViewModelTest {
     private lateinit var fakeNetworkMonitor: FakeNetworkMonitor
     private lateinit var fakeSettingsSource: FakeAppSettingsSource
     private lateinit var fakeSyncRepository: FakeSyncRepository
+    private lateinit var fakeRouteRepository: FakeRouteRepository
+    private lateinit var routePreloadCache: RoutePreloadCache
     private lateinit var viewModel: AppStateViewModel
 
     @Before
@@ -124,6 +148,8 @@ class AppStateViewModelTest {
         fakeNetworkMonitor = FakeNetworkMonitor(initial = true)
         fakeSettingsSource = FakeAppSettingsSource()
         fakeSyncRepository = FakeSyncRepository(initialPending = 0)
+        fakeRouteRepository = FakeRouteRepository()
+        routePreloadCache = RoutePreloadCache()
         viewModel = AppStateViewModel(
             localeController = fakeLocale,
             recordingBridge = bridge,
@@ -133,6 +159,8 @@ class AppStateViewModelTest {
             networkMonitor = fakeNetworkMonitor,
             settingsSource = fakeSettingsSource,
             syncRepository = fakeSyncRepository,
+            routeRepository = fakeRouteRepository,
+            routePreloadCache = routePreloadCache,
         )
     }
 
@@ -452,6 +480,50 @@ class AppStateViewModelTest {
             assertEquals(SyncState.Synced, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // ── AE4: preloadedRoutes ──────────────────────────────────────────────────
+
+    private fun makeRouteSummary(id: String = "r1", name: String = "Test") = RouteSummaryModel(
+        id = id, name = name, dateEpochMs = 1_700_000_000_000L,
+        bikeId = null, km = 100.0, durSec = 3_600L,
+        avg = 60.0, max = 120.0, lean = 20.0, elev = 500.0, fuel = 5.0,
+        synced = true, thumbnailPathD = null,
+        correctionStatus = CorrectionStatus.NONE, confidence = null,
+    )
+
+    @Test
+    fun `preloadedRoutes starts empty before repository emits`() {
+        assertEquals(emptyList<RouteSummaryModel>(), viewModel.preloadedRoutes.value)
+    }
+
+    @Test
+    fun `preloadedRoutes reflects repository emission eagerly without RoutesViewModel created`() = runTest {
+        // No RoutesViewModel is ever created in this test — proves loading happens during splash.
+        val summaries = listOf(makeRouteSummary("r1"), makeRouteSummary("r2"))
+        viewModel.preloadedRoutes.test {
+            awaitItem() // initial empty
+            fakeRouteRepository.emitSummaries(summaries)
+            val emitted = awaitItem()
+            assertEquals(2, emitted.size)
+            assertEquals("r1", emitted[0].id)
+            assertEquals("r2", emitted[1].id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `preloadedRoutes seeds routePreloadCache via onEach side-effect`() = runTest {
+        val summaries = listOf(makeRouteSummary("r1"))
+        fakeRouteRepository.emitSummaries(summaries)
+        // Drain the preloadedRoutes flow so onEach fires
+        viewModel.preloadedRoutes.test {
+            awaitItem() // may be empty or already have routes depending on dispatcher timing
+            cancelAndIgnoreRemainingEvents()
+        }
+        // The cache should be populated
+        assertEquals(1, routePreloadCache.routes.value.size)
+        assertEquals("r1", routePreloadCache.routes.value.first().id)
     }
 }
 

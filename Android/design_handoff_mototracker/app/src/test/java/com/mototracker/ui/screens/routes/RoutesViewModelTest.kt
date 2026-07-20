@@ -2,11 +2,13 @@ package com.mototracker.ui.screens.routes
 
 import app.cash.turbine.test
 import com.mototracker.data.local.entity.BikeStatus
+import com.mototracker.data.local.entity.CorrectionStatus
 import com.mototracker.data.model.Bike
 import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.model.mapper.toRouteSummaryModel
 import com.mototracker.data.repository.BikeRepository
+import com.mototracker.data.repository.RoutePreloadCache
 import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
@@ -120,6 +122,7 @@ class RoutesViewModelTest {
     private lateinit var routeRepo: FakeRouteRepository
     private lateinit var bikeRepo: FakeBikeRepository
     private lateinit var settings: FakeSettingsSource
+    private lateinit var preloadCache: RoutePreloadCache
     private lateinit var viewModel: RoutesViewModel
 
     @Before
@@ -128,7 +131,8 @@ class RoutesViewModelTest {
         routeRepo = FakeRouteRepository()
         bikeRepo = FakeBikeRepository()
         settings = FakeSettingsSource()
-        viewModel = RoutesViewModel(routeRepo, bikeRepo, settings)
+        preloadCache = RoutePreloadCache()
+        viewModel = RoutesViewModel(routeRepo, bikeRepo, settings, preloadCache)
     }
 
     @After
@@ -747,6 +751,55 @@ class RoutesViewModelTest {
             assertEquals(SortDirection.DESC, state.filter.sortDir)
             // After clear with DATE DESC, newest first
             assertEquals("r2", state.cards[0].id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── AE4: preload seed ────────────────────────────────────────────────────
+
+    private fun makeRouteSummaryDirect(
+        id: String = "s1",
+        name: String = "Seed Route",
+        km: Double = 50.0,
+    ) = RouteSummaryModel(
+        id = id, name = name, dateEpochMs = 1_700_000_000_000L,
+        bikeId = null, km = km, durSec = 1_800L,
+        avg = 50.0, max = 100.0, lean = 15.0, elev = 200.0, fuel = 3.0,
+        synced = true, thumbnailPathD = null,
+        correctionStatus = CorrectionStatus.NONE, confidence = null,
+    )
+
+    @Test
+    fun `uiState initial value is seeded from RoutePreloadCache when cache is non-empty`() {
+        // Seed cache BEFORE creating RoutesViewModel — simulates AppStateViewModel's eager preload.
+        preloadCache.seed(listOf(makeRouteSummaryDirect("s1"), makeRouteSummaryDirect("s2")))
+        val vm = RoutesViewModel(routeRepo, bikeRepo, settings, preloadCache)
+
+        // StateFlow.value before any subscription reflects the initialValue (WhileSubscribed hasn't
+        // started the upstream combine yet, so the seeded value is preserved).
+        assertEquals(2, vm.uiState.value.cards.size)
+        assertTrue(vm.uiState.value.cards.map { it.id }.containsAll(listOf("s1", "s2")))
+    }
+
+    @Test
+    fun `uiState initial value is empty when RoutePreloadCache is empty`() {
+        // Default setUp creates an empty cache — initial state must be empty.
+        assertEquals(0, viewModel.uiState.value.cards.size)
+    }
+
+    @Test
+    fun `uiState live updates still work after preload seed`() = runTest {
+        preloadCache.seed(listOf(makeRouteSummaryDirect("s1")))
+        val vm = RoutesViewModel(routeRepo, bikeRepo, settings, preloadCache)
+
+        // Pre-emit 3 routes to the repository so combine has data when first subscribed.
+        routeRepo.emit(listOf(makeRoute("r1"), makeRoute("r2"), makeRoute("r3")))
+
+        // Subscribing triggers WhileSubscribed; with UnconfinedTestDispatcher combine runs
+        // synchronously and emits the current repository state (3 routes).
+        vm.uiState.test {
+            val state = awaitItem()
+            assertEquals(3, state.cards.size)
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -10,7 +10,11 @@ VERSION="${1:-}"
 TAG_FLAG="${2:-}"
 [ -n "$VERSION" ] || usage
 
-if ! [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+if [ -n "$TAG_FLAG" ] && [ "$TAG_FLAG" != "--tag" ]; then
+  echo "error: nieznany argument '$TAG_FLAG' (dozwolone: --tag)" >&2; exit 1
+fi
+
+if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
   echo "error: wersja musi być X.Y.Z (dostałem '$VERSION')" >&2; exit 1
 fi
 MAJOR="${BASH_REMATCH[1]}"; MINOR="${BASH_REMATCH[2]}"; PATCH="${BASH_REMATCH[3]}"

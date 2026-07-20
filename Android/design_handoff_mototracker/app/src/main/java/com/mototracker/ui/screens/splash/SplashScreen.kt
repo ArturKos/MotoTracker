@@ -4,14 +4,9 @@ import android.graphics.drawable.AnimatedVectorDrawable
 import android.widget.ImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -27,17 +22,19 @@ import com.mototracker.R
 import com.mototracker.ui.theme.MotoTracker
 
 /**
- * Branded full-screen splash shown while the app is initialising.
+ * Branded full-screen portrait splash shown while the app is initialising (AD1).
  *
- * Hosts the hero banner via an [ImageView]-wrapped [AnimatedVectorDrawable]
- * ([R.drawable.splash_hero_avd]).  Using [AndroidView] avoids the experimental
- * [androidx.compose.animation.graphics] API that caused intermittent
- * `finishTopCrashedActivity` crashes on Compose-AVD composition.
+ * The hero fills the screen via [HeroSlot] ([R.drawable.splash_portrait_avd]).
+ * [AndroidView] hosts an [ImageView] instead of Compose's experimental AVD API —
+ * this avoids the `finishTopCrashedActivity` crashes seen on Android 9 (AB1 fix).
  *
- * Fallback: if the AVD drawable fails to load or cast to [AnimatedVectorDrawable]
- * for any reason, [SplashHero.renderMode] returns [SplashRenderMode.STATIC_FALLBACK]
- * and a plain raster ([R.drawable.splash_hero_hd]) is shown instead — composition
- * can never throw.
+ * Fallback: if the AVD drawable fails to cast to [AnimatedVectorDrawable],
+ * [SplashHero.renderMode] returns [SplashRenderMode.STATIC_FALLBACK] and
+ * [R.drawable.splash_portrait_hd] is shown — composition never throws.
+ *
+ * A subtle init-status label ([SplashStatus.labelFor]) is overlaid at the bottom.
+ * The wordmark is embedded inside the portrait AVD itself so no separate Text row
+ * is needed for branding.
  *
  * Dismiss timing is governed by [SplashGate] at the call site.
  *
@@ -53,54 +50,42 @@ fun SplashScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MotoTracker.colors.bg),
-        contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            HeroSlot(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .aspectRatio(1536f / 440f),
-            )
+        HeroSlot(modifier = Modifier.fillMaxSize())
 
-            Spacer(modifier = Modifier.height(36.dp))
-
-            Text(
-                text = stringResource(SplashStatus.labelFor(phase)),
-                color = MotoTracker.colors.dim.copy(alpha = 0.55f),
-                style = MotoTracker.typography.label,
-            )
-        }
+        Text(
+            text = stringResource(SplashStatus.labelFor(phase)),
+            color = MotoTracker.colors.dim.copy(alpha = 0.55f),
+            style = MotoTracker.typography.label,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp),
+        )
     }
 }
 
 /**
- * Renders the 1536×440 hero banner.
+ * Renders the 1080×1560 portrait hero frame.
  *
- * The render path is decided once per composition by pre-checking whether
- * [R.drawable.splash_hero_avd] is an [AnimatedVectorDrawable]; the result is
- * passed to the pure [SplashHero.renderMode] helper which returns either
- * [SplashRenderMode.ANIMATED] or [SplashRenderMode.STATIC_FALLBACK].
+ * Render path is decided once per composition by pre-checking whether
+ * [R.drawable.splash_portrait_avd] loads as an [AnimatedVectorDrawable]; the
+ * boolean is passed to the pure [SplashHero.renderMode] seam.
  *
- * When [SplashRenderMode.ANIMATED]: an [AndroidView] hosts an [ImageView] that
- * loads and starts the AVD once (in the factory; never restarted on recomposition).
- * A try/catch around the start() call ensures any late failure is silent.
+ * [SplashRenderMode.ANIMATED]: [AndroidView] hosts an [ImageView] that loads and
+ * starts the AVD once in the factory; a try/catch around [AnimatedVectorDrawable.start]
+ * ensures any late drawable failure is silently swallowed — the first static frame
+ * is still displayed and composition cannot throw.
  *
- * When [SplashRenderMode.STATIC_FALLBACK]: a plain raster [R.drawable.splash_hero_hd]
- * is shown so the splash is always visible regardless of drawable availability.
+ * [SplashRenderMode.STATIC_FALLBACK]: [R.drawable.splash_portrait_hd] is shown so
+ * the splash is always visible regardless of drawable availability.
  */
 @Composable
 private fun HeroSlot(modifier: Modifier = Modifier) {
     val context = LocalContext.current
 
-    // Determine AVD availability before entering the AndroidView factory so we
-    // never mutate state during composition. This check runs once per context
-    // identity (i.e. once per Activity lifetime).
     val avdLoadSucceeded = remember(context) {
         try {
-            ContextCompat.getDrawable(context, R.drawable.splash_hero_avd) is AnimatedVectorDrawable
+            ContextCompat.getDrawable(context, R.drawable.splash_portrait_avd) is AnimatedVectorDrawable
         } catch (_: Throwable) {
             false
         }
@@ -116,11 +101,10 @@ private fun HeroSlot(modifier: Modifier = Modifier) {
                         adjustViewBounds = true
                         scaleType = ImageView.ScaleType.FIT_CENTER
                         try {
-                            setImageResource(R.drawable.splash_hero_avd)
+                            setImageResource(R.drawable.splash_portrait_avd)
                             (drawable as? AnimatedVectorDrawable)?.start()
                         } catch (_: Throwable) {
-                            // start() failed after pre-check passed; the AVD is already
-                            // loaded so the first frame is still shown — acceptable.
+                            // start() failed after pre-check passed — first frame still shown.
                         }
                     }
                 },
@@ -130,7 +114,7 @@ private fun HeroSlot(modifier: Modifier = Modifier) {
 
         SplashRenderMode.STATIC_FALLBACK -> {
             Image(
-                painter = painterResource(R.drawable.splash_hero_hd),
+                painter = painterResource(R.drawable.splash_portrait_hd),
                 contentDescription = null,
                 modifier = modifier,
             )

@@ -10,20 +10,22 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * Parses `splash_hero_vd.xml` on the JVM (no device/Robolectric needed) and
- * asserts the structural contract that AA3 depends on:
- *  - Correct viewport (1536 × 440)
- *  - All seven required named groups present
- *  - wheelRear / wheelFront pivots at exact spec coordinates
+ * Parses `splash_portrait_vd.xml` on the JVM (no device/Robolectric needed) and
+ * asserts the structural contract that AD1 depends on:
+ *  - Correct portrait viewport (1080 × 1560)
+ *  - All eight required named groups present
+ *    (scene, mountains, trail, bike, wheelRear, wheelFront, pin, wordmark)
+ *  - wheelRear / wheelFront LOCAL pivots at exact spec coordinates
+ *  - Both wheel groups start with zero rotation
  */
 class SplashHeroVectorDrawableTest {
 
     // Gradle unit tests run from the :app module directory
-    private val vdFile = File("src/main/res/drawable/splash_hero_vd.xml")
+    private val vdFile = File("src/main/res/drawable/splash_portrait_vd.xml")
     private val androidNs = "http://schemas.android.com/apk/res/android"
 
     private val doc by lazy {
-        assertTrue("splash_hero_vd.xml not found at ${vdFile.absolutePath}", vdFile.exists())
+        assertTrue("splash_portrait_vd.xml not found at ${vdFile.absolutePath}", vdFile.exists())
         val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
         factory.newDocumentBuilder().parse(vdFile)
     }
@@ -49,22 +51,33 @@ class SplashHeroVectorDrawableTest {
     }
 
     @Test
-    fun `vector root has correct viewport dimensions`() {
+    fun `vector root has correct portrait viewport dimensions`() {
         val root = doc.documentElement
-        assertEquals("viewportWidth", "1536", root.androidAttr("viewportWidth"))
-        assertEquals("viewportHeight", "440", root.androidAttr("viewportHeight"))
-        assertEquals("width", "1536dp", root.androidAttr("width"))
-        assertEquals("height", "440dp", root.androidAttr("height"))
+        assertEquals("viewportWidth", "1080", root.androidAttr("viewportWidth"))
+        assertEquals("viewportHeight", "1560", root.androidAttr("viewportHeight"))
+        assertEquals("width", "1080dp", root.androidAttr("width"))
+        assertEquals("height", "1560dp", root.androidAttr("height"))
     }
 
     @Test
-    fun `all seven required named groups are present`() {
-        val required = setOf("mountains", "trail", "bike", "wheelRear", "wheelFront", "pin", "wordmark")
+    fun `all eight required named groups are present`() {
+        val required = setOf("scene", "mountains", "trail", "bike", "wheelRear", "wheelFront", "pin", "wordmark")
         val namedGroups = collectAllGroups()
             .mapNotNull { it.androidAttr("name") }
             .toSet()
         val missing = required - namedGroups
         assertTrue("Missing groups: $missing", missing.isEmpty())
+    }
+
+    @Test
+    fun `scene group has portrait positioning transforms`() {
+        val scene = collectAllGroups()
+            .firstOrNull { it.androidAttr("name") == "scene" }
+        assertNotNull("scene group not found", scene)
+        assertEquals("scene translateX", "2", scene!!.androidAttr("translateX"))
+        assertEquals("scene translateY", "430", scene.androidAttr("translateY"))
+        assertEquals("scene scaleX", "0.70", scene.androidAttr("scaleX"))
+        assertEquals("scene scaleY", "0.70", scene.androidAttr("scaleY"))
     }
 
     @Test
@@ -94,5 +107,37 @@ class SplashHeroVectorDrawableTest {
         assertNotNull("wheelFront not found", wf)
         assertEquals("wheelRear rotation", "0", wr!!.androidAttr("rotation"))
         assertEquals("wheelFront rotation", "0", wf!!.androidAttr("rotation"))
+    }
+
+    @Test
+    fun `bike group starts with scene-local translateX offset`() {
+        val bike = collectAllGroups()
+            .firstOrNull { it.androidAttr("name") == "bike" }
+        assertNotNull("bike group not found", bike)
+        assertEquals("bike translateX", "-560", bike!!.androidAttr("translateX"))
+    }
+
+    @Test
+    fun `trail group starts fully transparent`() {
+        val trail = collectAllGroups()
+            .firstOrNull { it.androidAttr("name") == "trail" }
+        assertNotNull("trail group not found", trail)
+        assertEquals("trail alpha", "0", trail!!.androidAttr("alpha"))
+    }
+
+    @Test
+    fun `pin group starts fully transparent`() {
+        val pin = collectAllGroups()
+            .firstOrNull { it.androidAttr("name") == "pin" }
+        assertNotNull("pin group not found", pin)
+        assertEquals("pin alpha", "0", pin!!.androidAttr("alpha"))
+    }
+
+    @Test
+    fun `wordmark group starts fully transparent`() {
+        val wordmark = collectAllGroups()
+            .firstOrNull { it.androidAttr("name") == "wordmark" }
+        assertNotNull("wordmark group not found", wordmark)
+        assertEquals("wordmark alpha", "0", wordmark!!.androidAttr("alpha"))
     }
 }

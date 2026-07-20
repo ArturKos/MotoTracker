@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AnimatedVectorDrawable for the portrait splash screen (AD1).
+  Targets splash_portrait_vd.xml — same group names as the landscape AVD
+  so timing / property choices are identical; only the drawable reference differs.
+
+  Phase 1  JAZDA  (0–900 ms)    — bike slides in from left + wheels spin
+  Phase 2  ŚLAD   (600–1300 ms) — trail alpha 0→1 (fade reveal)
+  Phase 3  PIN    (1300–1650 ms)— map pin scales 0→1 + drops + fades in
+  Phase 4  LOGO   (1600–2100 ms)— wordmark alpha 0→1 with subtle scale-up
+
+  All coordinates are scene-local (inside the 0.70-scaled scene group).
+  The bike's translateX -560→0 moves it ~392 px right in screen space.
+-->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/splash_portrait_vd">
+
+    <!-- Phase 1 JAZDA: bike slides in from the left (fast-out-slow-in) -->
+    <target android:name="bike">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="translateX"
+                android:valueFrom="-560"
+                android:valueTo="0"
+                android:duration="900"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+
+    <!-- Phase 1 JAZDA: rear wheel spins 720° as bike rolls in -->
+    <target android:name="wheelRear">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="720"
+                android:duration="900"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+
+    <!-- Phase 1 JAZDA: front wheel spins 720° in sync -->
+    <target android:name="wheelFront">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="720"
+                android:duration="900"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+
+    <!--
+      Phase 2 ŚLAD: trail fades in via alpha (filled shapes; trimPathEnd N/A).
+      Overlaps Phase 1 by 300 ms (starts at 600 ms).
+    -->
+    <target android:name="trail">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="alpha"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:duration="700"
+                android:startOffset="600"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+
+    <!--
+      Phase 3 PIN: map pin drops in — scale 0→1 + translateY drop + alpha fade.
+      pivot is set in the VD at (1280, 99) scene-local for a centred drop.
+    -->
+    <target android:name="pin">
+        <aapt:attr name="android:animation">
+            <set xmlns:android="http://schemas.android.com/apk/res/android">
+                <objectAnimator
+                    android:propertyName="alpha"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="translateY"
+                    android:valueFrom="-24"
+                    android:valueTo="0"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="350"
+                    android:startOffset="1300"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+
+    <!--
+      Phase 4 LOGO: wordmark fades in with a subtle scale-up (0.9→1).
+      The outer positioning group is unnamed; only the inner "wordmark" group
+      is targeted here so the 0.70 outer scale is not disturbed.
+    -->
+    <target android:name="wordmark">
+        <aapt:attr name="android:animation">
+            <set xmlns:android="http://schemas.android.com/apk/res/android">
+                <objectAnimator
+                    android:propertyName="alpha"
+                    android:valueFrom="0"
+                    android:valueTo="1"
+                    android:duration="500"
+                    android:startOffset="1600"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueFrom="0.9"
+                    android:valueTo="1"
+                    android:duration="500"
+                    android:startOffset="1600"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueFrom="0.9"
+                    android:valueTo="1"
+                    android:duration="500"
+                    android:startOffset="1600"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+
+</animated-vector>

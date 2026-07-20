@@ -8,8 +8,8 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Layer 1: solid dark background matching the hero artwork surround -->
     <item android:drawable="@color/splash_hero_bg" />
-    <!-- Layer 2: hero raster centred, not stretched; letterboxes on portrait -->
+    <!-- Layer 2: portrait start-frame (mountains/sky only), fill centre; matched to AVD t=0 -->
     <item
-        android:gravity="center"
-        android:drawable="@drawable/splash_hero_hd" />
+        android:gravity="center|fill"
+        android:drawable="@drawable/splash_portrait_start" />
 </layer-list>

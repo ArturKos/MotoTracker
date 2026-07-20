@@ -5,3 +5,7 @@ backend/log_file.log
 backend/data.txt
 backend/*.backup
 backend/index.htmlbackup
+
+# Klucze podpisujące Android — nigdy do repo (patrz spec CI/wydań)
+*.jks
+*.keystore

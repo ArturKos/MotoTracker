@@ -33,7 +33,9 @@ jobs:
           fi
 
       - name: Odkoduj keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/release.jks"
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "${{ runner.temp }}/release.jks"
 
       - name: assembleRelease (podpisany)
         working-directory: Android/design_handoff_mototracker

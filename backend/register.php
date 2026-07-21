@@ -95,4 +95,10 @@ $stmt->close();
 session_regenerate_id(true);
 $_SESSION['user_id'] = (int)$user_id;
 
-echo json_encode(['ok' => true, 'user_id' => (int)$user_id]);
+// Return write_api_key so the app can authenticate uploads with a Bearer token
+// (no expiring session needed for background sync).
+echo json_encode([
+    'ok' => true,
+    'user_id' => (int)$user_id,
+    'write_api_key' => $write_api_key,
+]);

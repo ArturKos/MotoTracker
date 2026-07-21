@@ -39,7 +39,7 @@ if ($conn->connect_error) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT id, password_hash, is_admin, must_change_password, active FROM users WHERE email = ? OR username = ?");
+$stmt = $conn->prepare("SELECT id, password_hash, is_admin, must_change_password, active, write_api_key FROM users WHERE email = ? OR username = ?");
 $stmt->bind_param("ss", $login, $login);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -65,4 +65,7 @@ $_SESSION['user_id'] = (int)$row['id'];
 echo json_encode([
     'ok' => true,
     'must_change_password' => (int)$row['must_change_password'],
+    // For the app: authenticate background uploads with a Bearer token instead
+    // of relying on the (expiring) session cookie.
+    'write_api_key' => $row['write_api_key'],
 ]);

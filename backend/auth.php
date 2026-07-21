@@ -50,15 +50,32 @@ if (!empty($_GET['token'])) {
 }
 
 if ($token !== '' && preg_match('/^[a-f0-9]{32,64}$/i', $token)) {
+    // Write-capable key first: a users.write_api_key grants full read+write.
+    // The MotoTracker app stores it at register/login and sends it as a Bearer
+    // token so background route upload works without a (expiring) session.
     $stmt = $auth_conn->prepare(
         "SELECT id, username, display_name, is_admin, must_change_password, active, write_api_key
-         FROM users WHERE read_api_key = ?"
+         FROM users WHERE write_api_key = ?"
     );
     $stmt->bind_param("s", $token);
     $stmt->execute();
     $current_user = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    if ($current_user) $auth_readonly = true;
+
+    if ($current_user) {
+        $auth_readonly = false;
+    } else {
+        // Fall back to a read-only key (users.read_api_key).
+        $stmt = $auth_conn->prepare(
+            "SELECT id, username, display_name, is_admin, must_change_password, active, write_api_key
+             FROM users WHERE read_api_key = ?"
+        );
+        $stmt->bind_param("s", $token);
+        $stmt->execute();
+        $current_user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($current_user) $auth_readonly = true;
+    }
 }
 
 // --- Path 2: session cookie ---

@@ -2,14 +2,31 @@
 <!--
   Window background painted by the OS during cold-start (before the first
   Compose frame).  Fills the screen with the hero dark colour (#101114) and
-  stretches the AE2 mountains layer full-canvas so the OS cold-start frame
-  matches the Compose mountains layer exactly — no scale/position jump. (AE3)
+  places the AE2 mountains layer so it approximates the Compose ContentScale.Fit
+  rendering — reducing the scale/position jump on handoff. (AE3 / AF3)
+
+  Scaling note (AF3 — verified as on-device 🔬):
+  The splash PNGs are in drawable-nodpi at 1080×1560 px (9:13 aspect ratio).
+  Compose renders the mountains layer via Image(contentScale = ContentScale.Fit),
+  which scales uniformly to fit within screen bounds and centres the result.
+  The closest XML approximation is android:gravity="fill_horizontal", which
+  scales the bitmap to fill the screen width and centres it vertically — exactly
+  matching ContentScale.Fit on 1080 px-wide screens (the primary design target).
+  On wider screens (1440 px) the layer-list bounds are 1440×1560 and BitmapDrawable
+  scales only width without preserving aspect ratio, producing a slightly shorter
+  and wider mountain image vs Compose's proportional 1440×2080 render.  A
+  pixel-exact match for all densities is not achievable with layer-list XML
+  (no fitCenter gravity flag); the residual jump on non-1080 px screens is
+  tracked as on-device 🔬.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Layer 1: solid dark background matching the hero artwork surround -->
     <item android:drawable="@color/splash_hero_bg" />
-    <!-- Layer 2: AE2 mountains layer, full-canvas fill; matches Compose SplashScreen t=0 -->
+    <!--
+      Layer 2: AE2 mountains layer.  fill_horizontal scales to full screen width
+      and centres vertically — matching ContentScale.Fit on 1080 px-wide screens.
+    -->
     <item
-        android:gravity="fill"
+        android:gravity="fill_horizontal"
         android:drawable="@drawable/splash_l_mountains" />
 </layer-list>

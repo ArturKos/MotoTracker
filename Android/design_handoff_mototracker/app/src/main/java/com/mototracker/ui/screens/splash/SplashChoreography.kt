@@ -44,13 +44,16 @@ data class SplashLayers(
  * Contains **no Android imports** — all computation is plain Kotlin/JVM so the
  * class runs under `testDebugUnitTest` without Robolectric.
  *
- * Full timeline ([TOTAL_MS] = 2200 ms):
+ * Full timeline ([TOTAL_MS] = 2200 ms + [SETTLE_MS] = 150 ms settle):
  * - **0–800 ms** — Bike + wheels slide in from the left.  [bike].translateXFrac
  *   travels −0.52 → 0 (eased).  Both wheels spin 0 → 720° (linear) and track
  *   the bike's horizontal position.
  * - **600–1300 ms** — Trail fades and scales in (eased).
  * - **1200–1600 ms** — Pin drops in from above, fades and scales in (eased).
  * - **1500–2200 ms** — Wordmark fades and scales up (eased).
+ * - **2200–2350 ms** — Settle hold: all layers frozen at end state (stateAt clamps
+ *   at [TOTAL_MS]) while the clock runs for [SETTLE_MS] to give the fully-revealed
+ *   hero a short readable hold before the splash dismisses (AF3).
  * - **always** — Mountains remain fully opaque at all times.
  *
  * Before a layer's window it holds its start state; after its window it is
@@ -59,8 +62,29 @@ data class SplashLayers(
  */
 object SplashChoreography {
 
-    /** Total animation duration in milliseconds. */
+    /** Total animation duration in milliseconds (covers all layer transitions). */
     const val TOTAL_MS = 2200L
+
+    /**
+     * Short hold appended after [TOTAL_MS] so the fully-revealed hero is readable
+     * before the splash dismisses (AF3).  Must satisfy 0 < [SETTLE_MS] ≤ 200.
+     *
+     * During this window [stateAt] clamps at [TOTAL_MS], so all layers remain
+     * frozen at their end state — the settle is purely a timing seam.
+     */
+    const val SETTLE_MS = 150L
+
+    /**
+     * Total clock duration including the post-animation settle hold.
+     *
+     * The frame loop in SplashScreen runs until elapsed reaches this value.
+     * [stateAt] continues to return the [TOTAL_MS] end state throughout the settle
+     * because its input is clamped at [TOTAL_MS] — visuals freeze, only the
+     * timer ticks.
+     *
+     * @return [TOTAL_MS] + [SETTLE_MS], in milliseconds.
+     */
+    fun totalWithSettleMs(): Long = TOTAL_MS + SETTLE_MS
 
     // ── Phase window bounds (ms) — adjust here to re-tune timing. ──────────
     private const val BIKE_START_MS = 0L

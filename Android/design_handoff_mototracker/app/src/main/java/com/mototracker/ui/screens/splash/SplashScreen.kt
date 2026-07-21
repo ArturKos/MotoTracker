@@ -42,14 +42,16 @@ import kotlinx.coroutines.withContext
  * (back-to-front: mountains, trail, beam, bike_body, wheel_rear, wheel_front, pin, wordmark,
  * tagline).  A frame-delta-clamped manual clock advances elapsed time each vsync — preventing
  * a janky first cold-start frame from skipping ahead in the 2.2 s staged reveal.  Per-phase
- * easing lives entirely inside [SplashChoreography.stateAt].  [onAnimationComplete] is invoked
- * exactly once when elapsed reaches [SplashChoreography.TOTAL_MS].
+ * easing lives entirely inside [SplashChoreography.stateAt].  After the 2.2 s animation the
+ * fully-revealed hero holds for [SplashChoreography.SETTLE_MS] (150 ms) before
+ * [onAnimationComplete] is invoked exactly once (AF3).
  *
  * Fallback: if any [R.drawable.splash_l_*] drawable cannot be resolved at composition
  * time, [SplashHero.renderMode] returns [SplashRenderMode.STATIC_FALLBACK] and
  * [R.drawable.splash_portrait_hd] is displayed — composition can never throw due to
- * a missing asset.  The fallback also signals completion after [SplashChoreography.TOTAL_MS]
- * via a timed [LaunchedEffect] so [onAnimationComplete] is always called.
+ * a missing asset.  The fallback also signals completion after
+ * [SplashChoreography.totalWithSettleMs] (TOTAL_MS + SETTLE_MS) via a timed [LaunchedEffect]
+ * so [onAnimationComplete] is always called.
  *
  * A subtle init-status label ([SplashStatus.labelFor]) is overlaid at the bottom.
  * Dismiss timing is governed by [SplashGate] at the call site.
@@ -95,7 +97,7 @@ fun SplashScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
                 LaunchedEffect(Unit) {
-                    delay(SplashChoreography.TOTAL_MS)
+                    delay(SplashChoreography.totalWithSettleMs())
                     onAnimationComplete()
                 }
             }
@@ -129,10 +131,13 @@ fun SplashScreen(
  * supplies the current timestamp in milliseconds; the delta from the previous frame is clamped
  * to 32 ms via [SplashChoreography.clampDelta] before being added to the accumulator.  This
  * prevents a large busy-frame delta on cold-start from skipping ahead in the 2.2 s staged
- * reveal.  [onAnimationComplete] is invoked exactly once after the accumulator reaches
- * [SplashChoreography.TOTAL_MS] and the loop exits.
+ * reveal.  After the accumulator reaches [SplashChoreography.TOTAL_MS] the loop continues for
+ * [SplashChoreography.SETTLE_MS] more milliseconds so the fully-revealed hero is held on screen
+ * briefly before dismissal; [SplashChoreography.stateAt] clamps at TOTAL_MS throughout, keeping
+ * all layers frozen at their end state during the settle.  [onAnimationComplete] is invoked
+ * exactly once after the accumulator reaches [SplashChoreography.totalWithSettleMs].
  *
- * @param onAnimationComplete Invoked once when elapsed reaches [SplashChoreography.TOTAL_MS].
+ * @param onAnimationComplete Invoked once when elapsed reaches [SplashChoreography.totalWithSettleMs].
  * @param modifier            Standard Compose modifier chain.
  */
 @Composable
@@ -156,11 +161,14 @@ private fun LayeredHero(
         warmed = true
 
         // Animation clock starts only after bitmaps are ready.
+        // Loop runs until elapsed reaches totalWithSettleMs() (TOTAL_MS + SETTLE_MS).
+        // stateAt() clamps at TOTAL_MS so visuals freeze at end-state during the settle.
+        val totalMs = SplashChoreography.totalWithSettleMs()
         var last = withFrameMillis { it }
-        while (elapsed < SplashChoreography.TOTAL_MS) {
+        while (elapsed < totalMs) {
             withFrameMillis { now ->
                 elapsed = (elapsed + SplashChoreography.clampDelta(last, now))
-                    .coerceAtMost(SplashChoreography.TOTAL_MS)
+                    .coerceAtMost(totalMs)
                 last = now
             }
         }

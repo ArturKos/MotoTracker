@@ -214,4 +214,39 @@ class SplashChoreographyTest {
         assertEquals("wordmark.scale", 1f, s.wordmark.scale, eps)
         assertEquals("mountains.alpha", 1f, s.mountains.alpha, eps)
     }
+
+    // ── (9) AF3 settle constants and seam ─────────────────────────────────────
+
+    @Test
+    fun `SETTLE_MS is within the required bounds 1 to 200`() {
+        assertTrue(
+            "SETTLE_MS must be > 0 and ≤ 200, was ${SplashChoreography.SETTLE_MS}",
+            SplashChoreography.SETTLE_MS in 1L..200L,
+        )
+    }
+
+    @Test
+    fun `totalWithSettleMs equals TOTAL_MS plus SETTLE_MS`() {
+        assertEquals(
+            SplashChoreography.TOTAL_MS + SplashChoreography.SETTLE_MS,
+            SplashChoreography.totalWithSettleMs(),
+        )
+    }
+
+    @Test
+    fun `stateAt(totalWithSettleMs) equals stateAt(TOTAL_MS) — end-state clamp holds during settle`() {
+        val atSettle = SplashChoreography.stateAt(SplashChoreography.totalWithSettleMs())
+        val atTotal = SplashChoreography.stateAt(SplashChoreography.TOTAL_MS)
+        assertEquals("bike.translateXFrac clamped", atTotal.bike.translateXFrac, atSettle.bike.translateXFrac, eps)
+        assertEquals("wheelRear.rotationDeg clamped", atTotal.wheelRear.rotationDeg, atSettle.wheelRear.rotationDeg, eps)
+        assertEquals("wheelFront.rotationDeg clamped", atTotal.wheelFront.rotationDeg, atSettle.wheelFront.rotationDeg, eps)
+        assertEquals("trail.alpha clamped", atTotal.trail.alpha, atSettle.trail.alpha, eps)
+        assertEquals("trail.scale clamped", atTotal.trail.scale, atSettle.trail.scale, eps)
+        assertEquals("pin.alpha clamped", atTotal.pin.alpha, atSettle.pin.alpha, eps)
+        assertEquals("pin.translateYPx clamped", atTotal.pin.translateYPx, atSettle.pin.translateYPx, eps)
+        assertEquals("pin.scale clamped", atTotal.pin.scale, atSettle.pin.scale, eps)
+        assertEquals("wordmark.alpha clamped", atTotal.wordmark.alpha, atSettle.wordmark.alpha, eps)
+        assertEquals("wordmark.scale clamped", atTotal.wordmark.scale, atSettle.wordmark.scale, eps)
+        assertEquals("mountains.alpha clamped", atTotal.mountains.alpha, atSettle.mountains.alpha, eps)
+    }
 }

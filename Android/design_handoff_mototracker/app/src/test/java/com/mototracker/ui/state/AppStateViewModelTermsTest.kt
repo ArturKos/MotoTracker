@@ -48,7 +48,7 @@ private class TermsTestAuthStateStore(initial: AuthState = AuthState.GUEST) : Au
 private class TermsTestSessionStore : SessionStore {
     private val _session = MutableStateFlow(SessionState.UNAUTHENTICATED)
     override val session: Flow<SessionState> = _session
-    override suspend fun save(cookie: String, email: String) { _session.value = SessionState(cookie, email) }
+    override suspend fun save(cookie: String?, email: String, writeApiKey: String?) { _session.value = SessionState(cookie, email, writeApiKey) }
     override suspend fun clear() { _session.value = SessionState.UNAUTHENTICATED }
 }
 

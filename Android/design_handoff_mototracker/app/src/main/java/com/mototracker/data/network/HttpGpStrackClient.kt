@@ -32,9 +32,10 @@ class HttpGpStrackClient @Inject constructor(
     /**
      * POSTs credentials to `<serverAddress>/login.php` as `application/x-www-form-urlencoded`.
      *
-     * Field names are `email` and `password` (assumption — verify against the backend if
-     * the server uses different names). On a 2xx response the first `Set-Cookie` value's
-     * `name=value` pair is extracted and persisted via [SessionStore.save].
+     * Field names are `email` and `password`. On a 2xx response the first `Set-Cookie` value's
+     * `name=value` pair is extracted (required) and the `write_api_key` JSON field is parsed
+     * from the response body (optional; null if absent or body is not valid JSON). Both are
+     * persisted via [SessionStore.save].
      *
      * @return [Result.success] on HTTP 2xx + valid Set-Cookie;
      *         [Result.failure] on non-2xx, missing cookie, or transport error.
@@ -61,7 +62,8 @@ class HttpGpStrackClient @Inject constructor(
             check(response.code in 200..299) { "HTTP ${response.code}" }
             val cookie = parseSessionCookie(response.headers)
                 ?: error("No Set-Cookie in login response")
-            sessionStore.save(cookie, email)
+            val writeApiKey = parseWriteApiKey(response.body)
+            sessionStore.save(cookie, email, writeApiKey)
         }
     }
 
@@ -69,9 +71,10 @@ class HttpGpStrackClient @Inject constructor(
      * POSTs a JSON registration payload to `<serverAddress>/register.php`.
      *
      * On 409 throws [EmailTakenException]; on 400 throws [InvalidRegistrationException];
-     * on any other non-2xx status the `check` call throws with the HTTP code. On 2xx with
-     * a `Set-Cookie` header the cookie is persisted via [SessionStore.save] (auto-login);
-     * on 2xx without a cookie the call succeeds without persisting a session.
+     * on any other non-2xx status the `check` call throws with the HTTP code. On 2xx the
+     * `Set-Cookie` header and `write_api_key` JSON body field are both parsed (each optional).
+     * If either is present, the session is persisted via [SessionStore.save]; if both are
+     * absent the call still succeeds without persisting a session.
      *
      * @return [Result.success] on HTTP 2xx;
      *         [Result.failure] wrapping [EmailTakenException] on 409;
@@ -105,8 +108,9 @@ class HttpGpStrackClient @Inject constructor(
             }
             check(response.code in 200..299) { "HTTP ${response.code}" }
             val cookie = parseSessionCookie(response.headers)
-            if (cookie != null) {
-                sessionStore.save(cookie, email)
+            val writeApiKey = parseWriteApiKey(response.body)
+            if (cookie != null || writeApiKey != null) {
+                sessionStore.save(cookie, email, writeApiKey)
             }
         }
     }
@@ -114,8 +118,10 @@ class HttpGpStrackClient @Inject constructor(
     /**
      * POSTs [route] as a JSON body to `<serverAddress>/api_routes.php`.
      *
-     * Attaches the current session cookie (if any) as a `Cookie` request header.
-     * On a 401 response the session is cleared and [UnauthorizedException] is returned.
+     * Attaches `Authorization: Bearer <writeApiKey>` when a write API key is stored, and the
+     * `Cookie` header when a session cookie is stored. Both may be sent simultaneously (the
+     * backend tries the Bearer token first and falls back to the cookie). On a 401 response
+     * the session is cleared and [UnauthorizedException] is returned.
      *
      * @return [Result.success] on HTTP 2xx; [Result.failure] wrapping
      *         [UnauthorizedException] on 401, or any other error otherwise.
@@ -128,6 +134,7 @@ class HttpGpStrackClient @Inject constructor(
                 val headers = buildMap<String, String> {
                     put("Content-Type", "application/json; charset=utf-8")
                     session.cookie?.let { put("Cookie", it) }
+                    session.writeApiKey?.let { put("Authorization", "Bearer $it") }
                 }
                 val request = HttpRequest(
                     url = "$serverAddress$ENDPOINT_ROUTES",
@@ -143,6 +150,21 @@ class HttpGpStrackClient @Inject constructor(
                 check(response.code in 200..299) { "HTTP ${response.code}" }
             }
         }
+
+    /**
+     * Extracts `write_api_key` from a JSON response body string.
+     *
+     * Returns null if [body] is null, blank, not valid JSON, or the field is absent/empty.
+     * Never throws — a non-JSON body (e.g. plain-text "OK") is silently treated as no key.
+     */
+    private fun parseWriteApiKey(body: String?): String? {
+        if (body.isNullOrBlank()) return null
+        return try {
+            JSONObject(body).optString("write_api_key").ifEmpty { null }
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     /**
      * Finds the first `Set-Cookie` header in [headers] (case-insensitive key lookup)

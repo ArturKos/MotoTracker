@@ -13,8 +13,8 @@ import javax.inject.Singleton
  * [SessionStore] backed by the app's singleton [DataStore]<[Preferences]>.
  *
  * Reuses the same DataStore provided by [com.mototracker.di.SettingsModule] under
- * dedicated keys (`session_cookie`, `session_email`) that do not collide with
- * [com.mototracker.data.settings.SettingsDataStore]'s keys.
+ * dedicated keys (`session_cookie`, `session_email`, `session_write_api_key`) that do not
+ * collide with [com.mototracker.data.settings.SettingsDataStore]'s keys.
  *
  * @param dataStore Injected singleton [DataStore]<[Preferences]> instance.
  */
@@ -26,6 +26,7 @@ class DataStoreSessionStore @Inject constructor(
     private object Keys {
         val SESSION_COOKIE = stringPreferencesKey("session_cookie")
         val SESSION_EMAIL = stringPreferencesKey("session_email")
+        val SESSION_WRITE_API_KEY = stringPreferencesKey("session_write_api_key")
     }
 
     /** Live stream of the current [SessionState], backed by the Preferences DataStore. */
@@ -33,27 +34,37 @@ class DataStoreSessionStore @Inject constructor(
         SessionState(
             cookie = prefs[Keys.SESSION_COOKIE],
             email = prefs[Keys.SESSION_EMAIL],
+            writeApiKey = prefs[Keys.SESSION_WRITE_API_KEY],
         )
     }
 
     /**
-     * Atomically writes [cookie] and [email] to the DataStore.
+     * Atomically writes session credentials to the DataStore.
      *
-     * @param cookie Raw `name=value` pair from the server's `Set-Cookie` header.
-     * @param email  E-mail address used for authentication.
+     * A null [cookie] or null [writeApiKey] removes the corresponding key rather than
+     * storing an empty string, so [SessionState.cookie] and [SessionState.writeApiKey]
+     * are always either a non-blank value or null.
+     *
+     * @param cookie      Raw `name=value` pair from the server's `Set-Cookie` header, or null.
+     * @param email       E-mail address used for authentication.
+     * @param writeApiKey Per-user write API key, or null.
      */
-    override suspend fun save(cookie: String, email: String) {
+    override suspend fun save(cookie: String?, email: String, writeApiKey: String?) {
         dataStore.edit { prefs ->
-            prefs[Keys.SESSION_COOKIE] = cookie
+            if (cookie != null) prefs[Keys.SESSION_COOKIE] = cookie
+            else prefs.remove(Keys.SESSION_COOKIE)
             prefs[Keys.SESSION_EMAIL] = email
+            if (writeApiKey != null) prefs[Keys.SESSION_WRITE_API_KEY] = writeApiKey
+            else prefs.remove(Keys.SESSION_WRITE_API_KEY)
         }
     }
 
-    /** Removes both session keys from the DataStore atomically. */
+    /** Removes all three session keys from the DataStore atomically. */
     override suspend fun clear() {
         dataStore.edit { prefs ->
             prefs.remove(Keys.SESSION_COOKIE)
             prefs.remove(Keys.SESSION_EMAIL)
+            prefs.remove(Keys.SESSION_WRITE_API_KEY)
         }
     }
 }

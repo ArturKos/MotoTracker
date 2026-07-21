@@ -60,8 +60,8 @@ private class FakeSessionStore : SessionStore {
     override val session: Flow<SessionState> = _session
     var cleared = false
 
-    override suspend fun save(cookie: String, email: String) {
-        _session.value = SessionState(cookie, email)
+    override suspend fun save(cookie: String?, email: String, writeApiKey: String?) {
+        _session.value = SessionState(cookie, email, writeApiKey)
     }
 
     override suspend fun clear() {

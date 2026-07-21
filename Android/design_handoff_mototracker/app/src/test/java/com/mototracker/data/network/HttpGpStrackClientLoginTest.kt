@@ -22,8 +22,8 @@ private class FakeSessionStore : SessionStore {
     private val _session = MutableStateFlow(SessionState.UNAUTHENTICATED)
     override val session: Flow<SessionState> = _session
 
-    override suspend fun save(cookie: String, email: String) {
-        _session.value = SessionState(cookie = cookie, email = email)
+    override suspend fun save(cookie: String?, email: String, writeApiKey: String?) {
+        _session.value = SessionState(cookie = cookie, email = email, writeApiKey = writeApiKey)
     }
 
     override suspend fun clear() {
@@ -142,7 +142,7 @@ class HttpGpStrackClientLoginTest {
     @Test
     fun `uploadRoute attaches Cookie header from persisted session`() = runTest {
         // Seed the session store directly (simulates a prior successful login)
-        sessionStore.save("PHPSESSID=abc", "rider@example.com")
+        sessionStore.save("PHPSESSID=abc", "rider@example.com", null)
 
         transport.nextResponse = HttpResponse(code = 200, headers = emptyMap(), body = "")
 
@@ -167,7 +167,7 @@ class HttpGpStrackClientLoginTest {
      */
     @Test
     fun `uploadRoute on 401 clears session and returns UnauthorizedException`() = runTest {
-        sessionStore.save("PHPSESSID=abc", "rider@example.com")
+        sessionStore.save("PHPSESSID=abc", "rider@example.com", null)
         transport.nextResponse = HttpResponse(code = 401, headers = emptyMap(), body = "")
 
         sessionStore.session.test {

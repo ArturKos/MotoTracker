@@ -3,32 +3,33 @@
     android:height="108dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
-    <!-- Content scaled to ~66% and centred so nothing is clipped by the adaptive mask's safe zone. -->
+    <!-- Concept A: splash-palette GPS route — cyan trail, white start ring, green end pin.
+         Content scaled to ~66% and centred so nothing is clipped by the adaptive mask's safe zone. -->
     <group
         android:pivotX="256"
         android:pivotY="256"
         android:scaleX="0.66"
         android:scaleY="0.66">
-        <!-- Route track -->
+        <!-- Route track (splash trail cyan #2DD4FF) -->
         <path
             android:pathData="M128,372 C176,300 150,232 214,236 C278,240 250,152 320,150 C356,149 372,168 388,150"
-            android:strokeColor="#00D1B2"
+            android:strokeColor="#2DD4FF"
             android:strokeWidth="30"
             android:strokeLineCap="round"
             android:strokeLineJoin="round" />
-        <!-- Start marker: dark fill + teal ring (circle cx=128 cy=372 r=26) -->
+        <!-- Start marker: dark fill + white ring (circle cx=128 cy=372 r=24) -->
         <path
-            android:pathData="M102,372 a26,26 0 1,0 52,0 a26,26 0 1,0 -52,0"
-            android:fillColor="#0E1114"
-            android:strokeColor="#00D1B2"
-            android:strokeWidth="18" />
-        <!-- End pin: teal disc (circle cx=388 cy=150 r=42) -->
+            android:pathData="M104,372 a24,24 0 1,0 48,0 a24,24 0 1,0 -48,0"
+            android:fillColor="#101114"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="16" />
+        <!-- End pin: green disc (circle cx=388 cy=150 r=40), splash pin #00E676 -->
         <path
-            android:pathData="M346,150 a42,42 0 1,0 84,0 a42,42 0 1,0 -84,0"
-            android:fillColor="#00D1B2" />
-        <!-- End pin hole: dark centre (circle cx=388 cy=150 r=16) -->
+            android:pathData="M348,150 a40,40 0 1,0 80,0 a40,40 0 1,0 -80,0"
+            android:fillColor="#00E676" />
+        <!-- End pin hole: dark centre (circle cx=388 cy=150 r=15) -->
         <path
-            android:pathData="M372,150 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0"
-            android:fillColor="#0E1114" />
+            android:pathData="M373,150 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0"
+            android:fillColor="#101114" />
     </group>
 </vector>

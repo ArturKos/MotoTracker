@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TwoWheeler
@@ -33,6 +34,9 @@ sealed class MotoDestination(
 ) {
     /** Login / server setup screen. Hidden from bottom nav and top bar per spec. */
     object LOGIN : MotoDestination("login", R.string.nav_login, R.string.screen_login, Icons.Filled.Lock)
+
+    /** Account registration screen. Hidden from bottom nav and top bar; uses its own back link. */
+    object REGISTER : MotoDestination("register", R.string.nav_register, R.string.screen_register, Icons.Filled.PersonAdd)
 
     /** Live recording screen — the app's default start destination. */
     object RECORD : MotoDestination("record", R.string.nav_record, R.string.screen_record, Icons.Filled.FiberManualRecord)
@@ -85,6 +89,7 @@ sealed class MotoDestination(
          */
         fun fromRoute(route: String?): MotoDestination = when {
             route == "login"                          -> LOGIN
+            route == "register"                       -> REGISTER
             route == "record"                         -> RECORD
             route == "routes"                         -> ROUTES
             route == "riders"                         -> RIDERS
@@ -118,6 +123,7 @@ val bottomNavDestinations: List<MotoDestination> = listOf(
  */
 fun showBottomBar(dest: MotoDestination): Boolean =
     dest != MotoDestination.LOGIN &&
+        dest != MotoDestination.REGISTER &&
         dest != MotoDestination.ROUTE_DETAIL &&
         dest != MotoDestination.BIKE_DETAIL &&
         dest != MotoDestination.HELP
@@ -128,7 +134,7 @@ fun showBottomBar(dest: MotoDestination): Boolean =
  * Per spec (README §Stała rama): the top bar is hidden on the login screen only.
  */
 fun showTopBar(dest: MotoDestination): Boolean =
-    dest != MotoDestination.LOGIN
+    dest != MotoDestination.LOGIN && dest != MotoDestination.REGISTER
 
 /**
  * Returns `true` when the top bar should show a back arrow instead of nothing

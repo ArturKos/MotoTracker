@@ -34,6 +34,24 @@ interface GpStrackClient {
     suspend fun login(serverAddress: String, email: String, password: String): Result<Unit>
 
     /**
+     * Registers a new account on the GPStrack server at [serverAddress].
+     *
+     * POSTs a JSON body `{"email":…,"password":…}` to `<serverAddress>/register.php`.
+     * On a `200` response that includes a `Set-Cookie` header the session cookie is
+     * persisted and the user is auto-logged-in (same as [login]).
+     * A 2xx response without a cookie is still a success — the session stays unauthenticated.
+     *
+     * @param serverAddress Base URL of the GPStrack server, e.g. `http://192.168.1.145/gpstrack`.
+     * @param email         User's e-mail address.
+     * @param password      User's plain-text password.
+     * @return [Result.success] on HTTP 2xx;
+     *         [Result.failure] wrapping [EmailTakenException] on 409;
+     *         [Result.failure] wrapping [InvalidRegistrationException] on 400;
+     *         [Result.failure] wrapping the underlying [Throwable] on other non-2xx or I/O error.
+     */
+    suspend fun register(serverAddress: String, email: String, password: String): Result<Unit>
+
+    /**
      * Uploads [route] to the GPStrack server at [serverAddress].
      *
      * Attaches the persisted session cookie when one is available. A 401 response

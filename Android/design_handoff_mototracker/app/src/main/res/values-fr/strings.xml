@@ -526,4 +526,21 @@
     <string name="perm_contacts_denied">Permission contacts refusée. Accordez-la pour ajouter des destinataires.</string>
     <string name="sms_default_template">MotoTracker: je suis ici %s</string>
     <string name="sms_permission_denied">Le partage de position par SMS est activé, mais la permission SEND_SMS a été refusée. Les SMS ne seront pas envoyés pendant ce trajet.</string>
+
+    <!-- Register screen (AH2) -->
+    <string name="nav_register">S\'inscrire</string>
+    <string name="screen_register">Créer un compte</string>
+    <string name="register_title">Créer un compte</string>
+    <string name="register_label_email">E-mail</string>
+    <string name="register_hint_email">ton@email.fr</string>
+    <string name="register_label_password">Mot de passe</string>
+    <string name="register_hint_password">min. 8 caractères</string>
+    <string name="register_label_confirm">Confirmer le mot de passe</string>
+    <string name="register_hint_confirm">répéter le mot de passe</string>
+    <string name="register_submit">Créer un compte</string>
+    <string name="register_back_to_login">Retour à la connexion</string>
+    <string name="login_create_account">Créer un compte</string>
+    <string name="register_error_email_taken">Cette adresse e-mail est déjà enregistrée.</string>
+    <string name="register_error_invalid_input">Données d\'inscription invalides. Vérifiez votre e-mail et mot de passe.</string>
+    <string name="register_error_network">Erreur réseau. Vérifiez votre connexion et l\'adresse du serveur.</string>
 </resources>

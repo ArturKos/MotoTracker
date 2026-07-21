@@ -526,4 +526,21 @@
     <string name="perm_contacts_denied">Přístup ke kontaktům odepřen. Udělte oprávnění pro přidání příjemců.</string>
     <string name="sms_default_template">MotoTracker: jsem zde %s</string>
     <string name="sms_permission_denied">Sdílení polohy přes SMS je zapnuto, ale oprávnění SEND_SMS bylo zamítnuto. Zprávy SMS během této jízdy nebudou odesílány.</string>
+
+    <!-- Register screen (AH2) -->
+    <string name="nav_register">Registrace</string>
+    <string name="screen_register">Vytvořit účet</string>
+    <string name="register_title">Vytvořit účet</string>
+    <string name="register_label_email">E-mail</string>
+    <string name="register_hint_email">tvuj@email.cz</string>
+    <string name="register_label_password">Heslo</string>
+    <string name="register_hint_password">min. 8 znaků</string>
+    <string name="register_label_confirm">Potvrdit heslo</string>
+    <string name="register_hint_confirm">zopakovat heslo</string>
+    <string name="register_submit">Vytvořit účet</string>
+    <string name="register_back_to_login">Zpět na přihlášení</string>
+    <string name="login_create_account">Vytvořit účet</string>
+    <string name="register_error_email_taken">Tato e-mailová adresa je již zaregistrována.</string>
+    <string name="register_error_invalid_input">Neplatné registrační údaje. Zkontroluj e-mail a heslo.</string>
+    <string name="register_error_network">Chyba sítě. Zkontroluj připojení a adresu serveru.</string>
 </resources>

@@ -50,6 +50,9 @@ private class FakeGpStrackClient(
         return loginResult
     }
 
+    override suspend fun register(serverAddress: String, email: String, password: String): Result<Unit> =
+        Result.success(Unit)
+
     override suspend fun uploadRoute(
         serverAddress: String,
         route: com.mototracker.data.model.Route,

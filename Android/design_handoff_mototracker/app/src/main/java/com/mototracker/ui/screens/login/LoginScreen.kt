@@ -48,17 +48,19 @@ import com.mototracker.ui.theme.MotoTracker
  * Navigation is driven by one-shot [LoginEvent]s from [viewModel.events]:
  * [LoginEvent.NavigateToMain] with `authed = true` calls [onSignedIn].
  *
- * @param onSignedIn     Called after a successful sign-in flow.
- * @param onGuest        Called when the user chooses to continue without an account.
- * @param sessionExpired When `true`, an inline notice informs the user their previous session
- *                       has expired and they must sign in again (B22). 🔬 on-device UI.
- * @param modifier       Applied to the root container.
- * @param viewModel      Hilt-injected [LoginViewModel].
+ * @param onSignedIn      Called after a successful sign-in flow.
+ * @param onGuest         Called when the user chooses to continue without an account.
+ * @param onCreateAccount Called when the user taps "Create account" to navigate to the register screen.
+ * @param sessionExpired  When `true`, an inline notice informs the user their previous session
+ *                        has expired and they must sign in again (B22). 🔬 on-device UI.
+ * @param modifier        Applied to the root container.
+ * @param viewModel       Hilt-injected [LoginViewModel].
  */
 @Composable
 fun LoginScreen(
     onSignedIn: () -> Unit,
     onGuest: () -> Unit,
+    onCreateAccount: () -> Unit = {},
     sessionExpired: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
@@ -81,6 +83,7 @@ fun LoginScreen(
         onPassword = viewModel::updatePassword,
         onSignIn = viewModel::signIn,
         onGuest = viewModel::continueAsGuest,
+        onCreateAccount = onCreateAccount,
         modifier = modifier,
     )
 }
@@ -96,6 +99,7 @@ fun LoginScreen(
  * @param onPassword       Called when the password field changes.
  * @param onSignIn         Called when the user taps "Sign in".
  * @param onGuest          Called when the user taps "Continue as guest".
+ * @param onCreateAccount  Called when the user taps "Create account".
  * @param modifier         Applied to the root container.
  */
 @Composable
@@ -107,6 +111,7 @@ fun LoginContent(
     onPassword: (String) -> Unit = {},
     onSignIn: () -> Unit = {},
     onGuest: () -> Unit = {},
+    onCreateAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -273,6 +278,17 @@ fun LoginContent(
             color = MotoTracker.colors.dim,
             textAlign = TextAlign.Center,
         )
+
+        Spacer(Modifier.height(8.dp))
+
+        // Link to registration screen
+        androidx.compose.material3.TextButton(onClick = onCreateAccount) {
+            Text(
+                text = stringResource(R.string.login_create_account),
+                style = MotoTracker.typography.bodySmall,
+                color = MotoTracker.colors.dim,
+            )
+        }
     }
 }
 

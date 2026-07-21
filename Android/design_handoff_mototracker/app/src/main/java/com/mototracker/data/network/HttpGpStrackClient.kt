@@ -11,6 +11,7 @@ import javax.inject.Singleton
 
 private const val ENDPOINT_ROUTES = "/api_routes.php"
 private const val ENDPOINT_LOGIN = "/login.php"
+private const val ENDPOINT_REGISTER = "/register.php"
 
 /**
  * [GpStrackClient] implementation that delegates transport to [HttpTransport] and
@@ -61,6 +62,52 @@ class HttpGpStrackClient @Inject constructor(
             val cookie = parseSessionCookie(response.headers)
                 ?: error("No Set-Cookie in login response")
             sessionStore.save(cookie, email)
+        }
+    }
+
+    /**
+     * POSTs a JSON registration payload to `<serverAddress>/register.php`.
+     *
+     * On 409 throws [EmailTakenException]; on 400 throws [InvalidRegistrationException];
+     * on any other non-2xx status the `check` call throws with the HTTP code. On 2xx with
+     * a `Set-Cookie` header the cookie is persisted via [SessionStore.save] (auto-login);
+     * on 2xx without a cookie the call succeeds without persisting a session.
+     *
+     * @return [Result.success] on HTTP 2xx;
+     *         [Result.failure] wrapping [EmailTakenException] on 409;
+     *         [Result.failure] wrapping [InvalidRegistrationException] on 400;
+     *         [Result.failure] wrapping the underlying [Throwable] on other non-2xx or I/O error.
+     */
+    override suspend fun register(
+        serverAddress: String,
+        email: String,
+        password: String,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val bodyJson = JSONObject().apply {
+                put("email", email)
+                put("password", password)
+            }.toString()
+            val bodyBytes = bodyJson.toByteArray(Charsets.UTF_8)
+            val request = HttpRequest(
+                url = "$serverAddress$ENDPOINT_REGISTER",
+                method = "POST",
+                headers = mapOf(
+                    "Content-Type" to "application/json; charset=utf-8",
+                    "Content-Length" to bodyBytes.size.toString(),
+                ),
+                body = bodyBytes,
+            )
+            val response = transport.execute(request).getOrThrow()
+            when (response.code) {
+                409 -> throw EmailTakenException()
+                400 -> throw InvalidRegistrationException()
+            }
+            check(response.code in 200..299) { "HTTP ${response.code}" }
+            val cookie = parseSessionCookie(response.headers)
+            if (cookie != null) {
+                sessionStore.save(cookie, email)
+            }
         }
     }
 

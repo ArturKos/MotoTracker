@@ -526,4 +526,21 @@
     <string name="perm_contacts_denied">Доступ к контактам запрещён. Предоставьте разрешение для добавления получателей.</string>
     <string name="sms_default_template">MotoTracker: я здесь %s</string>
     <string name="sms_permission_denied">Отправка местоположения по SMS включена, но разрешение SEND_SMS было отклонено. SMS не будут отправляться во время этой поездки.</string>
+
+    <!-- Register screen (AH2) -->
+    <string name="nav_register">Регистрация</string>
+    <string name="screen_register">Создать аккаунт</string>
+    <string name="register_title">Создать аккаунт</string>
+    <string name="register_label_email">E-mail</string>
+    <string name="register_hint_email">ваш@email.ru</string>
+    <string name="register_label_password">Пароль</string>
+    <string name="register_hint_password">мин. 8 символов</string>
+    <string name="register_label_confirm">Подтвердить пароль</string>
+    <string name="register_hint_confirm">повторите пароль</string>
+    <string name="register_submit">Создать аккаунт</string>
+    <string name="register_back_to_login">Вернуться ко входу</string>
+    <string name="login_create_account">Создать аккаунт</string>
+    <string name="register_error_email_taken">Этот e-mail адрес уже зарегистрирован.</string>
+    <string name="register_error_invalid_input">Неверные регистрационные данные. Проверьте e-mail и пароль.</string>
+    <string name="register_error_network">Ошибка сети. Проверьте соединение и адрес сервера.</string>
 </resources>

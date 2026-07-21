@@ -4,6 +4,7 @@
 
     <!-- Bottom navigation tab labels -->
     <string name="nav_login">Login</string>
+    <string name="nav_register">Register</string>
     <string name="nav_record">Record</string>
     <string name="nav_routes">Routes</string>
     <string name="nav_riders">Riders</string>
@@ -13,6 +14,7 @@
 
     <!-- Top bar screen titles -->
     <string name="screen_login">Login</string>
+    <string name="screen_register">Create Account</string>
     <string name="screen_record">Recording</string>
     <string name="screen_routes">My routes</string>
     <string name="screen_riders">Riders</string>
@@ -361,6 +363,21 @@
 
     <!-- Session expired notice on Login screen (B22) -->
     <string name="login_session_expired">Session expired — please sign in again</string>
+
+    <!-- Register screen (AH2) -->
+    <string name="register_title">Create Account</string>
+    <string name="register_label_email">E-mail</string>
+    <string name="register_hint_email">your@email.com</string>
+    <string name="register_label_password">Password</string>
+    <string name="register_hint_password">min. 8 characters</string>
+    <string name="register_label_confirm">Confirm password</string>
+    <string name="register_hint_confirm">repeat password</string>
+    <string name="register_submit">Create account</string>
+    <string name="register_back_to_login">Back to sign in</string>
+    <string name="login_create_account">Create account</string>
+    <string name="register_error_email_taken">This e-mail address is already registered.</string>
+    <string name="register_error_invalid_input">Invalid registration data. Check your e-mail and password.</string>
+    <string name="register_error_network">Network error. Check your connection and server address.</string>
 
     <!-- Bike detail screen (E2) -->
     <string name="nav_bike_detail">Bike</string>

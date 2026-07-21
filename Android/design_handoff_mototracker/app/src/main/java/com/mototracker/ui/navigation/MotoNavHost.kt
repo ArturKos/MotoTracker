@@ -29,6 +29,7 @@ import com.mototracker.ui.screens.settings.SettingsScreen
 import com.mototracker.ui.screens.stats.StatsScreen
 import com.mototracker.ui.screens.detail.RouteDetailScreen
 import com.mototracker.ui.screens.login.LoginScreen
+import com.mototracker.ui.screens.register.RegisterScreen
 import com.mototracker.ui.screens.record.RecordingScreen
 import com.mototracker.ui.screens.routes.RoutesScreen
 import com.mototracker.ui.theme.MotoTracker
@@ -152,6 +153,23 @@ fun MotoApp(
                             popUpTo(MotoDestination.LOGIN.route) { inclusive = true }
                             launchSingleTop = true
                         }
+                    },
+                    onCreateAccount = {
+                        navController.navigate(MotoDestination.REGISTER.route)
+                    },
+                )
+            }
+            composable(MotoDestination.REGISTER.route) {
+                RegisterScreen(
+                    onRegistered = {
+                        onSignIn()
+                        navController.navigate(MotoDestination.RECORD.route) {
+                            popUpTo(MotoDestination.LOGIN.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onBackToLogin = {
+                        navController.popBackStack()
                     },
                 )
             }

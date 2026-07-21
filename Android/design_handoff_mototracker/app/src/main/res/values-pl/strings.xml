@@ -3,6 +3,7 @@
     <string name="app_name">MotoTracker</string>
 
     <string name="nav_login">Logowanie</string>
+    <string name="nav_register">Rejestracja</string>
     <string name="nav_record">Nagrywaj</string>
     <string name="nav_routes">Trasy</string>
     <string name="nav_riders">Znajomi</string>
@@ -11,6 +12,7 @@
     <string name="nav_route_detail">Szczegóły</string>
 
     <string name="screen_login">Logowanie</string>
+    <string name="screen_register">Załóż konto</string>
     <string name="screen_record">Nagrywanie</string>
     <string name="screen_routes">Moje trasy</string>
     <string name="screen_riders">Znajomi</string>
@@ -526,4 +528,19 @@
     <string name="perm_contacts_denied">Brak dostępu do kontaktów. Zezwól na uprawnienie, aby dodać odbiorców.</string>
     <string name="sms_default_template">MotoTracker: jestem tu %s</string>
     <string name="sms_permission_denied">Udostępnianie lokalizacji przez SMS jest włączone, ale uprawnienie SEND_SMS zostało odrzucone. SMS-y nie będą wysyłane podczas tej jazdy.</string>
+
+    <!-- Register screen (AH2) -->
+    <string name="register_title">Załóż konto</string>
+    <string name="register_label_email">E-mail</string>
+    <string name="register_hint_email">twoj@email.pl</string>
+    <string name="register_label_password">Hasło</string>
+    <string name="register_hint_password">min. 8 znaków</string>
+    <string name="register_label_confirm">Potwierdź hasło</string>
+    <string name="register_hint_confirm">powtórz hasło</string>
+    <string name="register_submit">Załóż konto</string>
+    <string name="register_back_to_login">Wróć do logowania</string>
+    <string name="login_create_account">Załóż konto</string>
+    <string name="register_error_email_taken">Ten adres e-mail jest już zarejestrowany.</string>
+    <string name="register_error_invalid_input">Nieprawidłowe dane rejestracji. Sprawdź e-mail i hasło.</string>
+    <string name="register_error_network">Błąd sieci. Sprawdź połączenie i adres serwera.</string>
 </resources>

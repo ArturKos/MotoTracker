@@ -526,4 +526,21 @@
     <string name="perm_contacts_denied">Kontaktzugriff verweigert. Erteile die Berechtigung, um Empfänger hinzuzufügen.</string>
     <string name="sms_default_template">MotoTracker: Ich bin hier %s</string>
     <string name="sms_permission_denied">SMS-Standortfreigabe ist aktiviert, aber die SEND_SMS-Berechtigung wurde verweigert. Während dieser Fahrt werden keine SMS gesendet.</string>
+
+    <!-- Register screen (AH2) -->
+    <string name="nav_register">Registrieren</string>
+    <string name="screen_register">Konto erstellen</string>
+    <string name="register_title">Konto erstellen</string>
+    <string name="register_label_email">E-Mail</string>
+    <string name="register_hint_email">deine@email.de</string>
+    <string name="register_label_password">Passwort</string>
+    <string name="register_hint_password">min. 8 Zeichen</string>
+    <string name="register_label_confirm">Passwort bestätigen</string>
+    <string name="register_hint_confirm">Passwort wiederholen</string>
+    <string name="register_submit">Konto erstellen</string>
+    <string name="register_back_to_login">Zurück zur Anmeldung</string>
+    <string name="login_create_account">Konto erstellen</string>
+    <string name="register_error_email_taken">Diese E-Mail-Adresse ist bereits registriert.</string>
+    <string name="register_error_invalid_input">Ungültige Registrierungsdaten. E-Mail und Passwort prüfen.</string>
+    <string name="register_error_network">Netzwerkfehler. Verbindung und Serveradresse prüfen.</string>
 </resources>

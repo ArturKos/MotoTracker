@@ -48,61 +48,106 @@ class SplashPhaseTest {
     // ── SplashGate.shouldDismiss ──────────────────────────────────────────────
 
     @Test
-    fun `not ready before min duration — do not dismiss`() {
-        assertFalse(SplashGate.shouldDismiss(ready = false, elapsedMs = 0L, minDurationMs = 700L, maxDurationMs = 4000L))
+    fun `not ready and animation not complete — do not dismiss`() {
+        assertFalse(
+            SplashGate.shouldDismiss(
+                ready = false, animationComplete = false,
+                elapsedMs = 0L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
-    fun `not ready at min duration — do not dismiss`() {
-        assertFalse(SplashGate.shouldDismiss(ready = false, elapsedMs = 700L, minDurationMs = 700L, maxDurationMs = 4000L))
+    fun `ready but animation not complete — do not dismiss`() {
+        assertFalse(
+            SplashGate.shouldDismiss(
+                ready = true, animationComplete = false,
+                elapsedMs = 1_500L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
-    fun `ready before min duration — do not dismiss`() {
-        assertFalse(SplashGate.shouldDismiss(ready = true, elapsedMs = 500L, minDurationMs = 700L, maxDurationMs = 4000L))
+    fun `animation complete but not ready — do not dismiss`() {
+        assertFalse(
+            SplashGate.shouldDismiss(
+                ready = false, animationComplete = true,
+                elapsedMs = 1_500L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
-    fun `ready exactly at min duration — dismiss`() {
-        assertTrue(SplashGate.shouldDismiss(ready = true, elapsedMs = 700L, minDurationMs = 700L, maxDurationMs = 4000L))
+    fun `ready and animationComplete — dismiss`() {
+        assertTrue(
+            SplashGate.shouldDismiss(
+                ready = true, animationComplete = true,
+                elapsedMs = 0L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
-    fun `ready after min duration — dismiss`() {
-        assertTrue(SplashGate.shouldDismiss(ready = true, elapsedMs = 1500L, minDurationMs = 700L, maxDurationMs = 4000L))
+    fun `ready and animationComplete past TOTAL_MS — dismiss`() {
+        assertTrue(
+            SplashGate.shouldDismiss(
+                ready = true, animationComplete = true,
+                elapsedMs = 2_500L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
     fun `not ready before max duration — do not dismiss`() {
-        assertFalse(SplashGate.shouldDismiss(ready = false, elapsedMs = 3999L, minDurationMs = 700L, maxDurationMs = 4000L))
+        assertFalse(
+            SplashGate.shouldDismiss(
+                ready = false, animationComplete = false,
+                elapsedMs = 3_999L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
     fun `not ready exactly at max duration — force dismiss`() {
-        assertTrue(SplashGate.shouldDismiss(ready = false, elapsedMs = 4000L, minDurationMs = 700L, maxDurationMs = 4000L))
+        assertTrue(
+            SplashGate.shouldDismiss(
+                ready = false, animationComplete = false,
+                elapsedMs = 4_000L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
     fun `not ready past max duration — force dismiss`() {
-        assertTrue(SplashGate.shouldDismiss(ready = false, elapsedMs = 5000L, minDurationMs = 700L, maxDurationMs = 4000L))
+        assertTrue(
+            SplashGate.shouldDismiss(
+                ready = false, animationComplete = false,
+                elapsedMs = 5_000L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
     fun `ready past max duration — dismiss`() {
-        assertTrue(SplashGate.shouldDismiss(ready = true, elapsedMs = 6000L, minDurationMs = 700L, maxDurationMs = 4000L))
+        assertTrue(
+            SplashGate.shouldDismiss(
+                ready = true, animationComplete = true,
+                elapsedMs = 6_000L, maxDurationMs = 4_000L,
+            )
+        )
     }
 
     @Test
-    fun `default min and max constants match expected values`() {
-        assertEquals(700L, SplashGate.DEFAULT_MIN_MS)
+    fun `default max constant matches expected value`() {
         assertEquals(4_000L, SplashGate.DEFAULT_MAX_MS)
     }
 
     @Test
-    fun `shouldDismiss uses defaults when not specified`() {
-        assertFalse(SplashGate.shouldDismiss(ready = true, elapsedMs = 699L))
-        assertTrue(SplashGate.shouldDismiss(ready = true, elapsedMs = 700L))
-        assertFalse(SplashGate.shouldDismiss(ready = false, elapsedMs = 3999L))
-        assertTrue(SplashGate.shouldDismiss(ready = false, elapsedMs = 4000L))
+    fun `shouldDismiss uses default maxDurationMs when not specified`() {
+        // With defaults: only animationComplete+ready dismisses, max at 4_000 ms.
+        assertFalse(SplashGate.shouldDismiss(ready = true, animationComplete = false, elapsedMs = 3_999L))
+        assertTrue(SplashGate.shouldDismiss(ready = true, animationComplete = true, elapsedMs = 0L))
+        assertFalse(SplashGate.shouldDismiss(ready = false, animationComplete = false, elapsedMs = 3_999L))
+        assertTrue(SplashGate.shouldDismiss(ready = false, animationComplete = false, elapsedMs = 4_000L))
     }
 }

@@ -161,7 +161,39 @@ class SplashChoreographyTest {
         }
     }
 
-    // ── (7) stateAt(TOTAL_MS) full end state for every layer ─────────────────
+    // ── (7) clampDelta ────────────────────────────────────────────────────────
+
+    @Test
+    fun `clampDelta zero delta returns 0`() {
+        assertEquals(0L, SplashChoreography.clampDelta(1000L, 1000L))
+    }
+
+    @Test
+    fun `clampDelta negative delta clamps to 0`() {
+        assertEquals(0L, SplashChoreography.clampDelta(1000L, 500L))
+    }
+
+    @Test
+    fun `clampDelta normal delta within max passes through unchanged`() {
+        assertEquals(16L, SplashChoreography.clampDelta(1000L, 1016L))
+    }
+
+    @Test
+    fun `clampDelta delta exactly at max passes through unchanged`() {
+        assertEquals(32L, SplashChoreography.clampDelta(1000L, 1032L))
+    }
+
+    @Test
+    fun `clampDelta delta exceeding max clamps to maxMs`() {
+        assertEquals(32L, SplashChoreography.clampDelta(1000L, 1500L))
+    }
+
+    @Test
+    fun `clampDelta custom maxMs is respected`() {
+        assertEquals(16L, SplashChoreography.clampDelta(0L, 100L, maxMs = 16L))
+    }
+
+    // ── (8) stateAt(TOTAL_MS) full end state for every layer ─────────────────
 
     @Test
     fun `stateAt(TOTAL_MS) returns full end state for every layer`() {

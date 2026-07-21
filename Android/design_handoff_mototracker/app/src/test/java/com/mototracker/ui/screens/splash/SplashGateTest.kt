@@ -6,19 +6,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Tests the AE3 dismiss-timing seam: [SplashGate.shouldDismiss] called with
- * [SplashChoreography.TOTAL_MS] as the minimum and 3 000 ms as the hard cap,
- * which matches the [com.mototracker.MainActivity] call site.
+ * Tests the AF1 dismiss-timing seam: [SplashGate.shouldDismiss] with the
+ * frame-delta-clamped [animationComplete] signal replacing the old wall-clock
+ * minimum-duration floor.
  *
  * Rules under test:
- * - The splash is NOT dismissed before [SplashChoreography.TOTAL_MS] even when
- *   the app is fully initialised — the Compose entrance animation must finish.
- * - Once ready AND elapsed ≥ [SplashChoreography.TOTAL_MS], the splash is dismissed.
- * - If elapsed ≥ 3 000 ms the splash is force-dismissed regardless of readiness.
+ * - Ready but animation not yet complete → NOT dismissed (gate waits for on-frame completion).
+ * - Ready AND animationComplete → dismissed immediately (no wall-clock floor).
+ * - elapsed ≥ maxDurationMs (3 000 ms) → force-dismiss regardless of ready/animationComplete.
  */
 class SplashGateTest {
 
-    private val minMs = SplashChoreography.TOTAL_MS
     private val maxMs = 3_000L
 
     // ── TOTAL_MS constant ─────────────────────────────────────────────────────
@@ -28,46 +26,66 @@ class SplashGateTest {
         assertEquals(2_200L, SplashChoreography.TOTAL_MS)
     }
 
-    // ── Ready but animation still playing ────────────────────────────────────
+    // ── Ready but animation not complete ─────────────────────────────────────
 
     @Test
-    fun `ready before min duration — not dismissed`() {
+    fun `ready but animation not complete at t=0 — not dismissed`() {
         assertFalse(
             SplashGate.shouldDismiss(
-                ready = true, elapsedMs = 0L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = true,
+                animationComplete = false,
+                elapsedMs = 0L,
+                maxDurationMs = maxMs,
             )
         )
     }
 
     @Test
-    fun `ready just before min duration — not dismissed`() {
+    fun `ready but animation not complete well before max — not dismissed`() {
         assertFalse(
             SplashGate.shouldDismiss(
-                ready = true, elapsedMs = minMs - 1L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = true,
+                animationComplete = false,
+                elapsedMs = SplashChoreography.TOTAL_MS,
+                maxDurationMs = maxMs,
             )
         )
     }
 
-    // ── Ready AND animation finished ──────────────────────────────────────────
+    // ── Ready AND animation complete ──────────────────────────────────────────
 
     @Test
-    fun `ready exactly at min duration — dismiss`() {
+    fun `ready and animationComplete at t=0 — dismissed immediately`() {
         assertTrue(
             SplashGate.shouldDismiss(
-                ready = true, elapsedMs = minMs,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = true,
+                animationComplete = true,
+                elapsedMs = 0L,
+                maxDurationMs = maxMs,
             )
         )
     }
 
     @Test
-    fun `ready past min duration — dismiss`() {
+    fun `ready and animationComplete at TOTAL_MS — dismissed`() {
         assertTrue(
             SplashGate.shouldDismiss(
-                ready = true, elapsedMs = minMs + 300L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = true,
+                animationComplete = true,
+                elapsedMs = SplashChoreography.TOTAL_MS,
+                maxDurationMs = maxMs,
+            )
+        )
+    }
+
+    @Test
+    fun `ready and animationComplete past TOTAL_MS — dismissed`() {
+        assertTrue(
+            SplashGate.shouldDismiss(
+                ready = true,
+                animationComplete = true,
+                elapsedMs = SplashChoreography.TOTAL_MS + 300L,
+                maxDurationMs = maxMs,
             )
         )
     }
@@ -75,11 +93,13 @@ class SplashGateTest {
     // ── Not ready, within hard cap ────────────────────────────────────────────
 
     @Test
-    fun `not ready before max — not dismissed`() {
+    fun `not ready and animation not complete at t=0 — not dismissed`() {
         assertFalse(
             SplashGate.shouldDismiss(
-                ready = false, elapsedMs = 0L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = false,
+                animationComplete = false,
+                elapsedMs = 0L,
+                maxDurationMs = maxMs,
             )
         )
     }
@@ -88,8 +108,22 @@ class SplashGateTest {
     fun `not ready just before max — not dismissed`() {
         assertFalse(
             SplashGate.shouldDismiss(
-                ready = false, elapsedMs = maxMs - 1L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = false,
+                animationComplete = false,
+                elapsedMs = maxMs - 1L,
+                maxDurationMs = maxMs,
+            )
+        )
+    }
+
+    @Test
+    fun `animation complete but not ready — not dismissed`() {
+        assertFalse(
+            SplashGate.shouldDismiss(
+                ready = false,
+                animationComplete = true,
+                elapsedMs = SplashChoreography.TOTAL_MS,
+                maxDurationMs = maxMs,
             )
         )
     }
@@ -100,8 +134,10 @@ class SplashGateTest {
     fun `not ready exactly at max — force dismiss`() {
         assertTrue(
             SplashGate.shouldDismiss(
-                ready = false, elapsedMs = maxMs,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = false,
+                animationComplete = false,
+                elapsedMs = maxMs,
+                maxDurationMs = maxMs,
             )
         )
     }
@@ -110,31 +146,22 @@ class SplashGateTest {
     fun `not ready past max — force dismiss`() {
         assertTrue(
             SplashGate.shouldDismiss(
-                ready = false, elapsedMs = maxMs + 500L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
-            )
-        )
-    }
-
-    // ── Boundary between min and max ──────────────────────────────────────────
-
-    @Test
-    fun `not ready between min-end and max — not dismissed`() {
-        // app still initialising at t=2300 ms: must not force-dismiss until 3000
-        assertFalse(
-            SplashGate.shouldDismiss(
-                ready = false, elapsedMs = minMs + 100L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = false,
+                animationComplete = false,
+                elapsedMs = maxMs + 500L,
+                maxDurationMs = maxMs,
             )
         )
     }
 
     @Test
-    fun `ready between min-end and max — dismiss`() {
+    fun `ready and animationComplete past max — force dismiss`() {
         assertTrue(
             SplashGate.shouldDismiss(
-                ready = true, elapsedMs = minMs + 100L,
-                minDurationMs = minMs, maxDurationMs = maxMs,
+                ready = true,
+                animationComplete = true,
+                elapsedMs = maxMs + 100L,
+                maxDurationMs = maxMs,
             )
         )
     }
@@ -142,9 +169,7 @@ class SplashGateTest {
     // ── Verify MainActivity's exact call-site parameters ─────────────────────
 
     @Test
-    fun `call-site parameters match expected constants`() {
-        // Documents that MainActivity passes minDurationMs=2200, maxDurationMs=3000.
-        assertEquals(2_200L, minMs)
+    fun `call-site maxDurationMs matches expected constant`() {
         assertEquals(3_000L, maxMs)
     }
 }

@@ -34,19 +34,17 @@ object SplashStatus {
  * Pure gate that decides when the splash screen should be dismissed.
  *
  * Two rules:
- * 1. **Minimum duration** — dismiss only when [ready] AND [elapsedMs] ≥ [minDurationMs].
- *    Guarantees the splash is visible long enough to be seen even if startup resolves
- *    instantly (e.g. warm-cache launch).
- * 2. **Hard timeout** — force-dismiss when [elapsedMs] ≥ [maxDurationMs] regardless of
- *    [ready]. Prevents an infinite hang if the startup flow stalls.
+ * 1. **Animation-driven gate** — dismiss when [ready] AND [animationComplete] are both true.
+ *    The animation-complete signal replaces the old wall-clock minimum: the splash stays visible
+ *    until the frame-delta-clamped entrance animation genuinely reaches
+ *    [SplashChoreography.TOTAL_MS], regardless of wall-clock elapsed time.
+ * 2. **Hard timeout** — force-dismiss when [elapsedMs] ≥ [maxDurationMs] regardless of [ready]
+ *    or [animationComplete]. Prevents an infinite hang if the startup flow stalls.
  *
- * All clock values are passed in so the gate is pure and trivially unit-testable without
- * a device or system-clock dependency.
+ * All inputs are passed in so the gate is pure and trivially unit-testable without a device or
+ * system-clock dependency.
  */
 object SplashGate {
-
-    /** Minimum time the splash stays visible regardless of startup speed. */
-    const val DEFAULT_MIN_MS: Long = 700L
 
     /** Hard cap: the splash is force-dismissed after this many milliseconds. */
     const val DEFAULT_MAX_MS: Long = 4_000L
@@ -54,15 +52,15 @@ object SplashGate {
     /**
      * Returns `true` when the splash should be dismissed.
      *
-     * @param ready          Whether the app's startup decision is resolved.
-     * @param elapsedMs      Milliseconds elapsed since the splash was first shown.
-     * @param minDurationMs  Minimum visibility window; defaults to [DEFAULT_MIN_MS].
-     * @param maxDurationMs  Hard timeout; defaults to [DEFAULT_MAX_MS].
+     * @param ready             Whether the app's startup decision is resolved.
+     * @param animationComplete Whether the entrance animation has genuinely reached completion.
+     * @param elapsedMs         Milliseconds elapsed since the splash was first shown.
+     * @param maxDurationMs     Hard timeout; defaults to [DEFAULT_MAX_MS].
      */
     fun shouldDismiss(
         ready: Boolean,
+        animationComplete: Boolean,
         elapsedMs: Long,
-        minDurationMs: Long = DEFAULT_MIN_MS,
         maxDurationMs: Long = DEFAULT_MAX_MS,
-    ): Boolean = (ready && elapsedMs >= minDurationMs) || elapsedMs >= maxDurationMs
+    ): Boolean = (ready && animationComplete) || elapsedMs >= maxDurationMs
 }

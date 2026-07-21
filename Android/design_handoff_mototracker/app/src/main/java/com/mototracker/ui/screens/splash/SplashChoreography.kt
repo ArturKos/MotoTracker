@@ -162,4 +162,22 @@ object SplashChoreography {
 
     /** Linear interpolation from [a] to [b] by factor [t] in [0, 1]. */
     private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
+
+    /**
+     * Clamps the delta between two consecutive frame timestamps to guard against
+     * animation jumps caused by a janky first cold-start frame.
+     *
+     * - A negative or backwards delta ([nowFrameMs] < [prevFrameMs]) clamps to 0 so
+     *   the accumulator never regresses.
+     * - A delta larger than [maxMs] (e.g. from a long busy-frame stall) clamps to
+     *   [maxMs] so a single slow frame can never skip ahead by more than one nominal
+     *   frame worth of elapsed time.
+     *
+     * @param prevFrameMs Timestamp of the previous frame, in milliseconds.
+     * @param nowFrameMs  Timestamp of the current frame, in milliseconds.
+     * @param maxMs       Maximum allowed delta; defaults to 32 ms (≈ one 30 fps frame).
+     * @return Clamped delta in [[0, maxMs]].
+     */
+    fun clampDelta(prevFrameMs: Long, nowFrameMs: Long, maxMs: Long = 32L): Long =
+        (nowFrameMs - prevFrameMs).coerceIn(0L, maxMs)
 }

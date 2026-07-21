@@ -1,8 +1,5 @@
 package com.mototracker.ui.screens.splash
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -11,7 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,30 +26,36 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.mototracker.R
 import com.mototracker.ui.theme.MotoTracker
+import kotlinx.coroutines.delay
 
 /**
  * Branded full-screen portrait splash shown while the app is initialising.
  *
  * Renders a stack of nine PNG layers driven by [SplashChoreography] for a smooth
- * entrance animation (AE2).  Layers are composited back-to-front: mountains, trail,
- * beam, bike_body, wheel_rear, wheel_front, pin, wordmark, tagline.  A single
- * [Animatable] progresses linearly over [SplashChoreography.TOTAL_MS] ms; per-phase
- * easing lives entirely inside [SplashChoreography.stateAt].
+ * entrance animation (AE2/AF1).  Layers are composited back-to-front: mountains, trail,
+ * beam, bike_body, wheel_rear, wheel_front, pin, wordmark, tagline.  A frame-delta-clamped
+ * manual clock advances elapsed time each vsync — preventing a janky first cold-start frame
+ * from skipping ahead in the 2.2 s staged reveal.  Per-phase easing lives entirely inside
+ * [SplashChoreography.stateAt].  [onAnimationComplete] is invoked exactly once when elapsed
+ * reaches [SplashChoreography.TOTAL_MS].
  *
  * Fallback: if any [R.drawable.splash_l_*] drawable cannot be resolved at composition
  * time, [SplashHero.renderMode] returns [SplashRenderMode.STATIC_FALLBACK] and
  * [R.drawable.splash_portrait_hd] is displayed — composition can never throw due to
- * a missing asset.
+ * a missing asset.  The fallback also signals completion after [SplashChoreography.TOTAL_MS]
+ * via a timed [LaunchedEffect] so [onAnimationComplete] is always called.
  *
  * A subtle init-status label ([SplashStatus.labelFor]) is overlaid at the bottom.
  * Dismiss timing is governed by [SplashGate] at the call site.
  *
- * @param phase    Current init step; controls the status label via [SplashStatus.labelFor].
- * @param modifier Standard Compose modifier chain.
+ * @param phase               Current init step; controls the status label via [SplashStatus.labelFor].
+ * @param onAnimationComplete Invoked exactly once when the entrance animation genuinely reaches completion.
+ * @param modifier            Standard Compose modifier chain.
  */
 @Composable
 fun SplashScreen(
     phase: SplashPhase,
+    onAnimationComplete: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -82,12 +89,21 @@ fun SplashScreen(
             .background(Color(0xFF101114)),
     ) {
         when (mode) {
-            SplashRenderMode.LAYERED -> LayeredHero(modifier = Modifier.fillMaxSize())
-            SplashRenderMode.STATIC_FALLBACK -> Image(
-                painter = painterResource(R.drawable.splash_portrait_hd),
-                contentDescription = null,
+            SplashRenderMode.LAYERED -> LayeredHero(
+                onAnimationComplete = onAnimationComplete,
                 modifier = Modifier.fillMaxSize(),
             )
+            SplashRenderMode.STATIC_FALLBACK -> {
+                Image(
+                    painter = painterResource(R.drawable.splash_portrait_hd),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                LaunchedEffect(Unit) {
+                    delay(SplashChoreography.TOTAL_MS)
+                    onAnimationComplete()
+                }
+            }
         }
 
         Text(
@@ -104,24 +120,34 @@ fun SplashScreen(
 /**
  * Nine-layer PNG stack animated by [SplashChoreography].
  *
- * A single [Animatable] drives elapsed time (ms) from 0 to [SplashChoreography.TOTAL_MS]
- * at a constant wall-clock rate; each frame [SplashChoreography.stateAt] derives the
- * [SplashLayers] snapshot applied to each layer's [graphicsLayer].  Per-phase easing
- * lives inside [SplashChoreography] — the Animatable itself is always linear.
+ * A frame-delta-clamped manual clock drives elapsed time: on each vsync [withFrameMillis]
+ * supplies the current timestamp in milliseconds; the delta from the previous frame is clamped
+ * to 32 ms via [SplashChoreography.clampDelta] before being added to the accumulator.  This
+ * prevents a large busy-frame delta on cold-start from skipping ahead in the 2.2 s staged
+ * reveal.  [onAnimationComplete] is invoked exactly once after the accumulator reaches
+ * [SplashChoreography.TOTAL_MS] and the loop exits.
+ *
+ * @param onAnimationComplete Invoked once when elapsed reaches [SplashChoreography.TOTAL_MS].
+ * @param modifier            Standard Compose modifier chain.
  */
 @Composable
-private fun LayeredHero(modifier: Modifier = Modifier) {
-    val anim = remember { Animatable(0f) }
+private fun LayeredHero(
+    onAnimationComplete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var elapsed by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
-        anim.animateTo(
-            targetValue = SplashChoreography.TOTAL_MS.toFloat(),
-            animationSpec = tween(
-                durationMillis = SplashChoreography.TOTAL_MS.toInt(),
-                easing = LinearEasing,
-            ),
-        )
+        var last = withFrameMillis { it }
+        while (elapsed < SplashChoreography.TOTAL_MS) {
+            withFrameMillis { now ->
+                elapsed = (elapsed + SplashChoreography.clampDelta(last, now))
+                    .coerceAtMost(SplashChoreography.TOTAL_MS)
+                last = now
+            }
+        }
+        onAnimationComplete()
     }
-    val layers = SplashChoreography.stateAt(anim.value.toLong())
+    val layers = SplashChoreography.stateAt(elapsed)
 
     Box(modifier = modifier) {
         // Back → Front z-order

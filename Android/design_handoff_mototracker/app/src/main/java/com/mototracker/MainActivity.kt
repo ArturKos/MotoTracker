@@ -13,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mototracker.ui.navigation.MotoApp
-import com.mototracker.ui.screens.splash.SplashChoreography
 import com.mototracker.ui.screens.splash.SplashGate
 import com.mototracker.ui.screens.splash.SplashPhase
 import com.mototracker.ui.screens.splash.SplashScreen
@@ -37,10 +36,10 @@ import kotlinx.coroutines.delay
  * [com.mototracker.ui.state.AppStateViewModel], and the navigation shell [MotoApp].
  *
  * While [StartupDecision.Loading] is pending (DataStore sources not yet emitted), a branded
- * [SplashScreen] is shown. The splash respects a minimum visible duration ([SplashChoreography.TOTAL_MS])
- * so the Compose entrance animation always finishes, and a hard cap of 3 000 ms to prevent
- * an infinite hang — preventing a Login flash for users who previously signed in or chose guest
- * mode (B22).
+ * [SplashScreen] is shown. The splash stays visible until the frame-delta-clamped entrance
+ * animation signals completion via [SplashScreen.onAnimationComplete] (AF1), with a hard cap
+ * of 3 000 ms to prevent an infinite hang — preventing a Login flash for users who previously
+ * signed in or chose guest mode (B22).
  *
  * **Launch-theme handoff:** the activity is declared in the manifest with
  * `Theme.MotoTracker.Launch`, which sets a branded dark `windowBackground` so the OS paints
@@ -70,14 +69,16 @@ class MainActivity : AppCompatActivity() {
             var splashElapsedMs by remember { mutableLongStateOf(0L) }
             var splashPhase by remember { mutableStateOf(SplashPhase.INITIALIZING) }
             val isReady = startupDecision is StartupDecision.Ready
+            // Set to true by SplashScreen when the frame-delta-clamped animation genuinely completes.
+            var splashAnimationComplete by remember { mutableStateOf(false) }
 
-            // Tick elapsed time every 50 ms while the splash might still be visible.
-            // minDurationMs = SplashChoreography.TOTAL_MS: never dismiss before the Compose animation finishes.
-            // maxDurationMs = 3 000 ms: hard cap regardless of startup state.
-            LaunchedEffect(isReady) {
+            // Tick elapsed time every 50 ms to drive the hard-cap (maxDurationMs = 3 000 ms).
+            // The animation-complete signal from SplashScreen replaces the old wall-clock min floor.
+            LaunchedEffect(isReady, splashAnimationComplete) {
                 while (!SplashGate.shouldDismiss(
-                        isReady, splashElapsedMs,
-                        minDurationMs = SplashChoreography.TOTAL_MS,
+                        ready = isReady,
+                        animationComplete = splashAnimationComplete,
+                        elapsedMs = splashElapsedMs,
                         maxDurationMs = 3_000L,
                     )
                 ) {
@@ -97,8 +98,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             val showSplash = !SplashGate.shouldDismiss(
-                isReady, splashElapsedMs,
-                minDurationMs = SplashChoreography.TOTAL_MS,
+                ready = isReady,
+                animationComplete = splashAnimationComplete,
+                elapsedMs = splashElapsedMs,
                 maxDurationMs = 3_000L,
             )
 
@@ -107,14 +109,20 @@ class MainActivity : AppCompatActivity() {
                 accent = uiState.accent,
             ) {
                 if (showSplash) {
-                    SplashScreen(phase = splashPhase)
+                    SplashScreen(
+                        phase = splashPhase,
+                        onAnimationComplete = { splashAnimationComplete = true },
+                    )
                 } else {
                     when (val decision = startupDecision) {
                         is StartupDecision.Loading -> {
                             // Still loading but past the hard cap (3 000 ms) — show splash until
                             // the gate finally allows dismissal; this branch is unreachable
                             // in practice because the gate force-dismisses at maxDurationMs.
-                            SplashScreen(phase = splashPhase)
+                            SplashScreen(
+                                phase = splashPhase,
+                                onAnimationComplete = { splashAnimationComplete = true },
+                            )
                         }
                         is StartupDecision.Ready -> {
                             if (!decision.termsAccepted) {

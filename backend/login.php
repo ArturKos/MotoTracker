@@ -10,10 +10,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$username = trim($_POST['username'] ?? '');
-$password = $_POST['password'] ?? '';
+// Accept JSON body (the app posts application/json) or form-encoded (web).
+$raw = file_get_contents('php://input');
+$data = [];
+$ctype = strtolower($_SERVER['CONTENT_TYPE'] ?? '');
+if (strpos($ctype, 'application/json') !== false) {
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded)) $data = $decoded;
+} else {
+    $data = $_POST;
+}
 
-if ($username === '' || $password === '') {
+// The app logs in by e-mail; the existing web front sends `username`.
+// Accept either — the account's username == its e-mail for app-registered users.
+$login    = trim($data['email'] ?? $data['username'] ?? '');
+$password = (string)($data['password'] ?? '');
+
+if ($login === '' || $password === '') {
     http_response_code(400);
     echo json_encode(['error' => 'missing_credentials']);
     exit;
@@ -26,8 +39,8 @@ if ($conn->connect_error) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT id, password_hash, is_admin, must_change_password, active FROM users WHERE username = ?");
-$stmt->bind_param("s", $username);
+$stmt = $conn->prepare("SELECT id, password_hash, is_admin, must_change_password, active FROM users WHERE email = ? OR username = ?");
+$stmt->bind_param("ss", $login, $login);
 $stmt->execute();
 $result = $stmt->get_result();
 $row = $result->fetch_assoc();

@@ -9,8 +9,8 @@ import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val ENDPOINT_ROUTES = "/api/routes"
-private const val ENDPOINT_LOGIN = "/login"
+private const val ENDPOINT_ROUTES = "/api_routes.php"
+private const val ENDPOINT_LOGIN = "/login.php"
 
 /**
  * [GpStrackClient] implementation that delegates transport to [HttpTransport] and
@@ -29,7 +29,7 @@ class HttpGpStrackClient @Inject constructor(
 ) : GpStrackClient {
 
     /**
-     * POSTs credentials to `<serverAddress>/login` as `application/x-www-form-urlencoded`.
+     * POSTs credentials to `<serverAddress>/login.php` as `application/x-www-form-urlencoded`.
      *
      * Field names are `email` and `password` (assumption — verify against the backend if
      * the server uses different names). On a 2xx response the first `Set-Cookie` value's
@@ -65,7 +65,7 @@ class HttpGpStrackClient @Inject constructor(
     }
 
     /**
-     * POSTs [route] as a JSON body to `<serverAddress>/api/routes`.
+     * POSTs [route] as a JSON body to `<serverAddress>/api_routes.php`.
      *
      * Attaches the current session cookie (if any) as a `Cookie` request header.
      * On a 401 response the session is cleared and [UnauthorizedException] is returned.

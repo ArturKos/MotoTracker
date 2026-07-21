@@ -98,8 +98,8 @@ class HttpGpStrackClientLoginTest {
         val req = assertNotNull(transport.lastRequest).let { transport.lastRequest!! }
         assertEquals("POST", req.method)
         assertTrue(
-            "URL must end with /login",
-            req.url.endsWith("/login"),
+            "URL must end with /login.php",
+            req.url.endsWith("/login.php"),
         )
         assertEquals(
             "Content-Type must be application/x-www-form-urlencoded",
@@ -149,6 +149,10 @@ class HttpGpStrackClientLoginTest {
         client.uploadRoute(SERVER, testRoute)
 
         val req = transport.lastRequest!!
+        assertTrue(
+            "URL must end with /api_routes.php",
+            req.url.endsWith("/api_routes.php"),
+        )
         assertEquals(
             "Cookie header must carry the persisted session",
             "PHPSESSID=abc",

@@ -4,7 +4,9 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -117,6 +119,15 @@ fun SplashScreen(
 /**
  * Nine-layer PNG stack animated by [SplashChoreography].
  *
+ * **Aspect-ratio container (AG1):** the nine layers are placed inside an inner
+ * `Box(Modifier.fillMaxWidth().aspectRatio(1080f / 1560f).align(Alignment.Center))` that matches
+ * the 1080×1560 artwork canvas exactly.  Each layer still uses `Modifier.fillMaxSize()` +
+ * `ContentScale.Fit`, but now fills the aspect-constrained inner box rather than the full screen,
+ * so there is zero internal letterbox and every `transformOrigin` fraction maps 1:1 onto the
+ * artwork — the wheel pivots land exactly on their hubs.  The inner box occupies the same
+ * vertical band that a full-screen Fit letterbox previously produced, so the on-screen scene
+ * position is unchanged.
+ *
  * **Bitmap warm-up (AF2):** before the animation clock starts all nine [SplashAssets.layerDrawableRes]
  * PNGs (1080×1560) are decoded to [ImageBitmap] on [Dispatchers.IO] inside a [LaunchedEffect].
  * During the decode the static mountains layer (matching the system window background) is shown
@@ -178,29 +189,36 @@ private fun LayeredHero(
     val layers = SplashChoreography.stateAt(elapsed)
 
     Box(modifier = modifier) {
-        if (!warmed) {
-            // Static mountains hold while bitmaps are decoded — matches the windowBackground
-            // so there is no visual jump from the system splash to the first Compose frame.
-            SplashLayer(SplashAssets.layerDrawableRes[0], LayerState())
-        } else {
-            // Back → Front z-order; indices match SplashAssets.layerDrawableRes order.
-            SplashLayerFromBitmap(cachedBitmaps[0], layers.mountains)
-            SplashLayerFromBitmap(cachedBitmaps[1], layers.trail)
-            SplashLayerFromBitmap(cachedBitmaps[2], layers.bike)        // beam rides with bike
-            SplashLayerFromBitmap(cachedBitmaps[3], layers.bike)        // bike_body
-            SplashLayerFromBitmap(
-                bitmap = cachedBitmaps[4],
-                state = layers.wheelRear,
-                transformOrigin = TransformOrigin(0.1948f, 0.3936f),
-            )
-            SplashLayerFromBitmap(
-                bitmap = cachedBitmaps[5],
-                state = layers.wheelFront,
-                transformOrigin = TransformOrigin(0.3665f, 0.3965f),
-            )
-            SplashLayerFromBitmap(cachedBitmaps[6], layers.pin)
-            SplashLayerFromBitmap(cachedBitmaps[7], layers.wordmark)
-            SplashLayerFromBitmap(cachedBitmaps[8], layers.wordmark)   // tagline rides with wordmark
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1080f / 1560f)
+                .align(Alignment.Center),
+        ) {
+            if (!warmed) {
+                // Static mountains hold while bitmaps are decoded — matches the windowBackground
+                // so there is no visual jump from the system splash to the first Compose frame.
+                SplashLayer(SplashAssets.layerDrawableRes[0], LayerState())
+            } else {
+                // Back → Front z-order; indices match SplashAssets.layerDrawableRes order.
+                SplashLayerFromBitmap(cachedBitmaps[0], layers.mountains)
+                SplashLayerFromBitmap(cachedBitmaps[1], layers.trail)
+                SplashLayerFromBitmap(cachedBitmaps[2], layers.bike)        // beam rides with bike
+                SplashLayerFromBitmap(cachedBitmaps[3], layers.bike)        // bike_body
+                SplashLayerFromBitmap(
+                    bitmap = cachedBitmaps[4],
+                    state = layers.wheelRear,
+                    transformOrigin = TransformOrigin(0.1948f, 0.3936f),
+                )
+                SplashLayerFromBitmap(
+                    bitmap = cachedBitmaps[5],
+                    state = layers.wheelFront,
+                    transformOrigin = TransformOrigin(0.3665f, 0.3965f),
+                )
+                SplashLayerFromBitmap(cachedBitmaps[6], layers.pin)
+                SplashLayerFromBitmap(cachedBitmaps[7], layers.wordmark)
+                SplashLayerFromBitmap(cachedBitmaps[8], layers.wordmark)   // tagline rides with wordmark
+            }
         }
     }
 }

@@ -107,6 +107,8 @@ class AppStateViewModelTermsTest {
     private lateinit var fakeTermsStore: TermsTestTermsStore
     private lateinit var viewModel: AppStateViewModel
 
+    private val testDispatcher = UnconfinedTestDispatcher()
+
     private fun buildViewModel(termsAccepted: Boolean): AppStateViewModel {
         fakeTermsStore = TermsTestTermsStore(initial = termsAccepted)
         return AppStateViewModel(
@@ -120,12 +122,13 @@ class AppStateViewModelTermsTest {
             syncRepository = TermsTestSyncRepository(),
             routeRepository = TermsTestRouteRepository(),
             routePreloadCache = RoutePreloadCache(),
+            ioDispatcher = testDispatcher,
         )
     }
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(testDispatcher)
     }
 
     @After

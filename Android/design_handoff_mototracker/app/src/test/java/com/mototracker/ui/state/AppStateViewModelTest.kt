@@ -125,6 +125,8 @@ private class FakeSyncRepository(initialPending: Int = 0) : SyncRepository {
 
 class AppStateViewModelTest {
 
+    private val testDispatcher = UnconfinedTestDispatcher()
+
     private lateinit var fakeLocale: FakeLocaleController
     private lateinit var fakeAuthStore: FakeAuthStateStore
     private lateinit var fakeSessionStore: FakeSessionStore
@@ -139,7 +141,7 @@ class AppStateViewModelTest {
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(testDispatcher)
         fakeLocale = FakeLocaleController()
         fakeAuthStore = FakeAuthStateStore()
         fakeSessionStore = FakeSessionStore()
@@ -161,6 +163,7 @@ class AppStateViewModelTest {
             syncRepository = fakeSyncRepository,
             routeRepository = fakeRouteRepository,
             routePreloadCache = routePreloadCache,
+            ioDispatcher = testDispatcher,
         )
     }
 

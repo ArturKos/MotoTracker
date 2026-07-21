@@ -1,5 +1,6 @@
 package com.mototracker.ui.screens.splash
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,13 +11,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -26,18 +30,20 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.mototracker.R
 import com.mototracker.ui.theme.MotoTracker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Branded full-screen portrait splash shown while the app is initialising.
  *
  * Renders a stack of nine PNG layers driven by [SplashChoreography] for a smooth
- * entrance animation (AE2/AF1).  Layers are composited back-to-front: mountains, trail,
- * beam, bike_body, wheel_rear, wheel_front, pin, wordmark, tagline.  A frame-delta-clamped
- * manual clock advances elapsed time each vsync — preventing a janky first cold-start frame
- * from skipping ahead in the 2.2 s staged reveal.  Per-phase easing lives entirely inside
- * [SplashChoreography.stateAt].  [onAnimationComplete] is invoked exactly once when elapsed
- * reaches [SplashChoreography.TOTAL_MS].
+ * entrance animation (AE2/AF1/AF2).  Layer IDs are sourced from [SplashAssets.layerDrawableRes]
+ * (back-to-front: mountains, trail, beam, bike_body, wheel_rear, wheel_front, pin, wordmark,
+ * tagline).  A frame-delta-clamped manual clock advances elapsed time each vsync — preventing
+ * a janky first cold-start frame from skipping ahead in the 2.2 s staged reveal.  Per-phase
+ * easing lives entirely inside [SplashChoreography.stateAt].  [onAnimationComplete] is invoked
+ * exactly once when elapsed reaches [SplashChoreography.TOTAL_MS].
  *
  * Fallback: if any [R.drawable.splash_l_*] drawable cannot be resolved at composition
  * time, [SplashHero.renderMode] returns [SplashRenderMode.STATIC_FALLBACK] and
@@ -61,18 +67,7 @@ fun SplashScreen(
     val context = LocalContext.current
 
     val allLayersPresent = remember(context) {
-        val layerIds = intArrayOf(
-            R.drawable.splash_l_mountains,
-            R.drawable.splash_l_trail,
-            R.drawable.splash_l_beam,
-            R.drawable.splash_l_bike_body,
-            R.drawable.splash_l_wheel_rear,
-            R.drawable.splash_l_wheel_front,
-            R.drawable.splash_l_pin,
-            R.drawable.splash_l_wordmark,
-            R.drawable.splash_l_tagline,
-        )
-        layerIds.all { id ->
+        SplashAssets.layerDrawableRes.all { id ->
             try {
                 ContextCompat.getDrawable(context, id) != null
             } catch (_: Throwable) {
@@ -120,6 +115,16 @@ fun SplashScreen(
 /**
  * Nine-layer PNG stack animated by [SplashChoreography].
  *
+ * **Bitmap warm-up (AF2):** before the animation clock starts all nine [SplashAssets.layerDrawableRes]
+ * PNGs (1080×1560) are decoded to [ImageBitmap] on [Dispatchers.IO] inside a [LaunchedEffect].
+ * During the decode the static mountains layer (matching the system window background) is shown
+ * so there is no visual jump.  The frame-delta-clamped clock starts only after [warmed] flips to
+ * `true`, guaranteeing the first animated frame is never competing with bitmap decode.
+ *
+ * Once warmed, each layer is rendered via [SplashLayerFromBitmap] from the cached [ImageBitmap],
+ * keeping identical [graphicsLayer] transforms, [ContentScale.Fit], and custom [TransformOrigin]
+ * values for the wheel layers.
+ *
  * A frame-delta-clamped manual clock drives elapsed time: on each vsync [withFrameMillis]
  * supplies the current timestamp in milliseconds; the delta from the previous frame is clamped
  * to 32 ms via [SplashChoreography.clampDelta] before being added to the accumulator.  This
@@ -135,8 +140,22 @@ private fun LayeredHero(
     onAnimationComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    var warmed by remember { mutableStateOf(false) }
+    var cachedBitmaps by remember { mutableStateOf<List<ImageBitmap>>(emptyList()) }
     var elapsed by remember { mutableLongStateOf(0L) }
+
     LaunchedEffect(Unit) {
+        // Decode all nine layer PNGs on IO before the animation clock starts (AF2).
+        val bitmaps = withContext(Dispatchers.IO) {
+            SplashAssets.layerDrawableRes.map { id ->
+                BitmapFactory.decodeResource(context.resources, id).asImageBitmap()
+            }
+        }
+        cachedBitmaps = bitmaps
+        warmed = true
+
+        // Animation clock starts only after bitmaps are ready.
         var last = withFrameMillis { it }
         while (elapsed < SplashChoreography.TOTAL_MS) {
             withFrameMillis { now ->
@@ -147,33 +166,77 @@ private fun LayeredHero(
         }
         onAnimationComplete()
     }
+
     val layers = SplashChoreography.stateAt(elapsed)
 
     Box(modifier = modifier) {
-        // Back → Front z-order
-        SplashLayer(R.drawable.splash_l_mountains, layers.mountains)
-        SplashLayer(R.drawable.splash_l_trail, layers.trail)
-        SplashLayer(R.drawable.splash_l_beam, layers.bike)         // beam rides with bike
-        SplashLayer(R.drawable.splash_l_bike_body, layers.bike)
-        SplashLayer(
-            drawableRes = R.drawable.splash_l_wheel_rear,
-            state = layers.wheelRear,
-            transformOrigin = TransformOrigin(0.1948f, 0.3936f),
-        )
-        SplashLayer(
-            drawableRes = R.drawable.splash_l_wheel_front,
-            state = layers.wheelFront,
-            transformOrigin = TransformOrigin(0.3665f, 0.3965f),
-        )
-        SplashLayer(R.drawable.splash_l_pin, layers.pin)
-        SplashLayer(R.drawable.splash_l_wordmark, layers.wordmark)
-        SplashLayer(R.drawable.splash_l_tagline, layers.wordmark)  // tagline rides with wordmark
+        if (!warmed) {
+            // Static mountains hold while bitmaps are decoded — matches the windowBackground
+            // so there is no visual jump from the system splash to the first Compose frame.
+            SplashLayer(SplashAssets.layerDrawableRes[0], LayerState())
+        } else {
+            // Back → Front z-order; indices match SplashAssets.layerDrawableRes order.
+            SplashLayerFromBitmap(cachedBitmaps[0], layers.mountains)
+            SplashLayerFromBitmap(cachedBitmaps[1], layers.trail)
+            SplashLayerFromBitmap(cachedBitmaps[2], layers.bike)        // beam rides with bike
+            SplashLayerFromBitmap(cachedBitmaps[3], layers.bike)        // bike_body
+            SplashLayerFromBitmap(
+                bitmap = cachedBitmaps[4],
+                state = layers.wheelRear,
+                transformOrigin = TransformOrigin(0.1948f, 0.3936f),
+            )
+            SplashLayerFromBitmap(
+                bitmap = cachedBitmaps[5],
+                state = layers.wheelFront,
+                transformOrigin = TransformOrigin(0.3665f, 0.3965f),
+            )
+            SplashLayerFromBitmap(cachedBitmaps[6], layers.pin)
+            SplashLayerFromBitmap(cachedBitmaps[7], layers.wordmark)
+            SplashLayerFromBitmap(cachedBitmaps[8], layers.wordmark)   // tagline rides with wordmark
+        }
     }
+}
+
+/**
+ * Single splash layer rendered from a pre-decoded [ImageBitmap] with a [graphicsLayer] driven
+ * by [state] (AF2 warmed path).
+ *
+ * [translationX] is derived from [LayerState.translateXFrac] multiplied by the layer's
+ * measured pixel width inside [graphicsLayer], so horizontal offsets scale correctly
+ * across all screen densities.
+ *
+ * @param bitmap          Pre-decoded bitmap for this layer's PNG asset.
+ * @param state           Transform snapshot from [SplashChoreography.stateAt].
+ * @param transformOrigin Pivot point for rotation and scale; defaults to [TransformOrigin.Center].
+ */
+@Composable
+private fun SplashLayerFromBitmap(
+    bitmap: ImageBitmap,
+    state: LayerState,
+    transformOrigin: TransformOrigin = TransformOrigin.Center,
+) {
+    Image(
+        bitmap = bitmap,
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                alpha = state.alpha
+                translationX = state.translateXFrac * size.width
+                translationY = state.translateYPx
+                rotationZ = state.rotationDeg
+                scaleX = state.scale
+                scaleY = state.scale
+                this.transformOrigin = transformOrigin
+            },
+    )
 }
 
 /**
  * Single splash layer: a full-size [Image] with a [graphicsLayer] driven by [state].
  *
+ * Used for the static pre-warm mountains display while [LayeredHero] decodes bitmaps on IO.
  * [translationX] is derived from [LayerState.translateXFrac] multiplied by the layer's
  * measured pixel width inside [graphicsLayer], so horizontal offsets scale correctly
  * across all screen densities.

@@ -17,14 +17,17 @@ import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.ui.navigation.SyncState
 import com.mototracker.ui.navigation.deriveSyncState
 import com.mototracker.ui.navigation.isRecordingLocked
+import com.mototracker.di.IoDispatcher
 import com.mototracker.ui.theme.AccentColor
 import com.mototracker.ui.theme.MotoTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -63,6 +66,9 @@ import javax.inject.Inject
  * @param routeRepository   Source for [preloadedRoutes]; queried eagerly during splash (AE4).
  * @param routePreloadCache Singleton cache written by [preloadedRoutes] and read by
  *                          [com.mototracker.ui.screens.routes.RoutesViewModel] as its initial value.
+ * @param ioDispatcher      Dispatcher for the [preloadedRoutes] upstream (Room query + seed
+ *                          side-effect); defaults to [kotlinx.coroutines.Dispatchers.IO] in
+ *                          production, replaced with a test dispatcher in unit tests (AF2).
  */
 @HiltViewModel
 class AppStateViewModel @Inject constructor(
@@ -76,6 +82,7 @@ class AppStateViewModel @Inject constructor(
     private val syncRepository: SyncRepository,
     private val routeRepository: RouteRepository,
     private val routePreloadCache: RoutePreloadCache,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
@@ -118,11 +125,16 @@ class AppStateViewModel @Inject constructor(
      * [com.mototracker.ui.screens.routes.RoutesViewModel] can read the cached snapshot as its
      * [kotlinx.coroutines.flow.stateIn] initial value, populating the Routes tab instantly.
      *
+     * The upstream — the Room query and the [routePreloadCache] seed side-effect — runs on
+     * [ioDispatcher] (production: [kotlinx.coroutines.Dispatchers.IO]) so it cannot block the
+     * main thread during the first splash frame (AF2).
+     *
      * **Does NOT gate splash dismissal.** The splash timing is controlled exclusively by
      * [com.mototracker.ui.screens.splash.SplashChoreography.TOTAL_MS] and [startupDecision].
      */
     val preloadedRoutes: StateFlow<List<RouteSummaryModel>> = routeRepository.observeSummaries()
         .onEach { routePreloadCache.seed(it) }
+        .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /**

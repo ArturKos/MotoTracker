@@ -137,6 +137,32 @@
     </div>
 </div>
 
+<!-- Grants modal (view permissions per account) -->
+<div class="modal-backdrop" id="modalGrants">
+    <div class="modal">
+        <h2>View grants</h2>
+        <div class="hint" id="grantsUser"></div>
+        <div class="hint">
+            Grant this account the right to view another device's points, or another
+            user's app-recorded routes. Per-resource; admins already see everything.
+        </div>
+        <div id="grantsList" style="margin:10px 0"></div>
+        <label>Add — type
+            <select id="grantType" onchange="fillGrantResources()">
+                <option value="device">Device (points)</option>
+                <option value="app_user">App account (routes)</option>
+            </select>
+        </label>
+        <label>Resource
+            <select id="grantResource"></select>
+        </label>
+        <div class="modal-actions">
+            <button onclick="closeModal('modalGrants')">Close</button>
+            <button class="primary" onclick="submitAddGrant()">Add grant</button>
+        </div>
+    </div>
+</div>
+
 <script>
 function authFetch(url, opts) {
     return fetch(url, opts).then(function(r) {
@@ -161,7 +187,8 @@ var state = {
     resetUserId: null,
     regenUserId: null,
     viewUserId: null,
-    reassignDeviceId: null
+    reassignDeviceId: null,
+    grantUserId: null
 };
 
 function fmtDate(ts) {
@@ -228,6 +255,7 @@ function renderUsers() {
                 '<button class="btn-sm" onclick="openReset(' + u.id + ')">Reset pw</button>' +
                 '<button class="btn-sm" onclick="openRegen(' + u.id + ')">Regen key</button>' +
                 '<button class="btn-sm" onclick="openView(' + u.id + ')">View token</button>' +
+                '<button class="btn-sm" onclick="openGrants(' + u.id + ')">Grants</button>' +
                 '<button class="btn-sm ' + toggleClass + '" onclick="toggleUser(' + u.id + ',' + (u.active ? 0 : 1) + ')">' + toggleLabel + '</button>' +
             '</td>';
         body.appendChild(tr);
@@ -398,6 +426,88 @@ function submitReassign() {
         .then(function(r){ return r.json(); })
         .then(function(j) {
             if (j.ok) { closeModal('modalReassign'); loadAll(); }
+            else alert('Error: ' + (j.error || 'unknown'));
+        });
+}
+
+// --- View grants ---
+function openGrants(userId) {
+    var u = state.users.find(function(x){ return x.id === userId; });
+    if (!u) return;
+    state.grantUserId = userId;
+    document.getElementById('grantsUser').textContent = 'Account: ' + u.username + ' (#' + u.id + ')';
+    document.getElementById('grantType').value = 'device';
+    fillGrantResources();
+    loadGrants();
+    openModal('modalGrants');
+}
+
+function fillGrantResources() {
+    var type = document.getElementById('grantType').value;
+    var sel = document.getElementById('grantResource');
+    sel.innerHTML = '';
+    if (type === 'device') {
+        state.devices.forEach(function(d) {
+            var opt = document.createElement('option');
+            opt.value = d.id;
+            opt.textContent = (d.name || d.code) + ' (' + d.code + ')' +
+                (d.owner_username ? ' — ' + d.owner_username : '');
+            sel.appendChild(opt);
+        });
+    } else {
+        // app_user: any other account (not the grantee itself)
+        state.users.forEach(function(u) {
+            if (u.id === state.grantUserId) return;
+            var opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = u.username + (u.is_admin ? ' (admin)' : '');
+            sel.appendChild(opt);
+        });
+    }
+}
+
+function loadGrants() {
+    var list = document.getElementById('grantsList');
+    list.innerHTML = '<div class="hint">Loading…</div>';
+    authFetch('admin/list_grants.php?grantee=' + state.grantUserId)
+        .then(function(r){ return r.json(); })
+        .then(function(grants) {
+            if (!grants.length) { list.innerHTML = '<div class="hint">No grants yet.</div>'; return; }
+            list.innerHTML = '';
+            grants.forEach(function(g) {
+                var row = document.createElement('div');
+                row.className = 'result-key';
+                var kind = g.resource_type === 'device' ? 'device' : 'app routes';
+                row.innerHTML = '<span>' + kind + ': ' + escape(g.label) + '</span> ' +
+                    '<button class="btn-sm danger" onclick="removeGrant(' + g.id + ')">Remove</button>';
+                list.appendChild(row);
+            });
+        });
+}
+
+function submitAddGrant() {
+    var type = document.getElementById('grantType').value;
+    var rid = parseInt(document.getElementById('grantResource').value, 10);
+    if (!rid) { alert('Pick a resource.'); return; }
+    var body = new URLSearchParams();
+    body.append('grantee', state.grantUserId);
+    body.append('resource_type', type);
+    body.append('resource_id', rid);
+    authFetch('admin/add_grant.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (j.ok) loadGrants();
+            else alert('Error: ' + (j.error || 'unknown'));
+        });
+}
+
+function removeGrant(grantId) {
+    var body = new URLSearchParams();
+    body.append('grant_id', grantId);
+    authFetch('admin/remove_grant.php', { method: 'POST', body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(j) {
+            if (j.ok) loadGrants();
             else alert('Error: ' + (j.error || 'unknown'));
         });
 }

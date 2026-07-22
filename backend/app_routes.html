@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <title>MotoTracker — Przejazdy z aplikacji</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css?v=6" />
+    <style>
+        :root { --ar-bg:#101114; --ar-cyan:#2DD4FF; --ar-green:#00E676; --ar-panel:#171a1f; --ar-line:#262b32; --ar-dim:#9aa4b0; }
+        .ar-wrap { display:flex; gap:14px; padding:14px; height:calc(100vh - 60px); box-sizing:border-box; }
+        .ar-list { width:340px; flex:0 0 340px; overflow-y:auto; background:var(--ar-panel); border:1px solid var(--ar-line); border-radius:12px; padding:8px; }
+        .ar-detail { flex:1; display:flex; flex-direction:column; gap:10px; min-width:0; }
+        #ar-map { flex:1; min-height:300px; border-radius:12px; border:1px solid var(--ar-line); }
+        .ar-item { padding:10px 12px; border-radius:9px; cursor:pointer; border:1px solid transparent; }
+        .ar-item:hover { background:#1d2127; }
+        .ar-item.active { border-color:var(--ar-cyan); background:#12262c; }
+        .ar-item .nm { font-weight:600; color:#eef2f6; }
+        .ar-item .meta { font-size:12px; color:var(--ar-dim); margin-top:3px; }
+        .ar-item .owner { font-size:11px; color:var(--ar-green); }
+        .ar-stats { display:flex; flex-wrap:wrap; gap:8px; }
+        .ar-stat { background:var(--ar-panel); border:1px solid var(--ar-line); border-radius:10px; padding:8px 14px; min-width:88px; }
+        .ar-stat .v { font-size:20px; font-weight:700; color:#eef2f6; }
+        .ar-stat .l { font-size:11px; color:var(--ar-dim); text-transform:uppercase; letter-spacing:.05em; }
+        .ar-empty { color:var(--ar-dim); padding:20px; text-align:center; }
+    </style>
+</head>
+<body>
+
+<header id="topbar">
+    <div class="logo"><i class="fas fa-route"></i><span>MotoTracker — Przejazdy z aplikacji</span></div>
+    <div class="topbar-controls">
+        <a href="index.html"><button type="button" title="Mapa"><i class="fas fa-arrow-left"></i> Mapa</button></a>
+        <span id="userInfo" class="user-info"></span>
+        <button id="btnLogout" onclick="logout()" title="Wyloguj"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+</header>
+
+<div class="ar-wrap">
+    <div class="ar-list" id="arList"><div class="ar-empty">Ładowanie…</div></div>
+    <div class="ar-detail">
+        <div class="ar-stats" id="arStats"></div>
+        <div id="ar-map"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+function authFetch(url, opts) {
+    return fetch(url, opts).then(function(r) {
+        if (r.status === 401) { window.location.href = 'login.html'; throw new Error('unauth'); }
+        return r;
+    });
+}
+function logout() { fetch('logout.php', { method: 'POST' }).finally(function(){ window.location.href = 'login.html'; }); }
+function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(ts){ return ts ? ts.replace('T',' ').slice(0,16) : '—'; }
+function fmtDur(sec){ sec=+sec||0; var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
+    return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s; }
+
+var map = L.map('ar-map', { zoomControl: true }).setView([52.07, 19.48], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+var track = null, selfId = null;
+
+// Parse path_json into an array of [lat,lng]. Tolerates array-of-arrays
+// ([[lat,lng],…]) and array-of-objects ({lat, lng|lon}).
+function parsePath(pathJson) {
+    if (!pathJson) return [];
+    var arr; try { arr = JSON.parse(pathJson); } catch(e){ return []; }
+    if (!Array.isArray(arr)) return [];
+    return arr.map(function(p){
+        if (Array.isArray(p)) return [p[0], p[1]];
+        if (p && typeof p === 'object') return [p.lat, (p.lng != null ? p.lng : p.lon)];
+        return null;
+    }).filter(function(x){ return x && isFinite(x[0]) && isFinite(x[1]); });
+}
+
+function renderStats(r) {
+    var payload = {}; try { payload = JSON.parse(r.payload_json || '{}'); } catch(e){}
+    var stats = [
+        ['Dystans', (+r.km).toFixed(1) + ' km'],
+        ['Czas', fmtDur(r.dur_sec)],
+        ['Śr. prędkość', (+r.avg_kmh).toFixed(0) + ' km/h'],
+        ['Maks.', (+r.max_kmh).toFixed(0) + ' km/h']
+    ];
+    if (payload.elev != null)  stats.push(['Przewyższenie', (+payload.elev).toFixed(0) + ' m']);
+    if (payload.fuel != null)  stats.push(['Paliwo', (+payload.fuel).toFixed(1) + ' l']);
+    if (payload.lean != null)  stats.push(['Przechył', (+payload.lean).toFixed(0) + '°']);
+    document.getElementById('arStats').innerHTML = stats.map(function(s){
+        return '<div class="ar-stat"><div class="v">' + esc(s[1]) + '</div><div class="l">' + esc(s[0]) + '</div></div>';
+    }).join('');
+}
+
+function showDetail(id) {
+    authFetch('pobierz_app_trasy.php?id=' + id).then(function(r){ return r.json(); }).then(function(r){
+        if (!r || r.error) return;
+        renderStats(r);
+        var pts = parsePath(r.path_json);
+        if (track) { map.removeLayer(track); track = null; }
+        if (pts.length) {
+            track = L.polyline(pts, { color: '#2DD4FF', weight: 4, opacity: 0.9 }).addTo(map);
+            map.fitBounds(track.getBounds(), { padding: [30,30] });
+        }
+    });
+}
+
+function renderList(routes) {
+    var list = document.getElementById('arList');
+    if (!routes.length) { list.innerHTML = '<div class="ar-empty">Brak przejazdów z aplikacji.</div>'; return; }
+    list.innerHTML = '';
+    routes.forEach(function(r) {
+        var div = document.createElement('div');
+        div.className = 'ar-item';
+        var owner = (selfId != null && +r.user_id !== +selfId)
+            ? '<div class="owner"><i class="fas fa-user"></i> konto #' + r.user_id + '</div>' : '';
+        div.innerHTML = '<div class="nm">' + esc(r.name) + '</div>' +
+            '<div class="meta">' + fmtDate(r.started_at) + ' · ' + (+r.km).toFixed(1) + ' km · ' + (+r.avg_kmh).toFixed(0) + ' km/h</div>' + owner;
+        div.onclick = function(){
+            document.querySelectorAll('.ar-item').forEach(function(x){ x.classList.remove('active'); });
+            div.classList.add('active');
+            showDetail(r.id);
+        };
+        list.appendChild(div);
+    });
+    // auto-open first
+    var first = list.querySelector('.ar-item'); if (first) first.click();
+}
+
+authFetch('pobierz_me.php').then(function(r){ return r.json(); }).then(function(me){
+    if (me && me.username) {
+        selfId = me.id;
+        document.getElementById('userInfo').innerHTML = '<i class="fas fa-user"></i> ' + esc(me.display_name || me.username);
+    }
+    return authFetch('pobierz_app_trasy.php').then(function(r){ return r.json(); });
+}).then(function(data){ renderList((data && data.routes) || []); });
+</script>
+</body>
+</html>

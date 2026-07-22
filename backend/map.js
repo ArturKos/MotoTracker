@@ -191,16 +191,24 @@ function formatDuration(ms) {
 
 // --- Stats ---
 function clearStats() {
-    ['statDistance','statDuration','statAvgSpeed','statMaxSpeed','statTemp','statBattery']
+    ['statDistance','statDuration','statMovingTime','statAvgSpeed','statMovingAvg','statMaxSpeed','statTemp','statBattery']
         .forEach(function(id) { document.getElementById(id).textContent = '--'; });
 }
+
+var MOVING_THRESHOLD = 2; // km/h
 
 function updateStats(points, speeds) {
     if (!points || points.length < 2) { clearStats(); return; }
 
     var totalDist = 0;
+    var movingTime = 0;
     for (var i = 1; i < points.length; i++) {
         totalDist += haversine(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
+        if (speeds[i] >= MOVING_THRESHOLD) {
+            var t1 = new Date(points[i-1].timestamp).getTime();
+            var t2 = new Date(points[i].timestamp).getTime();
+            movingTime += (t2 - t1);
+        }
     }
 
     var t0 = new Date(points[0].timestamp).getTime();
@@ -212,12 +220,15 @@ function updateStats(points, speeds) {
         if (speeds[j] > maxSpeed) maxSpeed = speeds[j];
     }
     var avgSpeed = (duration > 0) ? totalDist / (duration / 3600000) : 0;
+    var movingAvg = (movingTime > 0) ? totalDist / (movingTime / 3600000) : 0;
     var realisticMax = Math.min(maxSpeed, 300);
     var lastPoint = points[points.length - 1];
 
     document.getElementById('statDistance').textContent = totalDist.toFixed(1) + ' km';
     document.getElementById('statDuration').textContent = formatDuration(duration);
+    document.getElementById('statMovingTime').textContent = formatDuration(movingTime);
     document.getElementById('statAvgSpeed').textContent = avgSpeed.toFixed(0) + ' km/h';
+    document.getElementById('statMovingAvg').textContent = movingAvg.toFixed(0) + ' km/h';
     document.getElementById('statMaxSpeed').textContent = realisticMax.toFixed(0) + ' km/h';
     document.getElementById('statTemp').textContent    = (lastPoint.temperature !== null && lastPoint.temperature !== undefined) ? lastPoint.temperature.toFixed(1) + ' °C' : '--';
     document.getElementById('statBattery').textContent = (lastPoint.battery     !== null && lastPoint.battery     !== undefined) ? lastPoint.battery.toFixed(1)     + ' V'  : '--';

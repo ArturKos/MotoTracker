@@ -112,8 +112,50 @@ if (!$current_user['active']) {
 // to just the rows the current user is allowed to see. Admins see all.
 // Read-only token callers are scoped to their user even if the user is admin
 // (the token is for embedding a single user's view, not for spying on others).
+// Non-admins additionally see devices granted to them via view_grants
+// (resource_type='device').
 function device_user_filter() {
-    global $current_user, $auth_readonly;
+    global $current_user, $auth_readonly, $auth_conn;
     if ($current_user['is_admin'] && !$auth_readonly) return "";
-    return " AND d.user_id = " . $current_user['id'];
+    $uid = (int)$current_user['id'];
+    $granted = grant_resource_ids('device'); // ints from view_grants
+    if (empty($granted)) {
+        return " AND d.user_id = " . $uid;
+    }
+    return " AND (d.user_id = " . $uid . " OR d.id IN (" . implode(',', $granted) . "))";
+}
+
+// Returns the resource_id list (ints) granted to the current user for a given
+// resource_type via view_grants. Values are cast to int so they are safe to
+// splice into an IN(...) clause.
+function grant_resource_ids($resource_type) {
+    global $current_user, $auth_conn;
+    $ids = [];
+    $stmt = $auth_conn->prepare(
+        "SELECT resource_id FROM view_grants WHERE grantee_user_id = ? AND resource_type = ?"
+    );
+    if (!$stmt) return $ids; // table may not exist yet on un-migrated servers
+    $uid = (int)$current_user['id'];
+    $stmt->bind_param("is", $uid, $resource_type);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) $ids[] = (int)$row['resource_id'];
+    $stmt->close();
+    return $ids;
+}
+
+// Returns the list of user ids whose app_routes the current user may view:
+// self + every user granted via view_grants (resource_type='app_user').
+// Admins see ALL users' app routes (consistent with device_user_filter()).
+function app_routes_user_ids() {
+    global $current_user, $auth_conn, $auth_readonly;
+    if ($current_user['is_admin'] && !$auth_readonly) {
+        $ids = [];
+        $res = $auth_conn->query("SELECT id FROM users");
+        if ($res) { while ($row = $res->fetch_assoc()) $ids[] = (int)$row['id']; }
+        return $ids ?: [(int)$current_user['id']];
+    }
+    $ids = [(int)$current_user['id']];
+    foreach (grant_resource_ids('app_user') as $gid) $ids[] = $gid;
+    return array_values(array_unique($ids));
 }

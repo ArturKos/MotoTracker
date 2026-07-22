@@ -42,8 +42,22 @@ Backup: `login.php.bak-preemail` na serwerze.
 
 *(Kontrakt dla dalszych podprojektów: app [2] uderza w `register.php`/`login.php`(pole `email`)/`api_routes.php` z `id`=client_uuid, wsadowo po jeździe; web [3] czyta `app_routes` per sesyjny `user_id`, rysuje polilinię z `path_json` + statystyki z `payload_json`.)*
 
-## Podprojekt 3 — Webowy widok „przejazdy z aplikacji" (po backendzie i/lub równolegle)
+## Podprojekt 3 — Webowy widok „przejazdy z aplikacji" + model uprawnień (granty per zasób)
 
-*(Do rozpisania po BE1–BE5. Szkic: `GET` listujący `app_routes` usera + strona/zakładka
-w web-froncie: lista nazwanych przejazdów [data, dystans, avg/max] + szczegół z mapą
-[polilinia z `path_json`] i statystykami [`payload_json`]. Branding spójny ze splashem/ikoną.)*
+Projekt: `docs/superpowers/specs/2026-07-22-gpstrack-web-app-routes-and-view-grants-design.md`.
+Decyzje: grant **per zasób** (typ `device` = punkty urządzenia; typ `app_user` = TYLKO
+trasy z appki danego usera), zarządzane w `admin.html` (admin-only), model uprawnień
+od razu. Wykonanie bezpośrednio na `malinka`, jako Artur; **push do GitHub PO weryfikacji**.
+
+| #  | Zadanie | Status |
+|----|---------|--------|
+| W0 | **Reconcile serwer→repo (prereq).** Ściągnąć z `malinka` pliki nowsze/nieobecne w repo `backend/`: `index.html`, `map.js` (Moving Time/Avg, `v=8-moving`), `images.html`, `get_images.php`, oraz brakujące `pobierz_*.php` (`pobierz_ostatni_punkt.php`, `pobierz_punkty.php`, `pobierz_urzadzenia.php`, `pobierz_me.php`, `pobierz_match.php`) i cokolwiek z `admin/` czego brak w repo. Zacommitować (Artur) OSOBNYM commitem „sync z serwera". **DoD:** `diff` repo↔serwer dla web/PHP = brak istotnych różnic (poza tym co dopiero dodamy). | ✅ |
+| W1 | **Migracja `view_grants` (następny wolny numer, sprawdzić `migrations/` na serwerze — prawdop. `008`/`009`).** `CREATE TABLE view_grants (id, grantee_user_id INT FK→users(id), resource_type ENUM('device','app_user'), resource_id INT, created_by INT NULL, created_at, UNIQUE(grantee_user_id,resource_type,resource_id), INDEX(grantee_user_id))`. Idempotentne. **DoD:** aplikuje się czysto; tabela istnieje. | ✅ |
+| W2 | **Filtry widoczności w `auth.php`.** Rozszerzyć `device_user_filter()`: admin→`""`; nie-admin→`" AND (d.user_id = <id> OR d.id IN (SELECT resource_id FROM view_grants WHERE grantee_user_id=<id> AND resource_type='device'))"`. Dodać helper `app_routes_user_ids()` → lista `[self] + (granty app_user)`; admin→wszyscy userzy (spójnie z devices). Prepared/escaped (id to int z sesji — bezpieczne). **DoD:** istniejące `pobierz_*`/`export_gpx` działają jak dotąd bez grantów; z grantem `device` widać cudze urządzenie. | ✅ |
+| W3 | **`pobierz_app_trasy.php` (GET, sesja).** Bez `?id` → lista `app_routes` `WHERE user_id IN (app_routes_user_ids())` (id, user_id, name, started_at, km, dur_sec, avg_kmh, max_kmh) `ORDER BY started_at DESC`. Z `?id=N` → szczegół (+`path_json`,`payload_json`) tylko gdy `user_id` wiersza ∈ widocznych, inaczej 404. Prepared statements, JSON. **DoD:** user widzi swoje; z grantem `app_user` widzi cudze; bez — nie (404 na szczegół, brak na liście). | ✅ |
+| W4 | **Admin UI grantów: `admin/list_grants.php` / `add_grant.php` / `remove_grant.php` + sekcja w `admin.html`.** Endpointy admin-only (wzór istniejących `admin/*.php`): list (po `grantee`, z nazwą urządzenia/e-mailem konta), add (POST grantee+resource_type+resource_id, idempotentnie, walidacja istnienia zasobu), remove (POST grant_id). `admin.html`: akcja „Grants" przy koncie → modal (bieżące granty + dodaj urządzenie z `list_devices`/konto-appki z `list_users` + usuń), styl jak reset/regen/reassign. **DoD:** admin nadaje/usuwa granty w UI; nie-admin dostaje 401/403 na `admin/*grant*`. | ⬜ |
+| W5 | **Widok web „Przejazdy z aplikacji".** Strona/zakładka (`app_routes.html`+JS lub karta w istniejącym froncie) czytająca `pobierz_app_trasy.php`: lista nazwanych przejazdów (nazwa, data, dystans, avg/max; oznaczenie właściciela gdy widać cudze) + szczegół z mapą Leaflet (polilinia z `path_json`) i statystykami z `payload_json`. Branding: paleta splasha (#101114/#2DD4FF/#00E676). Link z głównego frontu. **DoD:** w przeglądarce (VPN z laptopa) lista+szczegół+mapa renderują; sprawdzone na koncie z grantem i bez; zrzuty. | ⬜ |
+
+*(Kolejność: W0→W1→W2→W3→W4→W5. Po weryfikacji na serwerze — push repo do GitHub jako Artur.)*
+
+**STAN 2026-07-22:** W0–W3 ✅ + **W4 endpointy backendu (`admin/list_grants|add_grant|remove_grant.php`) ✅ zweryfikowane** na serwerze (`admin_grant_verify.sh`: 403 nie-admin, add/list/idempotent/404/remove, grant realnie steruje widocznością — ALL PASS). Migracja `008_view_grants.sql` zaaplikowana. Filtry w `auth.php` (`device_user_filter` rozszerzony + `app_routes_user_ids()`/`grant_resource_ids()`), `pobierz_app_trasy.php` — wdrożone i zweryfikowane (`grant_verify.sh` ALL PASS). ZOSTAJE **W4-UI** (modal grantów w `admin.html`) i **W5** (widok web „przejazdy z aplikacji"). Backend+API+uprawnienia wypushowane; UI do zrobienia.

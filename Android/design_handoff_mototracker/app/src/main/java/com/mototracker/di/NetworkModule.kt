@@ -1,5 +1,8 @@
 package com.mototracker.di
 
+import android.os.Build
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.mototracker.core.time.SystemTimeProvider
 import com.mototracker.core.time.TimeProvider
 import com.mototracker.data.auth.AuthStateStore
@@ -7,7 +10,9 @@ import com.mototracker.data.auth.DataStoreAuthStateStore
 import com.mototracker.data.terms.DataStoreTermsAcceptanceStore
 import com.mototracker.data.terms.TermsAcceptanceStore
 import com.mototracker.data.network.AndroidNetworkMonitor
+import com.mototracker.data.network.DataStoreDeviceIdentity
 import com.mototracker.data.network.DataStoreSessionStore
+import com.mototracker.data.network.DeviceIdentity
 import com.mototracker.data.network.GpsCorrectionClient
 import com.mototracker.data.network.GpStrackClient
 import com.mototracker.data.network.HttpGpStrackClient
@@ -28,6 +33,7 @@ import com.mototracker.data.settings.SettingsStore
 import com.mototracker.data.settings.WritableSettingsSource
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -119,4 +125,15 @@ abstract class NetworkModule {
     @Binds
     @Singleton
     abstract fun bindWeatherClient(impl: OpenMeteoWeatherClient): WeatherClient
+
+    /** Dostarcza [DeviceIdentity] z nazwą modelu z [Build] i UUID instalacji z DataStore. */
+    companion object {
+        @Provides
+        @Singleton
+        fun provideDeviceIdentity(dataStore: DataStore<Preferences>): DeviceIdentity =
+            DataStoreDeviceIdentity(
+                dataStore = dataStore,
+                deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
+            )
+    }
 }

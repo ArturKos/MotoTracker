@@ -19,22 +19,23 @@ PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- 3. Świeży install: utwórz rides jeśli nadal nieobecna (schemat = app_routes + device_id).
 CREATE TABLE IF NOT EXISTS rides (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    client_uuid VARCHAR(64) NOT NULL,
-    name VARCHAR(190) NOT NULL,
-    started_at DATETIME DEFAULT NULL,
-    km DOUBLE DEFAULT NULL,
-    dur_sec INT DEFAULT NULL,
-    avg_kmh DOUBLE DEFAULT NULL,
-    max_kmh DOUBLE DEFAULT NULL,
-    path_json LONGTEXT,
-    payload_json LONGTEXT NOT NULL,
-    device_id INT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_rides_user_uuid (user_id, client_uuid),
-    INDEX idx_rides_user_started (user_id, started_at)
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    user_id       INT NOT NULL,
+    client_uuid   VARCHAR(64) NOT NULL,
+    name          VARCHAR(190) NOT NULL,
+    started_at    DATETIME NOT NULL,
+    km            DOUBLE NOT NULL DEFAULT 0,
+    dur_sec       INT NOT NULL DEFAULT 0,
+    avg_kmh       DOUBLE NOT NULL DEFAULT 0,
+    max_kmh       DOUBLE NOT NULL DEFAULT 0,
+    path_json     LONGTEXT,
+    payload_json  LONGTEXT NOT NULL,
+    device_id     INT DEFAULT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_app_routes_user FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE KEY uq_user_client (user_id, client_uuid),
+    INDEX idx_user_started (user_id, started_at)
 );
 
 -- 4. device_id na rides (idempotentne; pokrywa gałąź z rename).

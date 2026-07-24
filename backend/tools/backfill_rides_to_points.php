@@ -31,18 +31,33 @@ function import_device_for_user(mysqli $conn, array &$cache, int $userId): int {
     return $id;
 }
 
-$rows = $conn->query("SELECT id, user_id, started_at, path_json FROM rides ORDER BY id");
-$ridesN = 0; $ptsN = 0;
+$rows = $conn->query("SELECT id, user_id, started_at, path_json, payload_json FROM rides ORDER BY id");
+$ridesN = 0; $ptsN = 0; $skipped = 0;
 while ($ride = $rows->fetch_assoc()) {
     $rideId  = (int)$ride['id'];
     $userId  = (int)$ride['user_id'];
     $started = $ride['started_at'] ?: date('Y-m-d H:i:s');
-    $devId   = import_device_for_user($conn, $importDev, $userId);
+    $ridesN++;
 
+    // Path source: prefer the path_json column; fall back to payload_json.pathJson.
+    // Legacy rides uploaded before path_json was populated keep the path (if any)
+    // only inside the raw request body stored in payload_json.
+    $pathStr = $ride['path_json'];
+    if ($pathStr === null || $pathStr === '') {
+        $pl = json_decode((string)$ride['payload_json'], true);
+        if (is_array($pl) && !empty($pl['pathJson'])) $pathStr = (string)$pl['pathJson'];
+    }
+    $points = parse_path_points($pathStr);
+
+    if (!$points) {
+        // No coordinates to explode → don't create an empty import device or link the ride.
+        $skipped++;
+        continue;
+    }
+
+    $devId = import_device_for_user($conn, $importDev, $userId);
     $conn->query("UPDATE rides SET device_id = $devId WHERE id = $rideId AND device_id IS NULL");
 
-    $points = parse_path_points($ride['path_json']);
-    // idempotencja: skasuj poprzednie punkty tego przejazdu
     // Idempotencja: skasuj najpierw pochodne (snapped/interpolated po parent_id), potem raw.
     $delD = $conn->prepare(
         "DELETE FROM points WHERE parent_id IN (SELECT id FROM (SELECT id FROM points WHERE ride_id = ?) t)"
@@ -51,19 +66,17 @@ while ($ride = $rows->fetch_assoc()) {
     $del = $conn->prepare("DELETE FROM points WHERE ride_id = ?");
     $del->bind_param("i", $rideId); $del->execute(); $del->close();
 
-    if ($points) {
-        $insP = $conn->prepare(
-            "INSERT INTO points (device_id, timestamp, lat, lon, speed, altitude, source, ride_id)
-             VALUES (?, ?, ?, ?, ?, ?, 'raw', ?)"
-        );
-        foreach ($points as $p) {
-            $ts = $p['ts_ms'] !== null ? date('Y-m-d H:i:s', (int)($p['ts_ms'] / 1000)) : $started;
-            $insP->bind_param("isddddi", $devId, $ts, $p['lat'], $p['lon'], $p['speed'], $p['ele'], $rideId);
-            $insP->execute(); $ptsN++;
-        }
-        $insP->close();
+    $insP = $conn->prepare(
+        "INSERT INTO points (device_id, timestamp, lat, lon, speed, altitude, source, ride_id)
+         VALUES (?, ?, ?, ?, ?, ?, 'raw', ?)"
+    );
+    foreach ($points as $p) {
+        $ts = $p['ts_ms'] !== null ? date('Y-m-d H:i:s', (int)($p['ts_ms'] / 1000)) : $started;
+        $insP->bind_param("isddddi", $devId, $ts, $p['lat'], $p['lon'], $p['speed'], $p['ele'], $rideId);
+        $insP->execute(); $ptsN++;
     }
-    $ridesN++;
+    $insP->close();
 }
-echo "Backfill: $ridesN rides -> $ptsN points\n";
+echo "Backfill: $ridesN rides ($skipped bez współrzędnych, pominięte) -> "
+   . count($importDev) . " device(ów) importu, $ptsN points\n";
 $conn->close();

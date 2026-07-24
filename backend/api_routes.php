@@ -134,12 +134,12 @@ try {
         "DELETE FROM points WHERE parent_id IN (SELECT id FROM (SELECT id FROM points WHERE ride_id = ?) t)"
     );
     $d1->bind_param("i", $ride_id);
-    $d1->execute();
+    if (!$d1->execute()) { $d1->close(); throw new \RuntimeException('delete derived points failed'); }
     $d1->close();
 
     $d2 = $auth_conn->prepare("DELETE FROM points WHERE ride_id = ?");
     $d2->bind_param("i", $ride_id);
-    $d2->execute();
+    if (!$d2->execute()) { $d2->close(); throw new \RuntimeException('delete raw points failed'); }
     $d2->close();
 
     if ($points) {
@@ -150,7 +150,7 @@ try {
         foreach ($points as $p) {
             $ts = $p['ts_ms'] !== null ? date('Y-m-d H:i:s', (int)($p['ts_ms'] / 1000)) : $started_at;
             $insP->bind_param("isddddi", $dev_id, $ts, $p['lat'], $p['lon'], $p['speed'], $p['ele'], $ride_id);
-            $insP->execute();
+            if (!$insP->execute()) { $insP->close(); throw new \RuntimeException('insert point failed'); }
             $inserted++;
         }
         $insP->close();

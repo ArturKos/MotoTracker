@@ -426,3 +426,12 @@ license new SDK packages), the scaffold MUST target what is installed:
 | #  | Item | Status |
 |----|------|--------|
 | AJ1 | **Zezwolić na cleartext HTTP (serwer GPStrack jest po http w LAN).** `AndroidManifest.xml`: dodano `android:usesCleartextTraffic="true"` na `<application>`. Bez tego wszystkie żądania do http-serwera padają (register/login/upload). Alternatywa docelowa: `networkSecurityConfig` ograniczony do LAN — ale dla self-hosted-LAN blanket cleartext jest OK. Zweryfikować on-device: rejestracja z appki → konto na serwerze, kolejka syncu drenuje. | 🔬 |
+
+## AK. Feedback rejestracji + pasek postępu synchronizacji (on-device feedback 2026-07-24, round 31)
+
+*(E2E potwierdzony: rejestracja z appki tworzy konto na serwerze, kolejka syncu drenuje trasy [47/52 na serwerze podczas testu]. Akos: brakuje jasnej informacji, czy konto założono poprawnie / czy był błąd, oraz paska postępu synchronizacji.)*
+
+| #  | Item | Status |
+|----|------|--------|
+| AK1 | **Jasne potwierdzenie wyniku rejestracji/logowania.** Po `register()/login()` pokazać wyraźny sukces (np. snackbar/toast „Konto założone, synchronizuję…" / „Zalogowano") ORAZ czytelny komunikat błędu (409 e-mail zajęty, 400 walidacja, błąd sieci — już mapowane w RegisterViewModel, ale użytkownik zgłasza brak widocznego potwierdzenia sukcesu). Sukces = przejście do apki + snackbar. Unit-test seam stanu (sukces/błąd → efekt UI). On-device 🔬. | ⬜ |
+| AK2 | **Pasek/wskaźnik postępu synchronizacji.** Kolejka syncu ma `pendingCount` (już w `AppStateViewModel.syncState` → `SyncState.Queued(n)`). Pokazać postęp: np. „Synchronizacja X/Y tras" + pasek (LinearProgressIndicator) gdy trwa drenowanie; znika po `Synced`. Miejsce: chip w topbarze (jest `SyncState`) rozbudować, lub baner na ekranie Trasy/Ustawienia-Konto. Źródło danych: `pendingCount` + całkowita liczba do wysłania (dodać licznik „in-flight/total” w SyncRepositoryImpl jeśli trzeba). Unit-test wyliczania postępu (pure). On-device 🔬. | ⬜ |

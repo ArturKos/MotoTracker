@@ -20,13 +20,16 @@ private const val ENDPOINT_REGISTER = "/register.php"
  * The actual HTTP round-trip is handled by [UrlConnectionHttpTransport] in production
  * (on-device only, 🔬). A [FakeHttpTransport] is injected in unit tests.
  *
- * @param transport    Injectable HTTP transport seam.
- * @param sessionStore Persists the session cookie between requests.
+ * @param transport      Injectable HTTP transport seam.
+ * @param sessionStore   Persists the session cookie between requests.
+ * @param deviceIdentity Identifies this phone as a GPStrack device (code + name) attached
+ *                       to every route upload.
  */
 @Singleton
 class HttpGpStrackClient @Inject constructor(
     private val transport: HttpTransport,
     private val sessionStore: SessionStore,
+    private val deviceIdentity: DeviceIdentity,
 ) : GpStrackClient {
 
     /**
@@ -130,7 +133,11 @@ class HttpGpStrackClient @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val session = sessionStore.session.first()
-                val body = buildJson(route).toString().toByteArray(Charsets.UTF_8)
+                val json = buildJson(route).apply {
+                    put("deviceCode", deviceIdentity.code())
+                    put("deviceName", deviceIdentity.name())
+                }
+                val body = json.toString().toByteArray(Charsets.UTF_8)
                 val headers = buildMap<String, String> {
                     put("Content-Type", "application/json; charset=utf-8")
                     session.cookie?.let { put("Cookie", it) }

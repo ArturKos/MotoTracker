@@ -41,6 +41,15 @@ private class RecordingSessionStore : SessionStore {
     }
 }
 
+/** Fake [DeviceIdentity] returning fixed values, avoiding DataStore/Build in unit tests. */
+private class FakeDeviceIdentity(
+    private val code: String = "install-uuid-test",
+    private val name: String = "samsung SM-TEST",
+) : DeviceIdentity {
+    override suspend fun code(): String = code
+    override fun name(): String = name
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Test helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,7 +99,7 @@ class HttpGpStrackClientTest {
     fun setUp() {
         transport = FakeHttpTransport()
         sessionStore = RecordingSessionStore()
-        client = HttpGpStrackClient(transport, sessionStore)
+        client = HttpGpStrackClient(transport, sessionStore, FakeDeviceIdentity())
     }
 
     // ── login ─────────────────────────────────────────────────────────────────
@@ -286,5 +295,22 @@ class HttpGpStrackClientTest {
         val req = transport.lastRequest!!
         assertNull("Cookie must be absent", req.headers["Cookie"])
         assertNull("Authorization must be absent", req.headers["Authorization"])
+    }
+
+    /**
+     * uploadRoute() must add `deviceCode` and `deviceName` (from [DeviceIdentity]) to the
+     * JSON request body.
+     */
+    @Test
+    fun `uploadRoute dokłada deviceCode i deviceName do ciała`() = runTest {
+        sessionStore.save(cookie = "PHPSESSID=abc", email = "a@b.c", writeApiKey = null)
+        transport.nextResponse = HttpResponse(code = 200, headers = emptyMap(), body = "")
+
+        client.uploadRoute(SERVER, minimalRoute)
+
+        val body = String(transport.lastRequest!!.body!!, Charsets.UTF_8)
+        val json = org.json.JSONObject(body)
+        assertEquals("install-uuid-test", json.getString("deviceCode"))
+        assertEquals("samsung SM-TEST", json.getString("deviceName"))
     }
 }

@@ -32,6 +32,15 @@ private class FakeRegisterSessionStore : SessionStore {
     }
 }
 
+/** Fake [DeviceIdentity] returning fixed values, avoiding DataStore/Build in unit tests. */
+private class RegisterFakeDeviceIdentity(
+    private val code: String = "install-uuid-test",
+    private val name: String = "samsung SM-TEST",
+) : DeviceIdentity {
+    override suspend fun code(): String = code
+    override fun name(): String = name
+}
+
 private const val SERVER = "http://192.168.1.145/gpstrack"
 private const val TEST_EMAIL = "rider@example.com"
 private const val TEST_PASSWORD = "s3cr3t!!"
@@ -57,7 +66,7 @@ class HttpGpStrackClientRegisterTest {
     fun setUp() {
         transport = FakeHttpTransport()
         sessionStore = FakeRegisterSessionStore()
-        client = HttpGpStrackClient(transport, sessionStore)
+        client = HttpGpStrackClient(transport, sessionStore, RegisterFakeDeviceIdentity())
     }
 
     /**

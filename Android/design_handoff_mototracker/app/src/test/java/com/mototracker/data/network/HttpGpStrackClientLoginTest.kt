@@ -31,6 +31,15 @@ private class FakeSessionStore : SessionStore {
     }
 }
 
+/** Fake [DeviceIdentity] returning fixed values, avoiding DataStore/Build in unit tests. */
+private class LoginFakeDeviceIdentity(
+    private val code: String = "install-uuid-test",
+    private val name: String = "samsung SM-TEST",
+) : DeviceIdentity {
+    override suspend fun code(): String = code
+    override fun name(): String = name
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +87,7 @@ class HttpGpStrackClientLoginTest {
     fun setUp() {
         transport = FakeHttpTransport()
         sessionStore = FakeSessionStore()
-        client = HttpGpStrackClient(transport, sessionStore)
+        client = HttpGpStrackClient(transport, sessionStore, LoginFakeDeviceIdentity())
     }
 
     /**

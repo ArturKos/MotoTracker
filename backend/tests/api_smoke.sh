@@ -95,7 +95,7 @@ RIDE_MS=1721560000000
 RIDE_DATE=$(php -r 'echo date("Y-m-d", (int)(1721560000000/1000));')
 
 pivot_route() { # $1 uuid $2 devcode
-  printf '{"id":"%s","name":"Pivot trasa","dateEpochMs":%s,"deviceCode":"%s","deviceName":"samsung SM-TEST","km":1.2,"durSec":40,"avg":30,"max":60,"pathJson":"[{\\"lat\\":53.40,\\"lng\\":14.50,\\"ele\\":10,\\"t\\":1721560000000},{\\"lat\\":53.401,\\"lng\\":14.502,\\"ele\\":12,\\"t\\":1721560030000},{\\"lat\\":53.402,\\"lng\\":14.504,\\"ele\\":13,\\"t\\":1721560060000}]"}' "$1" "$2" "$3"
+  printf '{"id":"%s","name":"Pivot trasa","dateEpochMs":1721560000000,"deviceCode":"%s","deviceName":"samsung SM-TEST","km":1.2,"durSec":40,"avg":30,"max":60,"pathJson":"[{\\"lat\\":53.40,\\"lng\\":14.50,\\"ele\\":10,\\"t\\":1721560000000},{\\"lat\\":53.401,\\"lng\\":14.502,\\"ele\\":12,\\"t\\":1721560030000},{\\"lat\\":53.402,\\"lng\\":14.504,\\"ele\\":13,\\"t\\":1721560060000}]"}' "$1" "$2"
 }
 
 # fresh session (login by e-mail)

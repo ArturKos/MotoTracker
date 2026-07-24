@@ -43,6 +43,11 @@ while ($ride = $rows->fetch_assoc()) {
 
     $points = parse_path_points($ride['path_json']);
     // idempotencja: skasuj poprzednie punkty tego przejazdu
+    // Idempotencja: skasuj najpierw pochodne (snapped/interpolated po parent_id), potem raw.
+    $delD = $conn->prepare(
+        "DELETE FROM points WHERE parent_id IN (SELECT id FROM (SELECT id FROM points WHERE ride_id = ?) t)"
+    );
+    $delD->bind_param("i", $rideId); $delD->execute(); $delD->close();
     $del = $conn->prepare("DELETE FROM points WHERE ride_id = ?");
     $del->bind_param("i", $rideId); $del->execute(); $del->close();
 

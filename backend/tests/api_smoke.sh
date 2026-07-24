@@ -87,6 +87,54 @@ code=$(curl -s -o /tmp/smoke_body -w "%{http_code}" -X POST \
   --data "$(route_json "$UUID-bad" "x")" "$BASE_URL/api_routes.php")
 check "api_routes bogus token" 401 "$code"
 
+# ── PIVOT: telefon jako device ───────────────────────────────────────────────
+DEV_CODE="smoke-dev-$(date +%s)"
+RIDE_UUID="smoke-ride-$(date +%s)"
+# dateEpochMs => data w strefie serwera; policz oczekiwaną datę tak jak PHP (lokalna).
+RIDE_MS=1721560000000
+RIDE_DATE=$(php -r 'echo date("Y-m-d", (int)(1721560000000/1000));')
+
+pivot_route() { # $1 uuid $2 devcode
+  printf '{"id":"%s","name":"Pivot trasa","dateEpochMs":%s,"deviceCode":"%s","deviceName":"samsung SM-TEST","km":1.2,"durSec":40,"avg":30,"max":60,"pathJson":"[{\\"lat\\":53.40,\\"lng\\":14.50,\\"ele\\":10,\\"t\\":1721560000000},{\\"lat\\":53.401,\\"lng\\":14.502,\\"ele\\":12,\\"t\\":1721560030000},{\\"lat\\":53.402,\\"lng\\":14.504,\\"ele\\":13,\\"t\\":1721560060000}]"}' "$1" "$2" "$3"
+}
+
+# fresh session (login by e-mail)
+: > "$JAR"
+post_json "$BASE_URL/login.php" "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" >/dev/null
+
+# upload z tożsamością urządzenia -> 200, auto-tworzy device
+code=$(post_json "$BASE_URL/api_routes.php" "$(pivot_route "$RIDE_UUID" "$DEV_CODE")")
+check "pivot upload" 200 "$code" "$(cat /tmp/smoke_body)"
+
+# device pojawia się na liście urządzeń
+dev_list=$(curl -s -b "$JAR" "$BASE_URL/pobierz_urzadzenia.php")
+echo "$dev_list" | grep -q "$DEV_CODE" \
+  && echo "PASS  device widoczny w pobierz_urzadzenia" \
+  || { echo "FAIL  device brak w pobierz_urzadzenia — $dev_list"; fails=$((fails+1)); }
+
+# punkty wstawione (3) dla tego device w dacie trasy
+pts=$(curl -s -b "$JAR" "$BASE_URL/pobierz_punkty.php?device=$DEV_CODE&date=$RIDE_DATE")
+pcount=$(echo "$pts" | grep -o '"lat"' | wc -l | tr -d ' ')
+[ "$pcount" -ge 3 ] \
+  && echo "PASS  3 punkty wstawione ($pcount)" \
+  || { echo "FAIL  oczekiwano >=3 punktów, jest $pcount — $pts"; fails=$((fails+1)); }
+
+# re-upload tego samego ride_uuid -> 200, punkty NIE duplikują się
+code=$(post_json "$BASE_URL/api_routes.php" "$(pivot_route "$RIDE_UUID" "$DEV_CODE")")
+check "pivot re-upload" 200 "$code"
+pts2=$(curl -s -b "$JAR" "$BASE_URL/pobierz_punkty.php?device=$DEV_CODE&date=$RIDE_DATE")
+pcount2=$(echo "$pts2" | grep -o '"lat"' | wc -l | tr -d ' ')
+[ "$pcount2" -eq "$pcount" ] \
+  && echo "PASS  idempotencja: bez duplikatów ($pcount2)" \
+  || { echo "FAIL  duplikacja punktów: było $pcount, jest $pcount2"; fails=$((fails+1)); }
+
+# drugi user nie może uploadować pod cudzy deviceCode -> 409
+EMAIL2="smoke2+$(date +%s)@example.com"
+: > "$JAR"
+post_json "$BASE_URL/register.php" "{\"email\":\"$EMAIL2\",\"password\":\"$PASS\"}" >/dev/null
+code=$(post_json "$BASE_URL/api_routes.php" "$(pivot_route "other-$RIDE_UUID" "$DEV_CODE")")
+check "cudzy device -> 409" 409 "$code"
+
 rm -f "$JAR" /tmp/smoke_body
 echo "== $([ $fails -eq 0 ] && echo 'ALL PASS' || echo "$fails FAILED") =="
 exit $fails

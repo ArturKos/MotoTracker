@@ -45,7 +45,9 @@ if ($client_uuid === '' || $name === '' || !is_numeric($date_ms) || $device_code
 
 $user_id    = (int)$current_user['id'];
 $is_admin   = (int)($current_user['is_admin'] ?? 0);
-$started_at = date('Y-m-d H:i:s', (int)((int)$date_ms / 1000));
+// Divide the epoch-ms by 1000 BEFORE casting to int: on 32-bit PHP (armv7l server)
+// (int)$date_ms would overflow (ms ~1.7e12 > PHP_INT_MAX); seconds ~1.7e9 fit until 2038.
+$started_at = date('Y-m-d H:i:s', (int)($date_ms / 1000));
 $km         = (float)($r['km'] ?? 0);
 $dur_sec    = (int)  ($r['durSec'] ?? 0);
 $avg        = (float)($r['avg'] ?? 0);

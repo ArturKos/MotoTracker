@@ -28,7 +28,10 @@ function parse_path_points(?string $pathJson): array {
             $lat = (float)$e['lat'];
             $lon = (float)($e['lng'] ?? $e['lon'] ?? 0);
             $ele = array_key_exists('ele', $e) ? (float)$e['ele'] : null;
-            $ts  = array_key_exists('t', $e) && $e['t'] !== null ? (int)$e['t'] : null;
+            // Milliseconds since epoch: keep as float, NEVER cast raw ms to int —
+            // on 32-bit PHP (armv7l server) (int)1.7e12 overflows. Consumers divide
+            // by 1000 first (seconds ~1.7e9 fit a 32-bit int until 2038) before (int).
+            $ts  = array_key_exists('t', $e) && $e['t'] !== null ? (float)$e['t'] : null;
         } elseif (is_array($e) && isset($e[0], $e[1])) {            // legacy [lat,lng]
             $lat = (float)$e[0];
             $lon = (float)$e[1];

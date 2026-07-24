@@ -20,10 +20,12 @@ check() {
 }
 
 route_json() { # $1 = uuid, $2 = name (empty name => omit for the 400 case)
+  # deviceCode/deviceName are required by the pivot api_routes.php; a fixed legacy
+  # device keeps these session/write_api_key upload checks green under the new contract.
   if [ -z "$2" ]; then
-    printf '{"id":"%s","dateEpochMs":1721560000000,"km":12.3,"durSec":1800,"avg":24.6,"max":88.0,"pathJson":"[[53.4,14.5],[53.41,14.52]]"}' "$1"
+    printf '{"id":"%s","deviceCode":"smoke-legacy-dev","deviceName":"legacy SM-TEST","dateEpochMs":1721560000000,"km":12.3,"durSec":1800,"avg":24.6,"max":88.0,"pathJson":"[[53.4,14.5],[53.41,14.52]]"}' "$1"
   else
-    printf '{"id":"%s","name":"%s","dateEpochMs":1721560000000,"km":12.3,"durSec":1800,"avg":24.6,"max":88.0,"pathJson":"[[53.4,14.5],[53.41,14.52]]"}' "$1" "$2"
+    printf '{"id":"%s","name":"%s","deviceCode":"smoke-legacy-dev","deviceName":"legacy SM-TEST","dateEpochMs":1721560000000,"km":12.3,"durSec":1800,"avg":24.6,"max":88.0,"pathJson":"[[53.4,14.5],[53.41,14.52]]"}' "$1" "$2"
   fi
 }
 
@@ -62,12 +64,12 @@ check "api_routes no session" 401 "$code"
 # 6. api_routes with cookie -> 200, capture route_id
 code=$(post_json "$BASE_URL/api_routes.php" "$(route_json "$UUID" "Poranna trasa")")
 check "api_routes authed" 200 "$code" "$(cat /tmp/smoke_body)"
-id1=$(sed -n 's/.*"route_id":\([0-9]*\).*/\1/p' /tmp/smoke_body)
+id1=$(sed -n 's/.*"ride_id":\([0-9]*\).*/\1/p' /tmp/smoke_body)
 
 # 7. api_routes same client_uuid -> 200 and SAME route_id (upsert, no duplicate)
 code=$(post_json "$BASE_URL/api_routes.php" "$(route_json "$UUID" "Poranna trasa (edit)")")
 check "api_routes upsert status" 200 "$code"
-id2=$(sed -n 's/.*"route_id":\([0-9]*\).*/\1/p' /tmp/smoke_body)
+id2=$(sed -n 's/.*"ride_id":\([0-9]*\).*/\1/p' /tmp/smoke_body)
 if [ -n "$id1" ] && [ "$id1" = "$id2" ]; then echo "PASS  upsert same route_id ($id1)"
 else echo "FAIL  upsert route_id — first=$id1 second=$id2 (duplicate?)"; fails=$((fails+1)); fi
 

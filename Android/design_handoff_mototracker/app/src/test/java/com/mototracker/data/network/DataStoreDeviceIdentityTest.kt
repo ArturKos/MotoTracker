@@ -33,4 +33,12 @@ class DataStoreDeviceIdentityTest {
         val id = DataStoreDeviceIdentity(newStore(), deviceName = "samsung SM-G991B")
         assertEquals("samsung SM-G991B", id.name())
     }
+
+    @Test
+    fun `code jest ten sam dla nowej instancji nad tym samym store`() = runTest {
+        val store = newStore()
+        val first = DataStoreDeviceIdentity(store, deviceName = "test dev").code()
+        val second = DataStoreDeviceIdentity(store, deviceName = "test dev").code()
+        assertEquals(first, second)
+    }
 }

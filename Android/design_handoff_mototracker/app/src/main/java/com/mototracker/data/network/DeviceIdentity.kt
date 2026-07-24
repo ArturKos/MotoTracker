@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import kotlinx.coroutines.flow.first
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,11 +41,12 @@ class DataStoreDeviceIdentity @Inject constructor(
     }
 
     override suspend fun code(): String {
-        val existing = dataStore.data.first()[Keys.INSTALL_UUID]
-        if (existing != null && existing.isNotBlank()) return existing
-        val generated = UUID.randomUUID().toString()
-        dataStore.edit { it[Keys.INSTALL_UUID] = generated }
-        return generated
+        val prefs = dataStore.edit { p ->
+            if (p[Keys.INSTALL_UUID].isNullOrBlank()) {
+                p[Keys.INSTALL_UUID] = UUID.randomUUID().toString()
+            }
+        }
+        return prefs[Keys.INSTALL_UUID]!!
     }
 
     override fun name(): String = deviceName

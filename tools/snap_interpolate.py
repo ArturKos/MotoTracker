@@ -8,7 +8,7 @@ snapped points to fill long gaps with source='interpolated' rows.
 Config via env:
     DB_HOST, DB_USER, DB_PASS, DB_NAME          # MariaDB creds (required)
     OSRM_URL=http://127.0.0.1:5001              # osrm-routed endpoint
-    LOOKBACK_MINUTES=60                         # how far back to scan raw rows
+    LOOKBACK_MINUTES=0                          # 0=scan ALL pending raw (default); >0=fix-time window (perf bound)
     MATCH_BATCH_SIZE=100                        # max points per /match call
     RIDE_GAP_SECONDS=1800                       # gap that starts a new ride
     MIN_GAP_M=40                                # skip interp below this
@@ -60,7 +60,7 @@ DB_PASS = os.environ.get("DB_PASS", "")
 DB_NAME = os.environ.get("DB_NAME", "gps_db_data")
 
 OSRM_URL           = os.environ.get("OSRM_URL", "http://127.0.0.1:5001").rstrip("/")
-LOOKBACK_MINUTES   = env_int("LOOKBACK_MINUTES", 60)
+LOOKBACK_MINUTES   = env_int("LOOKBACK_MINUTES", 0)   # 0 = scan ALL pending raw (catches batch-uploaded phone rides); >0 = fix-time window (perf bound)
 MATCH_BATCH_SIZE   = env_int("MATCH_BATCH_SIZE", 100)
 RIDE_GAP_SECONDS   = env_int("RIDE_GAP_SECONDS", 1800)
 MIN_GAP_M          = env_float("MIN_GAP_M", 40.0)
@@ -203,16 +203,28 @@ def osrm_route(a: Point, b: Point) -> list[list[float]] | None:
 # ---------- main work ----------
 
 def fetch_raw_points(conn) -> dict[int, list[Point]]:
-    cutoff = datetime.utcnow() - timedelta(minutes=LOOKBACK_MINUTES)
+    # By default (LOOKBACK_MINUTES <= 0) scan ALL unprocessed raw rows: the
+    # worker flips every processed row to source='snapped' (matched coords, or
+    # original coords when OSRM can't match), so `source='raw'` only ever holds
+    # NEW, not-yet-corrected points. Scanning them all — cheap thanks to
+    # idx_points_source — is what lets batch-uploaded phone rides (whose GPS-fix
+    # timestamps are older than any fixed window, unlike live-streaming
+    # trackers) still get snapped/interpolated. Set LOOKBACK_MINUTES>0 to
+    # re-impose a fix-time window purely as a performance bound.
+    where = "p.source = 'raw' AND d.active = 1"
+    params: tuple = ()
+    if LOOKBACK_MINUTES > 0:
+        where += " AND p.timestamp >= %s"
+        params = (datetime.utcnow() - timedelta(minutes=LOOKBACK_MINUTES),)
     sql = (
         "SELECT p.id, p.device_id, p.lat, p.lon, p.speed, p.timestamp "
         "FROM points p JOIN devices d ON d.id = p.device_id "
-        "WHERE p.source = 'raw' AND d.active = 1 AND p.timestamp >= %s "
+        f"WHERE {where} "
         "ORDER BY p.device_id, p.timestamp"
     )
     per_device: dict[int, list[Point]] = {}
     with conn.cursor() as cur:
-        cur.execute(sql, (cutoff,))
+        cur.execute(sql, params)
         for row in cur.fetchall():
             pt = Point(row[0], row[1], float(row[2]), float(row[3]),
                        float(row[4]) if row[4] is not None else None, row[5])
@@ -314,19 +326,35 @@ def main() -> int:
     try:
         per_device = fetch_raw_points(conn)
         total_raw = sum(len(v) for v in per_device.values())
-        log(f"raw rows in last {LOOKBACK_MINUTES}m: {total_raw} across {len(per_device)} device(s)")
+        scope = f"last {LOOKBACK_MINUTES}m" if LOOKBACK_MINUTES > 0 else "all pending"
+        log(f"raw rows ({scope}): {total_raw} across {len(per_device)} device(s)")
 
         total_snapped = 0
         total_interp = 0
+        total_lone = 0
         for device_id, pts in per_device.items():
             for ride in split_into_rides(pts):
                 if len(ride) < 2:
+                    # A lone fix (isolated by a ride gap) can't be road-matched —
+                    # OSRM /match needs >=2 points. Still flip it out of the raw
+                    # set, keeping its original coords, so it isn't re-scanned
+                    # every run now that the worker processes ALL pending raw
+                    # regardless of age (LOOKBACK_MINUTES=0).
+                    if not DRY_RUN:
+                        with conn.cursor() as cur:
+                            for p in ride:
+                                cur.execute(
+                                    "UPDATE points SET source='snapped' WHERE id=%s",
+                                    (p.id,),
+                                )
+                        conn.commit()
+                    total_lone += len(ride)
                     continue
                 snapped = snap_ride(conn, ride)
                 total_snapped += len(snapped)
                 total_interp += interpolate_ride(conn, snapped)
 
-        log(f"done — snapped={total_snapped} interpolated={total_interp} dry_run={int(DRY_RUN)}")
+        log(f"done — snapped={total_snapped} lone={total_lone} interpolated={total_interp} dry_run={int(DRY_RUN)}")
         return 0
     finally:
         conn.close()

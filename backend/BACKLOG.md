@@ -64,4 +64,44 @@ od razu. Wykonanie bezpośrednio na `malinka`, jako Artur; **push do GitHub PO w
 
 ## Podprojekt 4 (PIVOT) — telefon jako URZĄDZENIE w głównym widoku Devices (kierunek Akosa 2026-07-24)
 
-*(Akos woli, żeby telefon pokazywał się w GŁÓWNYM widoku `devices`/mapie jak sprzętowe trackery przypisane do usera — ZAMIAST osobnego widoku „Przejazdy z aplikacji" (W5). Dodatkowo: pobrać NAZWĘ urządzenia telefonu (Build.MANUFACTURER+MODEL lub Settings device_name) i wyświetlać w Devices. Uwaga: w widoku W5 realne trasy z appki NIE rysują się (prawdopodobnie format `path_json` z appki ≠ [[lat,lng]] którego oczekuje parsePath w app_routes.html — do potwierdzenia; może i tak zbędne po pivocie). NIE ZAIMPLEMENTOWANE — do zaprojektowania na świeżo. Kluczowa decyzja architektoniczna: telefon jako device zasilający tabelę `points` (jak Traccar/firmware) vs pozostawić app_routes i tylko reprezentować telefon jako device. Pytania scope: (1) czy punkty telefonu lecą do `points` pod auto-utworzonym device (wtedy mapa/historia „za darmo"), (2) device auto-tworzony przy rejestracji z appki, (3) źródło nazwy urządzenia. Patrz pamięć [[mototracker-gpstrack-integration]].)*
+Projekt: `docs/superpowers/specs/2026-07-24-phone-as-device-pivot-design.md` + plan
+`docs/superpowers/plans/2026-07-24-phone-as-device-pivot.md`. Wykonane metodą SDD
+(8 zadań, każde z review) — patrz ledger `.superpowers/sdd/progress.md` i pamięć
+[[mototracker-gpstrack-integration]].
+
+**STAN 2026-07-24/26: ZAPROJEKTOWANE + ZAIMPLEMENTOWANE + WDROŻONE NA SERWERZE (`malinka`), smoke ALL PASS. Na origin/main (`7badf83`). Release v1.0.0 wydany (tag na HEAD).**
+
+Decyzje (zatwierdzone przez Akosa): architektura **A — points-device** (serwer eksploduje
+trasy z appki na tabelę `points` pod auto-utworzonym `device` telefonu → telefon w GŁÓWNYM
+widoku/mapie/historii „za darmo"); dane per-przejazd → tabela **`rides`** (rename z
+`app_routes` + `device_id`), łączona przez `points.ride_id`; `points += altitude`; **jedno
+device na instalację** (`devices.code`=UUID instalacji, nazwa=`Build.MANUFACTURER+" "+MODEL`);
+**W5 usunięty**; prędkość per-punkt liczona SERWEROWO (haversine/Δt) → app dosyła tylko
+`deviceCode`/`deviceName`.
+
+| #  | Zadanie | Status |
+|----|---------|--------|
+| P4.1 | **Migracja `009_phone_as_device.sql`** — `points += altitude, ride_id`; `app_routes → rides` (rename) `+ device_id`; idempotentna (fresh-create `rides` zgodne z 007: NOT NULL/defaults/FK). Zaaplikowana na serwerze (rides=47, app_routes zniknął). | ✅ |
+| P4.2 | **`route_points.php`** — `parse_path_points()`: parsuje `pathJson` (`{lat,lng,ele?,t?}` + legacy `[[lat,lng]]`) i wylicza prędkość per-punkt z sąsiednich `t`. Współdzielony przez api_routes + backfill. | ✅ |
+| P4.3 | **`api_routes.php` (przeróbka)** — ensure-device (auto-tworzenie telefonu po `deviceCode`, 409 cudzy) + upsert do `rides` + **explode `pathJson`→`points`** (transakcja, idempotentnie po `ride_id`, sprzątanie snapped/interpolated). Smoke na serwerze ALL PASS. | ✅ |
+| P4.4 | **`tests/api_smoke.sh` (rozszerzenie)** — device auto-create, punkty wstawione, idempotencja re-uploadu, cudzy device 409, legacy upload z `deviceCode`. Uruchomiony na serwerze → ALL PASS (dane testowe sprzątnięte). | ✅ |
+| P4.5 | **`tools/backfill_rides_to_points.php`** — migracja starych `rides`→`points` pod „Telefon (import)"; fallback ścieżki z `payload_json.pathJson`, pomija rides bez współrzędnych. Uruchomiony: 47 legacy rides = **0 punktów (brak współrzędnych na serwerze)**, patrz LIMIT niżej. | ✅ |
+| P4.6 | **Usunięcie W5** — `app_routes.html` + `pobierz_app_trasy.php` skasowane, link z `index.html` usunięty, opcja grantu `app_user` z `admin.html` wycięta (endpointy `admin/*grant*` i `auth.php app_routes_user_ids()` zostają jako martwy, nieszkodliwy kod). Wdrożone. | ✅ |
+| P4.7 | **`pobierz_urzadzenia.php` honoruje `view_grants` (device)** — konto z grantem widzi telefon w LIŚCIE urządzeń (spójnie z `pobierz_punkty`). | ✅ |
+
+**BUG naprawiony NA SERWERZE (32-bit armv7l):** epoch-ms przepełniało `(int)` → data 1969 →
+`points.timestamp` (TIMESTAMP 1970-2038) odrzucał → 500. Fix: dzielić `/1000` PRZED `(int)`
+w `route_points.php` i `api_routes.php`. (64-bit dev tego nie łapał.)
+
+**LIMIT LEGACY:** 47 wcześniej wgranych tras NIE MA współrzędnych na serwerze (ani `path_json`,
+ani `pathJson` w `payload_json`) → nie da się ich pokazać jako ślady; backfill słusznie je
+pomija. Tylko NOWE trasy zasilą mapę. (Realne tracki 17 tras istnieją lokalnie na P20 →
+kopia: `mototracker-db-backups/mototracker-backup-P20-20260724.json`.)
+
+**Strona APP (poza tym plikiem — androidowy `BACKLOG.md`, sekcja AL):** `DeviceIdentity`
+(UUID instalacji + nazwa z `Build`) + upload dosyła `deviceCode`/`deviceName` — ✅ kod+testy
+(gradle 83/83), APK release wgrany na P20.
+
+**POZOSTAJE:** E2E na P20 (nowe konto + świeża trasa → potwierdzić `pathJson`→punkty→telefon
+jako device w web). Follow-up nie-blokujące: `altitude` do `SELECT` w `pobierz_punkty.php`;
+usunięcie martwego `app_user` (`admin/add_grant|list_grants.php`, `auth.php`).

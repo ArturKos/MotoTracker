@@ -137,6 +137,29 @@ body {
     color: var(--accent);
 }
 
+/* Collapsible section headers (e.g. Ride Stats) — click the header to hide
+   its body, freeing vertical space so Ride History can scroll (useful in the
+   Home Assistant iframe where height is tight). */
+h3.section-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+h3.section-toggle .section-caret {
+    margin-left: auto;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+#stats-panel.collapsed .stats-grid {
+    display: none;
+}
+
+#stats-panel.collapsed .section-caret {
+    transform: rotate(180deg);
+}
+
 #sidebar-toggle {
     position: fixed;
     left: 320px;

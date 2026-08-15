@@ -524,6 +524,26 @@ function toggleSidebar() {
     setTimeout(function() { map.invalidateSize(); }, 300);
 }
 
+// Collapse/expand just the Ride Stats cards, so Ride History gets the freed
+// vertical space to scroll. State is remembered across reloads (handy in the
+// Home Assistant iframe).
+function toggleStats() {
+    var panel = document.getElementById('stats-panel');
+    panel.classList.toggle('collapsed');
+    try {
+        localStorage.setItem('mt_stats_collapsed',
+            panel.classList.contains('collapsed') ? '1' : '0');
+    } catch (e) {}
+}
+
+function applyStatsCollapsed() {
+    var panel = document.getElementById('stats-panel');
+    if (!panel) return;
+    var saved = '0';
+    try { saved = localStorage.getItem('mt_stats_collapsed') || '0'; } catch (e) {}
+    if (saved === '1') panel.classList.add('collapsed');
+}
+
 // --- Live refresh ---
 var liveTimer = null;
 
@@ -688,6 +708,7 @@ function submitDevDelete(filter) {
 }
 
 // --- Init ---
+applyStatsCollapsed();
 document.getElementById('datePicker').value = new Date().toISOString().split('T')[0];
 loadCurrentUser().then(function(me) {
     if (!me) return;

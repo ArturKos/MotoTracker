@@ -1,0 +1,13 @@
+# MotoTracker (gpstrack) — cache policy.
+# Force the HTML entry points to always revalidate so a redeploy is picked up
+# immediately (ETag-based 304s keep it cheap). Versioned assets (?v=N) stay
+# fully cacheable.
+#
+# The <If> scopes this to top-level /gpstrack/*.html only, so sibling apps
+# living in subdirectories (english/, galeria/, ...) are NOT affected even
+# though .htaccess is inherited recursively.
+<IfModule mod_headers.c>
+    <If "%{REQUEST_URI} =~ m#^/gpstrack/[^/]+\.html$#">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </If>
+</IfModule>

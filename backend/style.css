@@ -562,6 +562,29 @@ body.fullscreen #main-container {
         display: none;
     }
 
+    /* Give the controls all the room the logo doesn't need, and let them
+       scroll horizontally so every control (date, GPX, logout…) stays
+       reachable on a narrow phone instead of overflowing off-screen. */
+    #topbar {
+        padding: 0 8px;
+    }
+
+    .logo span {
+        display: none;
+    }
+
+    .topbar-controls {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .topbar-controls > * {
+        flex-shrink: 0;
+    }
+
     .stats-grid {
         grid-template-columns: 1fr 1fr;
         gap: 6px;

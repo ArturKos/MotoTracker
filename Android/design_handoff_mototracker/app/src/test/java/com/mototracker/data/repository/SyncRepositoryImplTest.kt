@@ -20,7 +20,9 @@ import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -646,5 +648,83 @@ class SyncRepositoryImplTest {
 
         assertEquals(1, first.await() + second.await())
         assertEquals(listOf("r1"), uploads)
+    }
+
+    // ── Upload on enqueue + automatic retry ──────────────────────────────────
+
+    @Test
+    fun `enqueue after start uploads without waiting for a connectivity change`() = runTest {
+        repo.start(backgroundScope)
+        runCurrent()
+
+        routeDao.upsert(routeEntity("r1"))
+        repo.enqueue("r1")
+        runCurrent()
+
+        assertEquals(1, client.calls.size)
+        assertTrue(routeDao.find("r1")!!.synced)
+    }
+
+    @Test
+    fun `enqueue after start does not upload when syncEnabled is false`() = runTest {
+        settingsSource.emit(onlineAutoSyncSettings.copy(syncEnabled = false))
+        repo.start(backgroundScope)
+        runCurrent()
+
+        routeDao.upsert(routeEntity("r1"))
+        repo.enqueue("r1")
+        runCurrent()
+
+        assertTrue(client.calls.isEmpty())
+        assertNotNull(syncQueueDao.find("r1"))
+    }
+
+    @Test
+    fun `failed upload is retried automatically once its back-off elapses`() = runTest {
+        client.setFailure()
+        routeDao.upsert(routeEntity("r1"))
+        repo.enqueue("r1")
+        repo.start(backgroundScope)
+        runCurrent()
+        assertEquals(1, client.calls.size)
+        assertEquals(SyncQueueState.FAILED, syncQueueDao.find("r1")!!.state)
+
+        client.setSuccess()
+        val backoffMs = SyncRetryPolicy.nextRetryDelayMs(1)
+        advanceTimeBy(backoffMs - 1_000L)
+        runCurrent()
+        assertEquals("no retry before the back-off deadline", 1, client.calls.size)
+
+        timeProvider.advanceMs(backoffMs)
+        advanceTimeBy(1_001L)
+        runCurrent()
+
+        assertEquals(2, client.calls.size)
+        assertTrue(routeDao.find("r1")!!.synced)
+        assertNull(syncQueueDao.find("r1"))
+    }
+
+    @Test
+    fun `due retry blocked by offline runs when the network returns`() = runTest {
+        client.setFailure()
+        routeDao.upsert(routeEntity("r1"))
+        repo.enqueue("r1")
+        repo.start(backgroundScope)
+        runCurrent()
+        assertEquals(1, client.calls.size)
+
+        client.setSuccess()
+        networkMonitor.setOnline(false)
+        val backoffMs = SyncRetryPolicy.nextRetryDelayMs(1)
+        timeProvider.advanceMs(backoffMs)
+        advanceTimeBy(backoffMs + 10 * 60_000L)
+        runCurrent()
+        assertEquals("nothing uploads while offline", 1, client.calls.size)
+
+        networkMonitor.setOnline(true)
+        runCurrent()
+
+        assertEquals(2, client.calls.size)
+        assertTrue(routeDao.find("r1")!!.synced)
     }
 }

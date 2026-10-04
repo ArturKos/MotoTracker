@@ -3,6 +3,7 @@ package com.mototracker.car
 import androidx.car.app.CarAppService
 import androidx.car.app.Session
 import androidx.car.app.validation.HostValidator
+import com.mototracker.data.repository.SyncAutoStarter
 import dagger.hilt.android.AndroidEntryPoint
 import com.mototracker.ui.screens.record.ActiveRideHolder
 import javax.inject.Inject
@@ -29,6 +30,10 @@ class MotoTrackerCarAppService : CarAppService() {
     @Inject
     lateinit var rideHolder: ActiveRideHolder
 
+    /** Uploads routes finished from the car even when the phone UI never opened this process. */
+    @Inject
+    lateinit var syncAutoStarter: SyncAutoStarter
+
     override fun createHostValidator(): HostValidator =
         HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
 
@@ -38,6 +43,7 @@ class MotoTrackerCarAppService : CarAppService() {
      */
     override fun onCreateSession(): Session {
         rideHolder.obtainOrNull()
+        syncAutoStarter.ensureStarted()
         return RecordingSession(bridge)
     }
 }

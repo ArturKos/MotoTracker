@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mototracker.data.repository.SyncAutoStarter
 import com.mototracker.ui.navigation.MotoApp
 import com.mototracker.ui.screens.splash.SplashGate
 import com.mototracker.ui.screens.splash.SplashPhase
@@ -22,6 +23,7 @@ import com.mototracker.ui.state.StartupDecision
 import com.mototracker.ui.theme.MotoTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import javax.inject.Inject
 
 /**
  * Entry point activity for the MotoTracker app.
@@ -50,8 +52,13 @@ import kotlinx.coroutines.delay
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
+    /** Starts the background route upload once per process (idempotent). */
+    @Inject
+    lateinit var syncAutoStarter: SyncAutoStarter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        syncAutoStarter.ensureStarted()
         // Swap launch theme → app theme before the window is laid out so the
         // running app inherits the correct base style (no windowBackground override).
         setTheme(R.style.Theme_MotoTracker)

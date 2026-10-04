@@ -250,4 +250,7 @@ sealed class RecordingEffect {
      * @param routeId UUID of the saved route.
      */
     data class NavigateToDetail(val routeId: String) : RecordingEffect()
+
+    /** Saving the finished ride failed; the ride is paused again so Finish can be retried. */
+    data object SaveFailed : RecordingEffect()
 }

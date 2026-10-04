@@ -3,6 +3,7 @@ package com.mototracker.ui.screens.record
 import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.mototracker.R
+import com.mototracker.car.CarNotice
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.FuelRangeColor
@@ -51,8 +52,10 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -146,6 +149,22 @@ private class FakeRouteRepository(
     override suspend fun deleteAll() { saved.clear(); allFlow.value = emptyList() }
     override suspend fun rename(id: String, name: String) { /* stub */ }
     override suspend fun setBike(routeId: String, bikeId: String?) { /* stub */ }
+}
+
+/** Delegates to [inner] but throws on [save] while [fail] is set — a full disk, a DB error. */
+private class FlakyRouteRepository(
+    private val inner: FakeRouteRepository,
+) : RouteRepository by inner {
+    var fail = true
+    override suspend fun save(route: Route) {
+        if (fail) throw java.io.IOException("disk full")
+        inner.save(route)
+    }
+}
+
+/** [TimeProvider] whose clock the test moves forward. */
+private class MutableTimeProvider(var nowMs: Long) : TimeProvider {
+    override fun nowEpochMs(): Long = nowMs
 }
 
 private class FakeBikeRepository(
@@ -1645,6 +1664,158 @@ class RecordingViewModelTest {
             vm.onEvent(RecordingEvent.Pause)
         }
 
+    // ── Pause gating: no distance while paused ───────────────────────────────
+
+    private fun fix(lat: Double, timeMs: Long, speedMps: Double = 25.0) = LocationSample(
+        lat = lat, lng = 0.0, speedMps = speedMps, altitudeM = 50.0, bearingDeg = 0f, timeMs = timeMs,
+    )
+
+    @Test
+    fun `GPS fixes while Paused add no distance or track points`() = runTest(testDispatcher) {
+        val collector = FakeRideLocationCollector()
+        val vm = buildViewModel(rideLocationCollector = collector)
+        vm.onEvent(RecordingEvent.Start)
+        advanceTimeBy(100L)
+        collector.tryEmit(fix(lat = 0.0, timeMs = 1_000L))
+        collector.tryEmit(fix(lat = 0.00025, timeMs = 2_000L)) // ~28 m in 1 s
+        advanceTimeBy(100L)
+        val distanceBeforePause = vm.uiState.value.metrics.distanceKm
+        assertTrue(distanceBeforePause > 0.0)
+        assertEquals(2, vm.uiState.value.trackPoints.size)
+
+        vm.onEvent(RecordingEvent.Pause)
+        collector.tryEmit(fix(lat = 0.0005, timeMs = 3_000L))
+        collector.tryEmit(fix(lat = 0.00075, timeMs = 4_000L))
+        advanceTimeBy(100L)
+
+        assertEquals(distanceBeforePause, vm.uiState.value.metrics.distanceKm, 0.0)
+        assertEquals(2, vm.uiState.value.trackPoints.size)
+    }
+
+    @Test
+    fun `ground covered while paused is not bridged into distance after Resume`() =
+        runTest(testDispatcher) {
+            val collector = FakeRideLocationCollector()
+            val vm = buildViewModel(rideLocationCollector = collector)
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(100L)
+            collector.tryEmit(fix(lat = 0.0, timeMs = 1_000L))
+            collector.tryEmit(fix(lat = 0.00025, timeMs = 2_000L))
+            advanceTimeBy(100L)
+            val distanceBeforePause = vm.uiState.value.metrics.distanceKm
+
+            vm.onEvent(RecordingEvent.Pause)
+            vm.onEvent(RecordingEvent.Resume)
+            // Rode ~1.1 km while paused; the first fix after Resume starts a new segment.
+            collector.tryEmit(fix(lat = 0.01, timeMs = 5_000L))
+            collector.tryEmit(fix(lat = 0.01025, timeMs = 6_000L)) // ~28 m further
+            advanceTimeBy(100L)
+
+            val distance = vm.uiState.value.metrics.distanceKm
+            assertTrue("post-resume movement is recorded", distance > distanceBeforePause + 0.02)
+            assertTrue("the paused gap is not bridged", distance < distanceBeforePause + 0.05)
+            assertEquals(4, vm.uiState.value.trackPoints.size)
+            vm.onEvent(RecordingEvent.Pause) // cancel ticker before runTest drains scheduler
+        }
+
+    @Test
+    fun `on-screen track matches the engine path and skips stationary fixes`() =
+        runTest(testDispatcher) {
+            val collector = FakeRideLocationCollector()
+            val vm = buildViewModel(rideLocationCollector = collector)
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(100L)
+            collector.tryEmit(fix(lat = 0.0, timeMs = 1_000L, speedMps = 0.0)) // parked jitter
+            collector.tryEmit(fix(lat = 0.0001, timeMs = 2_000L))
+            advanceTimeBy(100L)
+
+            val track = vm.uiState.value.trackPoints
+            assertEquals(1, track.size)
+            assertEquals(0.0001, track.single().lat, 0.0)
+            vm.onEvent(RecordingEvent.Pause) // cancel ticker before runTest drains scheduler
+        }
+
+    // ── Failed save, blocked service, route date ─────────────────────────────
+
+    @Test
+    fun `failed save keeps the ride paused and Finish can be retried`() = runTest(testDispatcher) {
+        val inner = FakeRouteRepository()
+        val flaky = FlakyRouteRepository(inner)
+        val store = FakeRecordingSessionStore()
+        val vm = buildViewModel(routeRepository = flaky, sessionStore = store)
+        vm.effects.test {
+            vm.onEvent(RecordingEvent.Start)
+            advanceTimeBy(1_100L)
+            vm.onEvent(RecordingEvent.Finish)
+
+            assertEquals(RecordingEffect.SaveFailed, awaitItem())
+            assertEquals(RecordingPhase.Paused, vm.uiState.value.phase)
+            assertEquals("the crash-recovery snapshot is kept", 0, store.clearCalled)
+            assertTrue(inner.saved.isEmpty())
+
+            flaky.fail = false
+            vm.onEvent(RecordingEvent.Finish)
+
+            assertTrue(awaitItem() is RecordingEffect.Saved)
+            assertTrue(awaitItem() is RecordingEffect.NavigateToDetail)
+            assertEquals(RecordingPhase.Idle, vm.uiState.value.phase)
+            assertEquals(1, inner.saved.size)
+            assertEquals(1, store.clearCalled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `ride is paused and the car is told when the recording service is blocked`() =
+        runTest(testDispatcher) {
+            val bridge = com.mototracker.car.CarRecordingBridge()
+            val notices = mutableListOf<CarNotice>()
+            backgroundScope.launch { bridge.notices.collect { notices += it } }
+            val rideScope = CoroutineScope(SupervisorJob() + testDispatcher)
+            val ride = ActiveRide(
+                rideLocationCollector = FakeRideLocationCollector(),
+                leanSensorSource = FakeLeanSensorSource(),
+                sessionStore = FakeRecordingSessionStore(),
+                timeProvider = FakeTimeProvider(),
+                rideDebugLogger = fakeLogger,
+                settingsSource = FakeSettingsSource(),
+                networkMonitor = FakeNetworkMonitor(),
+                weatherClient = FakeWeatherClient(),
+                routeRepository = routeRepo,
+                syncRepository = syncRepo,
+                refuelRepository = FakeRefuelRepository(),
+                autoUpdateBikeConsumptionUseCase = noOpAutoUpdateUseCase(),
+                reverseGeocoder = FakeReverseGeocoder(),
+                stringResolver = FakeStringResolver(),
+                carBridge = bridge,
+                scope = rideScope,
+                // Android refuses the foreground service, as with a locked phone on Android Auto.
+                onPhaseChanged = { phase, _ -> phase != RecordingPhase.Recording },
+            )
+            runCurrent()
+
+            bridge.start()
+            runCurrent()
+
+            assertEquals(RecordingPhase.Paused, ride.state.value.phase)
+            assertEquals(listOf(CarNotice.RECORDING_BLOCKED), notices)
+            rideScope.cancel()
+        }
+
+    @Test
+    fun `saved route is dated by when the ride started, not when it finished`() =
+        runTest(testDispatcher) {
+            val clock = MutableTimeProvider(nowMs = 1_000_000L)
+            val repo = FakeRouteRepository()
+            val vm = buildViewModel(routeRepository = repo, timeProvider = clock)
+            vm.onEvent(RecordingEvent.Start)
+            clock.nowMs = 5_000_000L
+            vm.onEvent(RecordingEvent.Finish)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(1_000_000L, repo.saved.single().dateEpochMs)
+        }
+
     // ────────────────────────────────────────────────────────────────────────
 
     private fun noOpAutoUpdateUseCase() = AutoUpdateBikeConsumptionUseCase(
@@ -1731,6 +1902,7 @@ class RecordingViewModelTest {
         settings: AppSettings = AppSettings(noInternet = noInternet),
         routeRepository: RouteRepository = routeRepo,
         fixedTimeMs: Long = 1_000_000L,
+        timeProvider: TimeProvider = FakeTimeProvider(fixedTimeMs),
         rideLocationCollector: RideLocationCollector = FakeRideLocationCollector(),
         leanSensorSource: LeanSensorSource = FakeLeanSensorSource(),
         headingSensorSource: HeadingSensorSource = FakeHeadingSensorSource(),
@@ -1757,7 +1929,7 @@ class RecordingViewModelTest {
         settingsSource = FakeSettingsSource(settings),
         bikeRepository = bikeRepository,
         networkMonitor = FakeNetworkMonitor(isOnline = online),
-        timeProvider = FakeTimeProvider(fixedTimeMs),
+        timeProvider = timeProvider,
         carBridge = carBridge,
         rideDebugLogger = rideDebugLogger,
         reverseGeocoder = reverseGeocoder,

@@ -137,8 +137,9 @@ private class FakeSettingsSource(settings: AppSettings = AppSettings()) : AppSet
 private class FakeSyncRepository : SyncRepository {
     val enqueuedIds = mutableListOf<String>()
     override val pendingCount: Flow<Int> = MutableStateFlow(0)
+    var syncNowCalls = 0
     override suspend fun enqueue(routeId: String) { enqueuedIds += routeId }
-    override suspend fun syncNow(): Int = 0
+    override suspend fun syncNow(): Int { syncNowCalls++; return 0 }
     override fun start(scope: CoroutineScope) { /* no-op */ }
 }
 
@@ -610,6 +611,24 @@ class RouteDetailViewModelTest {
             assertTrue(event is RouteDetailEvent.ServerSent)
             assertEquals(1, fakeSyncRepository.enqueuedIds.size)
             assertEquals("route-sync-me", fakeSyncRepository.enqueuedIds.first())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `sendToServer uploads right away instead of only queueing`() = runTest {
+        val route = makeRoute(id = "route-upload-now")
+        val fakeSyncRepository = FakeSyncRepository()
+        val vm = buildVm(routeId = route.id, route = route, syncRepo = fakeSyncRepository)
+        vm.uiState.test {
+            skipToLoaded()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.events.test {
+            vm.sendToServer()
+            assertTrue(awaitItem() is RouteDetailEvent.ServerSent)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(1, fakeSyncRepository.syncNowCalls)
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -53,6 +53,14 @@ class CarRecordingBridge @Inject constructor() {
      */
     val commands: SharedFlow<RecordingEvent> = _commands.asSharedFlow()
 
+    private val _notices = MutableSharedFlow<CarNotice>(
+        extraBufferCapacity = 4,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /** One-shot messages for the car screen to show as a toast; dropped when no screen is open. */
+    val notices: SharedFlow<CarNotice> = _notices.asSharedFlow()
+
     // ── Phone → Car ──────────────────────────────────────────────────────────
 
     /** Publishes updated metrics and phase from the phone recording session. */
@@ -64,6 +72,11 @@ class CarRecordingBridge @Inject constructor() {
     /** Updates the unit preference shown on the car screen. */
     fun publishUnits(units: Units) {
         _units.value = units
+    }
+
+    /** Asks the car screen to show [notice]. */
+    fun notify(notice: CarNotice) {
+        _notices.tryEmit(notice)
     }
 
     // ── Car → Phone ──────────────────────────────────────────────────────────

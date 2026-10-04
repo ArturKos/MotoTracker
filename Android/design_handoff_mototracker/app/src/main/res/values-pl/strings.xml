@@ -543,4 +543,9 @@
     <string name="register_error_email_taken">Ten adres e-mail jest już zarejestrowany.</string>
     <string name="register_error_invalid_input">Nieprawidłowe dane rejestracji. Sprawdź e-mail i hasło.</string>
     <string name="register_error_network">Błąd sieci. Sprawdź połączenie i adres serwera.</string>
+    <string name="car_recording_blocked">Odblokuj telefon i otwórz MotoTracker, aby nagrywać — jazda wstrzymana</string>
+    <string name="toast_ride_save_failed">Nie udało się zapisać jazdy — jest wstrzymana, spróbuj ponownie Zakończ</string>
+    <string name="notif_channel_recording">Nagrywanie jazdy</string>
+    <string name="notif_recording_text">Nagrywanie jazdy — dotknij, aby otworzyć</string>
+    <string name="notif_action_finish">Zakończ i zapisz</string>
 </resources>

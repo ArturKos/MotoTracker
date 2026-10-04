@@ -177,4 +177,36 @@ class SmsSendSchedulerTest {
         org.junit.Assert.assertEquals("+48100000001", messages[0].number)
         org.junit.Assert.assertEquals("+48100000002", messages[1].number)
     }
+
+    // ── Fix freshness ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `fix older than the maximum age is not sent`() {
+        assertFalse(
+            SmsSendScheduler.shouldSend(
+                enabled = true,
+                recipientCount = 1,
+                hasFix = true,
+                lastSentMs = null,
+                nowMs = now,
+                intervalMinutes = interval,
+                fixTimeMs = now - SmsSendScheduler.MAX_FIX_AGE_MS - 1,
+            )
+        )
+    }
+
+    @Test
+    fun `fix within the maximum age is sent`() {
+        assertTrue(
+            SmsSendScheduler.shouldSend(
+                enabled = true,
+                recipientCount = 1,
+                hasFix = true,
+                lastSentMs = null,
+                nowMs = now,
+                intervalMinutes = interval,
+                fixTimeMs = now - SmsSendScheduler.MAX_FIX_AGE_MS,
+            )
+        )
+    }
 }

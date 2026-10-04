@@ -192,6 +192,7 @@ class RecordingViewModelBatteryPromptTest {
         val bikeRepo = BPFakeBikeRepository()
         val refuelRepo = BPFakeRefuelRepository()
         return RecordingViewModel(
+            rideHolder = ActiveRideHolder(),
             rideLocationCollector = BPFakeLocationCollector(),
             leanSensorSource = object : LeanSensorSource { override val leanAngles: Flow<Double> = flow {} },
             headingSensorSource = object : HeadingSensorSource { override val headings: Flow<Float> = flow {} },

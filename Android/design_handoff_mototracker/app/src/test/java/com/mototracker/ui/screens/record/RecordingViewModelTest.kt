@@ -1,5 +1,6 @@
 package com.mototracker.ui.screens.record
 
+import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.mototracker.R
 import com.mototracker.core.resource.StringResolver
@@ -35,6 +36,7 @@ import com.mototracker.data.sensor.LeanSensorSource
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.recording.LocationSample
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -1651,6 +1653,42 @@ class RecordingViewModelTest {
         refuelRepository = FakeRefuelRepository(),
     )
 
+    // ── Ride survives ViewModel recreation ─────────────────────────────────
+
+    /**
+     * When the Activity is destroyed mid-ride (app swiped from recents) the ViewModel's scope is
+     * cancelled, but the ride lives in [ActiveRide]: it keeps ticking and a fresh ViewModel
+     * attaches to it instead of starting over or offering a bogus "resume session".
+     */
+    @Test
+    fun `ride keeps recording after its ViewModel is cleared and a new one attaches`() =
+        runTest(testDispatcher) {
+            val holder = ActiveRideHolder()
+            val collector = FakeRideLocationCollector()
+            val store = FakeRecordingSessionStore()
+            val vm1 = buildViewModel(rideLocationCollector = collector, sessionStore = store, rideHolder = holder)
+            vm1.onEvent(RecordingEvent.Start)
+            advanceTimeBy(100L)
+            collector.tryEmit(
+                LocationSample(lat = 53.43, lng = 14.55, speedMps = 16.0, altitudeM = 10.0, bearingDeg = 90f, timeMs = 1_000_000L),
+            )
+            advanceTimeBy(2_000L)
+            assertTrue("a crash-recovery snapshot exists mid-ride", store.saveCalls.isNotEmpty())
+
+            vm1.viewModelScope.cancel() // what ViewModel.clear() does to its scope
+            advanceTimeBy(3_000L)
+
+            val vm2 = buildViewModel(rideLocationCollector = collector, sessionStore = store, rideHolder = holder)
+            advanceTimeBy(100L)
+            val state = vm2.uiState.value
+            assertEquals(RecordingPhase.Recording, state.phase)
+            assertTrue("ticker kept running without a ViewModel", state.metrics.durationSec >= 5L)
+            assertEquals(1, state.trackPoints.size)
+            assertNull("an in-process ride is not an interrupted session", state.resumableSession)
+
+            vm2.onEvent(RecordingEvent.Pause) // stop the ride ticker before runTest drains
+        }
+
     private fun buildViewModel(
         online: Boolean = true,
         noInternet: Boolean = false,
@@ -1671,7 +1709,9 @@ class RecordingViewModelTest {
         batteryOptimizationChecker: com.mototracker.domain.battery.BatteryOptimizationChecker =
             FakeBatteryOptimizationChecker(exempt = true),
         settingsStore: com.mototracker.data.settings.SettingsStore = FakeSettingsStore(settings),
+        rideHolder: ActiveRideHolder = ActiveRideHolder(),
     ) = RecordingViewModel(
+        rideHolder = rideHolder,
         rideLocationCollector = rideLocationCollector,
         leanSensorSource = leanSensorSource,
         headingSensorSource = headingSensorSource,

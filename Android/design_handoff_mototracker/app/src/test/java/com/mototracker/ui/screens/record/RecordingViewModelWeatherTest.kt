@@ -223,6 +223,7 @@ class RecordingViewModelWeatherTest {
         weatherClient: WeatherClient = WxFakeWeatherClient(),
         resumeRouteBus: ResumeRouteBus = WxFakeResumeRouteBus(),
     ) = RecordingViewModel(
+        rideHolder = ActiveRideHolder(),
         rideLocationCollector = locationCollector,
         leanSensorSource = WxFakeLeanSource(),
         headingSensorSource = WxFakeHeadingSource(),

@@ -300,6 +300,7 @@ class RecordingViewModelGroupRosterTest {
         val bikeRepo = GRFakeBikeRepository()
         val refuelRepo = GRFakeRefuelRepository()
         return RecordingViewModel(
+            rideHolder = ActiveRideHolder(),
             rideLocationCollector = GRFakeLocationCollector(),
             leanSensorSource = object : LeanSensorSource {
                 override val leanAngles: Flow<Double> = flow {}

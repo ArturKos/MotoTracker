@@ -196,6 +196,7 @@ class RecordingViewModelCoordTest {
             refuelRepository = refuelRepo,
         )
         return RecordingViewModel(
+            rideHolder = ActiveRideHolder(),
             rideLocationCollector = collector,
             leanSensorSource = object : LeanSensorSource { override val leanAngles: Flow<Double> = flow {} },
             headingSensorSource = object : HeadingSensorSource { override val headings: Flow<Float> = flow {} },

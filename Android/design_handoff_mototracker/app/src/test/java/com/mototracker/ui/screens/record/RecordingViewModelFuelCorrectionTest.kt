@@ -300,6 +300,7 @@ class RecordingViewModelFuelCorrectionTest {
         val bikeRepo = FCFakeBikeRepository(bikes)
         val refuelRepo = FCFakeRefuelRepository()
         return RecordingViewModel(
+            rideHolder = ActiveRideHolder(),
             rideLocationCollector = FCFakeLocationCollector(),
             leanSensorSource = object : LeanSensorSource { override val leanAngles: Flow<Double> = flow {} },
             headingSensorSource = object : HeadingSensorSource { override val headings: Flow<Float> = flow {} },

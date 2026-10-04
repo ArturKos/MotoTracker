@@ -241,6 +241,7 @@ class RecordingViewModelResumeTest {
         resumeRouteBus: ResumeRouteBus = FakeRouteBus(),
         rideLocationCollector: RideLocationCollector = FakeResumeRideLocationCollector(),
     ) = RecordingViewModel(
+        rideHolder = ActiveRideHolder(),
         rideLocationCollector = rideLocationCollector,
         leanSensorSource = FakeResumeLeanSource(),
         headingSensorSource = FakeResumeHeadingSource(),

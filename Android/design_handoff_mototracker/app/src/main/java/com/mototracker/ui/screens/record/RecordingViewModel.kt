@@ -18,8 +18,6 @@ import com.mototracker.data.network.WeatherClient
 import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
 import com.mototracker.domain.fuel.FuelAdjustmentMode
 import com.mototracker.domain.fuel.FuelConsumptionCalculator
-import com.mototracker.data.recording.ActiveSessionSnapshot
-import com.mototracker.data.recording.PendingRefuel
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
@@ -40,14 +38,14 @@ import com.mototracker.domain.naming.PartOfDay
 import com.mototracker.domain.naming.RouteNameComposer
 import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.domain.recording.RouteResumeSeed
-import com.mototracker.domain.recording.TrackPoint
 import com.mototracker.ui.map.GeoCoord
 import com.mototracker.ui.map.TrackGeometry
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,9 +140,26 @@ class RecordingViewModel @Inject constructor(
     private val settingsStore: SettingsStore,
     private val fuelAdjustmentRepository: FuelAdjustmentRepository,
     private val riderRepository: RiderRepository,
+    rideHolder: ActiveRideHolder,
 ) : ViewModel() {
 
-    private val engine = RecordingEngine()
+    /**
+     * Process-lived ride state. Reused when this ViewModel is recreated mid-ride (Activity
+     * destroyed, app swiped from recents) so recording continues instead of silently stopping.
+     */
+    private val ride: ActiveRide = rideHolder.ride ?: ActiveRide(
+        rideLocationCollector = rideLocationCollector,
+        leanSensorSource = leanSensorSource,
+        sessionStore = sessionStore,
+        timeProvider = timeProvider,
+        rideDebugLogger = rideDebugLogger,
+        settingsSource = settingsSource,
+        networkMonitor = networkMonitor,
+        weatherClient = weatherClient,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+    ).also { rideHolder.ride = it }
+
+    private val engine: RecordingEngine get() = ride.engine
 
     private val _uiState = MutableStateFlow(RecordingUiState())
     /** Live UI state for the Recording screen. */
@@ -154,15 +169,6 @@ class RecordingViewModel @Inject constructor(
     /** One-shot side-effects (navigate-away, show toast). */
     val effects: SharedFlow<RecordingEffect> = _effects.asSharedFlow()
 
-    private var tickerJob: Job? = null
-    private var locationJob: Job? = null
-
-    /** Epoch-ms timestamp captured at recording start; used for part-of-day naming. */
-    private var recordingStartMs: Long = 0L
-
-    /** Most-recently observed bike ID from settings; used when writing snapshots. */
-    private var currentBikeId: String? = null
-
     /** Per-session fuel consumption resolved from the current bike; defaults to 5.0 L/100km. */
     private var currentBikeConsumption: Double = 5.0
 
@@ -170,41 +176,34 @@ class RecordingViewModel @Inject constructor(
     private var currentBikeTankCapacity: Double? = null
 
     /**
-     * Route UUID pre-assigned when recording starts so BLE wave rows discovered
-     * during the ride can reference the route before it is persisted at Finish.
-     */
-    private var pendingRouteId: String? = null
-
-    /** In-memory buffer of refuel events logged before the route row exists (G5). */
-    private val pendingRefuels = mutableListOf<PendingRefuel>()
-
-    /** True while the session is a continuation of a previously saved route (J5). */
-    private var resumingExistingRoute: Boolean = false
-
-    /** Original name of the route being continued; used by [doFinish] to skip renaming (J5). */
-    private var existingRouteName: String = ""
-
-    /** Original start timestamp of the route being continued; preserved on save (J5). */
-    private var existingRouteDateEpochMs: Long = 0L
-
-    /** Weather JSON accumulated from the first GPS fix of the ride; null when offline or not yet fetched. */
-    private var pendingWxJson: String? = null
-
-    /** Guard ensuring weather is fetched at most once per ride session. */
-    private var weatherFetchedForRide: Boolean = false
-
-    /**
      * Cached value of [AppSettings.batteryPromptDismissed] kept in sync from the settings stream
      * so [doStart] can read it synchronously without suspending (O1).
      */
     private var batteryPromptDismissed: Boolean = false
 
+    /** Copies the ride-owned fields into [_uiState] synchronously. */
+    private fun mirrorRide(r: ActiveRide.State = ride.state.value) {
+        _uiState.update {
+            it.copy(
+                phase = r.phase,
+                metrics = r.metrics,
+                trackPoints = r.trackPoints,
+                activeRouteId = r.activeRouteId,
+            )
+        }
+    }
+
     init {
+        // Attach to the (possibly already running) ride: show its state immediately, then
+        // follow ticker / GPS / lean updates produced by the ride's own workers.
+        mirrorRide()
+        viewModelScope.launch { ride.state.collect { mirrorRide(it) } }
+
         // Keep gpsOnRoad in sync with the user's GPS-correction setting;
         // also forward the active units preference to the Android Auto bridge.
         viewModelScope.launch {
             settingsSource.settings.collect { s ->
-                currentBikeId = s.currentBikeId
+                ride.currentBikeId = s.currentBikeId
                 batteryPromptDismissed = s.batteryPromptDismissed
                 _uiState.update {
                     it.copy(
@@ -266,10 +265,10 @@ class RecordingViewModel @Inject constructor(
             currentBikeTankCapacity = bs.tankCapacity
             // I2: Feed the resolved fuel config into the engine reactively so remaining-fuel/range
             // and the icon colour are correct regardless of whether this emits before or after doStart().
-            engine.updateFuelConfig(bs.consumption, bs.tankCapacity)
+            ride.updateFuelConfig(bs.consumption, bs.tankCapacity)
             _uiState.update {
                 it.copy(
-                    metrics = engine.snapshot(),
+                    metrics = ride.state.value.metrics,
                     fuelPricePerL = bs.fuelPricePerL,
                     currency = bs.currency,
                 )
@@ -279,7 +278,9 @@ class RecordingViewModel @Inject constructor(
         // B20: Detect an unfinished session from a previous process lifetime.
         viewModelScope.launch {
             val existing = sessionStore.snapshot.first()
-            if (existing != null) {
+            // A ride already running in this process also has a snapshot — that is not an
+            // interrupted session, so don't offer to resume it.
+            if (existing != null && ride.state.value.phase == RecordingPhase.Idle) {
                 _uiState.update { it.copy(resumableSession = existing) }
             }
         }
@@ -290,17 +291,11 @@ class RecordingViewModel @Inject constructor(
         }
 
         // F2: Always-on lean collector — liveLeanDeg updates regardless of phase so the
-        // rider can see the tilt bar before starting a ride.  Engine and logger are only
-        // fed while actively Recording.
+        // rider can see the tilt bar before starting a ride. The engine is fed by [ActiveRide]'s
+        // own lean worker so lean keeps recording while this ViewModel is gone.
         viewModelScope.launch {
             leanSensorSource.leanAngles.collect { deg ->
-                val currentPhase = _uiState.value.phase
                 _uiState.update { it.copy(liveLeanDeg = deg) }
-                if (currentPhase == RecordingPhase.Recording) {
-                    rideDebugLogger.log("LEAN", "angle=$deg")
-                    engine.onLean(deg)
-                    _uiState.update { it.copy(metrics = engine.snapshot()) }
-                }
             }
         }
 
@@ -375,7 +370,7 @@ class RecordingViewModel @Inject constructor(
      */
     override fun onCleared() {
         super.onCleared()
-        val phase = _uiState.value.phase
+        val phase = ride.state.value.phase
         if (phase != RecordingPhase.Recording && phase != RecordingPhase.Paused) {
             rideLocationCollector.stop()
             rideLocationCollector.stopGnss()
@@ -441,25 +436,9 @@ class RecordingViewModel @Inject constructor(
     }
 
     private fun doStartRecording() {
-        engine.reset(fuelLper100km = currentBikeConsumption, tankCapacityL = currentBikeTankCapacity)
-        rideDebugLogger.beginRide()
-        recordingStartMs = timeProvider.nowEpochMs()
-        pendingRouteId = UUID.randomUUID().toString()
-        pendingWxJson = null
-        weatherFetchedForRide = false
-        _uiState.update {
-            it.copy(
-                phase = RecordingPhase.Recording,
-                metrics = engine.snapshot(),
-                trackPoints = emptyList(),
-                resumableSession = null,
-                activeRouteId = pendingRouteId,
-            )
-        }
-        // Defensive start — idempotent; the service owns stop() and is the primary starter.
-        rideLocationCollector.start()
-        startTicker()
-        startLocationUpdates()
+        ride.startNew(fuelLper100km = currentBikeConsumption, tankCapacityL = currentBikeTankCapacity)
+        _uiState.update { it.copy(resumableSession = null) }
+        mirrorRide()
     }
 
     private fun doBatteryOptDismiss() {
@@ -493,10 +472,11 @@ class RecordingViewModel @Inject constructor(
      * @param value Correction value in litres.
      */
     private fun doConfirmFuelCorrection(mode: FuelAdjustmentMode, value: Double) {
-        engine.applyFuelCorrection(mode, value)
-        val bikeId = currentBikeId
-        val routeId = pendingRouteId
-        _uiState.update { it.copy(metrics = engine.snapshot(), showFuelCorrectionDialog = false) }
+        ride.applyFuelCorrection(mode, value)
+        val bikeId = ride.currentBikeId
+        val routeId = ride.pendingRouteId
+        mirrorRide()
+        _uiState.update { it.copy(showFuelCorrectionDialog = false) }
         viewModelScope.launch {
             if (bikeId != null) {
                 runCatching {
@@ -513,48 +493,18 @@ class RecordingViewModel @Inject constructor(
     }
 
     private fun doPause() {
-        _uiState.update { it.copy(phase = RecordingPhase.Paused) }
-        rideDebugLogger.log("LIFECYCLE", "pause")
-        tickerJob?.cancel()
-        tickerJob = null
-        // Persist paused flag so a kill during pause is recoverable.
-        viewModelScope.launch {
-            sessionStore.save(
-                ActiveSessionSnapshot(
-                    engineState = engine.exportState(),
-                    recordingStartMs = recordingStartMs,
-                    bikeId = currentBikeId,
-                    paused = true,
-                    pendingRefuels = pendingRefuels.toList(),
-                ),
-            )
-        }
+        ride.pause()
+        mirrorRide()
     }
 
     private fun doResume() {
-        _uiState.update { it.copy(phase = RecordingPhase.Recording) }
-        rideDebugLogger.log("LIFECYCLE", "resume")
-        startTicker()
-        // Update paused=false in the persisted snapshot.
-        viewModelScope.launch {
-            sessionStore.save(
-                ActiveSessionSnapshot(
-                    engineState = engine.exportState(),
-                    recordingStartMs = recordingStartMs,
-                    bikeId = currentBikeId,
-                    paused = false,
-                    pendingRefuels = pendingRefuels.toList(),
-                ),
-            )
-        }
+        ride.resume()
+        mirrorRide()
     }
 
     private fun doFinish() {
         rideDebugLogger.log("LIFECYCLE", "finish")
-        tickerJob?.cancel()
-        locationJob?.cancel()
-        tickerJob = null
-        locationJob = null
+        ride.stopWorkers()
 
         viewModelScope.launch {
             val settings = settingsSource.settings.first()
@@ -564,17 +514,16 @@ class RecordingViewModel @Inject constructor(
             val result = engine.buildRoutePayload()
 
             // J5: When continuing an existing route, keep its original name and start time.
-            val isResume = resumingExistingRoute
-            resumingExistingRoute = false
+            val isResume = ride.resumingExistingRoute
 
             val routeName: String
             val dateEpochMs: Long
             if (isResume) {
-                routeName = existingRouteName
-                dateEpochMs = existingRouteDateEpochMs
+                routeName = ride.existingRouteName
+                dateEpochMs = ride.existingRouteDateEpochMs
             } else {
                 // Compose a sensible default name from part-of-day + optional reverse geocoding.
-                val startMs = if (recordingStartMs > 0L) recordingStartMs else timeProvider.nowEpochMs()
+                val startMs = if (ride.recordingStartMs > 0L) ride.recordingStartMs else timeProvider.nowEpochMs()
                 val pod = RouteNameComposer.partOfDay(startMs, ZoneId.systemDefault())
                 val rideLabelResId = when (pod) {
                     PartOfDay.MORNING   -> R.string.route_name_ride_morning
@@ -602,8 +551,7 @@ class RecordingViewModel @Inject constructor(
                 dateEpochMs = timeProvider.nowEpochMs()
             }
 
-            val routeId = pendingRouteId ?: UUID.randomUUID().toString()
-            pendingRouteId = null
+            val routeId = ride.pendingRouteId ?: UUID.randomUUID().toString()
             val route = Route(
                 id = routeId,
                 name = routeName,
@@ -617,7 +565,7 @@ class RecordingViewModel @Inject constructor(
                 elev = result.metrics.elevGainM,
                 fuel = result.metrics.fuelL,
                 synced = false,
-                wxJson = if (isResume) null else pendingWxJson,
+                wxJson = if (isResume) null else ride.pendingWxJson,
                 pathJson = result.pathJson,
                 speedJson = result.speedJson,
                 elevProfileJson = result.elevProfileJson,
@@ -631,8 +579,7 @@ class RecordingViewModel @Inject constructor(
             syncRepository.enqueue(route.id)
 
             // G5: Persist any buffered refuel events now that the route row exists.
-            val refuelsToSave = pendingRefuels.toList()
-            pendingRefuels.clear()
+            val refuelsToSave = ride.pendingRefuels
             refuelsToSave.forEach { r ->
                 refuelRepository.addRefuel(
                     routeId = route.id,
@@ -652,7 +599,8 @@ class RecordingViewModel @Inject constructor(
             // B20: Clear snapshot AFTER the route is durably saved.
             sessionStore.clear()
 
-            _uiState.update { it.copy(phase = RecordingPhase.Idle, trackPoints = emptyList(), activeRouteId = null) }
+            ride.markIdle()
+            mirrorRide()
             _effects.emit(RecordingEffect.Saved(offline = offline))
             _effects.emit(RecordingEffect.NavigateToDetail(route.id))
             rideDebugLogger.endRide()
@@ -668,29 +616,16 @@ class RecordingViewModel @Inject constructor(
      */
     private fun doResumeSession() {
         val snap = _uiState.value.resumableSession ?: return
-        engine.restore(snap.engineState)
-        recordingStartMs = snap.recordingStartMs
-        // G5: Restore the pending refuel buffer from the snapshot so events are not lost.
-        pendingRefuels.clear()
-        pendingRefuels.addAll(snap.pendingRefuels)
-        val trackPoints = snap.engineState.pathPoints
-        _uiState.update {
-            it.copy(
-                phase = RecordingPhase.Paused,
-                metrics = engine.snapshot(),
-                trackPoints = trackPoints,
-                resumableSession = null,
-            )
-        }
-        // Start location updates so GPS fixes accumulate once the user taps Resume.
-        // Lean is already live from the always-on init collector (F2).
-        startLocationUpdates()
+        ride.restoreSnapshot(snap)
+        _uiState.update { it.copy(resumableSession = null) }
+        mirrorRide()
     }
 
     /** Clears a detected resumable session without restoring it (B20). */
     private fun doDiscardSession() {
-        pendingRouteId = null
-        _uiState.update { it.copy(resumableSession = null, activeRouteId = null) }
+        ride.discardPendingRoute()
+        _uiState.update { it.copy(resumableSession = null) }
+        mirrorRide()
         viewModelScope.launch { sessionStore.clear() }
     }
 
@@ -711,26 +646,16 @@ class RecordingViewModel @Inject constructor(
         val route = routeRepository.getById(routeId) ?: return
 
         val seed = RouteResumeSeed.fromRoute(route)
-        engine.restore(seed)
-        engine.updateFuelConfig(currentBikeConsumption, currentBikeTankCapacity)
-
-        pendingRouteId = routeId
-        recordingStartMs = route.dateEpochMs
-        resumingExistingRoute = true
-        existingRouteName = route.name
-        existingRouteDateEpochMs = route.dateEpochMs
-
-        val trackPoints = seed.pathPoints
-        _uiState.update {
-            it.copy(
-                phase = RecordingPhase.Paused,
-                metrics = engine.snapshot(),
-                trackPoints = trackPoints,
-                resumableSession = null,
-                activeRouteId = routeId,
-            )
-        }
-        startLocationUpdates()
+        ride.restoreRoute(
+            routeId = routeId,
+            routeName = route.name,
+            routeDateEpochMs = route.dateEpochMs,
+            seed = seed,
+            fuelLper100km = currentBikeConsumption,
+            tankCapacityL = currentBikeTankCapacity,
+        )
+        _uiState.update { it.copy(resumableSession = null) }
+        mirrorRide()
     }
 
     /**
@@ -756,92 +681,15 @@ class RecordingViewModel @Inject constructor(
      * Confirms a refuel event from the dialog (G5).
      *
      * Calls [RecordingEngine.fillToFull] to re-anchor the live fuel estimate AND buffers
-     * a [PendingRefuel] in-memory (and in the durable snapshot) for persistence on Finish.
+     * a [com.mototracker.data.recording.PendingRefuel] in-memory (and in the durable snapshot) for persistence on Finish.
      *
      * @param litres    Volume of fuel added in litres as entered by the rider.
      * @param pricePerL Price per litre at the time of the event.
      */
     private fun doConfirmRefuel(litres: Double, pricePerL: Double) {
-        engine.fillToFull()
-        val km = engine.snapshot().distanceKm
-        rideDebugLogger.log("FUEL", "refuel litres=$litres price=$pricePerL km=$km")
-        val pending = PendingRefuel(
-            epochMs = timeProvider.nowEpochMs(),
-            litres = litres,
-            pricePerL = pricePerL,
-        )
-        pendingRefuels.add(pending)
-        _uiState.update { it.copy(metrics = engine.snapshot(), showRefuelDialog = false) }
-        viewModelScope.launch {
-            sessionStore.save(
-                ActiveSessionSnapshot(
-                    engineState = engine.exportState(),
-                    recordingStartMs = recordingStartMs,
-                    bikeId = currentBikeId,
-                    paused = _uiState.value.phase == RecordingPhase.Paused,
-                    pendingRefuels = pendingRefuels.toList(),
-                ),
-            )
-        }
-    }
-
-    // ── Background workers ───────────────────────────────────────────────────
-
-    private fun startTicker() {
-        tickerJob = viewModelScope.launch {
-            while (true) {
-                delay(1_000L)
-                engine.tick(1L)
-                _uiState.update { it.copy(metrics = engine.snapshot()) }
-            }
-        }
-    }
-
-    private fun startLocationUpdates() {
-        locationJob = viewModelScope.launch {
-            rideLocationCollector.samples.collect { sample ->
-                rideDebugLogger.log(
-                    "GPS",
-                    "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
-                )
-                val metrics = engine.onLocation(sample)
-                val pt = TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs)
-                _uiState.update { prev ->
-                    prev.copy(metrics = metrics, trackPoints = prev.trackPoints + pt)
-                }
-                // K5: Fetch weather once on the first GPS fix when online.
-                if (!weatherFetchedForRide) {
-                    weatherFetchedForRide = true
-                    viewModelScope.launch {
-                        val settings = settingsSource.settings.first()
-                        val isOnline = networkMonitor.isOnline.first()
-                        val offline = settings.noInternet || !isOnline
-                        if (!offline) {
-                            weatherClient.fetch(sample.lat, sample.lng).onSuccess { snapshot ->
-                                pendingWxJson = snapshot.toWxJson()
-                                rideDebugLogger.log(
-                                    "WEATHER",
-                                    "tempC=${snapshot.tempC} hum=${snapshot.humidity} rain=${snapshot.rain}",
-                                )
-                            }
-                        }
-                    }
-                }
-                // B20: Persist snapshot on each GPS fix. Launched in a sibling coroutine
-                // so the location collector is not blocked by the DataStore write.
-                viewModelScope.launch {
-                    sessionStore.save(
-                        ActiveSessionSnapshot(
-                            engineState = engine.exportState(),
-                            recordingStartMs = recordingStartMs,
-                            bikeId = currentBikeId,
-                            paused = false,
-                            pendingRefuels = pendingRefuels.toList(),
-                        ),
-                    )
-                }
-            }
-        }
+        ride.refuel(litres, pricePerL)
+        mirrorRide()
+        _uiState.update { it.copy(showRefuelDialog = false) }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

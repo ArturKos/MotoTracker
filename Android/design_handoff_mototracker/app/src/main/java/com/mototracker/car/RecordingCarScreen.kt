@@ -1,6 +1,7 @@
 package com.mototracker.car
 
 import androidx.car.app.CarContext
+import androidx.car.app.CarToast
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.Pane
@@ -44,6 +45,11 @@ class RecordingCarScreen(
             }.collect { newState ->
                 currentState = newState
                 invalidate()
+            }
+        }
+        lifecycleScope.launch {
+            bridge.notices.collect { notice ->
+                CarToast.makeText(carContext, notice.messageRes, CarToast.LENGTH_LONG).show()
             }
         }
     }

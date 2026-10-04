@@ -3,6 +3,7 @@ package com.mototracker.ui.screens.record
 import android.content.Context
 import android.content.Intent
 import com.mototracker.R
+import com.mototracker.car.CarNotice
 import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.resource.StringResolver
 import com.mototracker.data.diagnostics.RideDebugLogger
@@ -41,6 +42,7 @@ import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.domain.recording.RecordingEngineState
 import com.mototracker.domain.recording.RecordingMetrics
 import com.mototracker.domain.recording.TrackPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -133,16 +135,27 @@ class ActiveRideDeps @Inject constructor(
         onPhaseChanged = { phase, routeId -> driveService(phase, routeId) },
     )
 
-    private fun driveService(phase: RecordingPhase, routeId: String?) {
+    /**
+     * Starts or stops [RecordingService] for [phase].
+     *
+     * @return `false` when Android refused to start the foreground service — e.g. a ride started
+     *         from Android Auto while the phone is locked (background-start restrictions,
+     *         Android 12+); `true` otherwise.
+     */
+    private fun driveService(phase: RecordingPhase, routeId: String?): Boolean {
         val intent = Intent(context, RecordingService::class.java)
-        when (phase) {
+        return when (phase) {
             RecordingPhase.Recording -> {
                 if (routeId != null) intent.putExtra(RecordingService.EXTRA_ROUTE_ID, routeId)
                 runCatching { context.startForegroundService(intent) }
                     .onFailure { rideDebugLogger.log("ERROR", "startForegroundService: ${it.message}") }
+                    .isSuccess
             }
-            RecordingPhase.Idle -> context.stopService(intent)
-            RecordingPhase.Paused -> Unit
+            RecordingPhase.Idle -> {
+                context.stopService(intent)
+                true
+            }
+            RecordingPhase.Paused -> true
         }
     }
 }
@@ -164,7 +177,8 @@ class ActiveRideDeps @Inject constructor(
  *
  * @param scope          Process-lived scope (main dispatcher) that owns the background workers.
  * @param onPhaseChanged Called on every phase change after creation; production starts/stops
- *                       [RecordingService] here. Null in unit tests.
+ *                       [RecordingService] here and returns `false` when the service could not be
+ *                       started (see [onRecordingServiceBlocked]). Null in unit tests.
  */
 class ActiveRide(
     private val rideLocationCollector: RideLocationCollector,
@@ -183,7 +197,7 @@ class ActiveRide(
     private val stringResolver: StringResolver,
     private val carBridge: CarRecordingBridge,
     private val scope: CoroutineScope,
-    private val onPhaseChanged: ((RecordingPhase, String?) -> Unit)? = null,
+    private val onPhaseChanged: ((RecordingPhase, String?) -> Boolean)? = null,
 ) {
 
     /** Snapshot of the ride fields the Recording screen renders. */
@@ -264,9 +278,23 @@ class ActiveRide(
                 state.map { it.phase to it.activeRouteId }
                     .distinctUntilChanged { a, b -> a.first == b.first }
                     .drop(1)
-                    .collect { (phase, routeId) -> hook(phase, routeId) }
+                    .collect { (phase, routeId) ->
+                        if (!hook(phase, routeId)) onRecordingServiceBlocked()
+                    }
             }
         }
+    }
+
+    /**
+     * Called when Android would not run [RecordingService] (foreground-service start refused,
+     * or the service could not enter the foreground). Without the service there is no GPS while
+     * the phone is locked, so instead of pretending to record the ride is paused and the car
+     * shows why; the rider resumes from the phone once it is unlocked.
+     */
+    fun onRecordingServiceBlocked() {
+        rideDebugLogger.log("ERROR", "recording service blocked in phase ${_state.value.phase}")
+        if (_state.value.phase == RecordingPhase.Recording) pause()
+        carBridge.notify(CarNotice.RECORDING_BLOCKED)
     }
 
     private fun onCarCommand(event: RecordingEvent) {
@@ -314,8 +342,12 @@ class ActiveRide(
         saveSnapshot(paused = true)
     }
 
-    /** Resumes a paused ride. */
+    /**
+     * Resumes a paused ride. The engine starts a new track segment so ground covered while
+     * paused is not bridged into the ride's distance.
+     */
     fun resume() {
+        engine.breakSegment()
         _state.update { it.copy(phase = RecordingPhase.Recording) }
         rideDebugLogger.log("LIFECYCLE", "resume")
         startTicker()
@@ -335,7 +367,7 @@ class ActiveRide(
             it.copy(
                 phase = RecordingPhase.Paused,
                 metrics = engine.snapshot(),
-                trackPoints = snap.engineState.pathPoints,
+                trackPoints = engine.pathPoints,
             )
         }
         startLocationUpdates()
@@ -365,7 +397,7 @@ class ActiveRide(
         _state.value = State(
             phase = RecordingPhase.Paused,
             metrics = engine.snapshot(),
-            trackPoints = seed.pathPoints,
+            trackPoints = engine.pathPoints,
             activeRouteId = routeId,
         )
         startLocationUpdates()
@@ -396,12 +428,34 @@ class ActiveRide(
      *
      * Runs in the process scope so a ViewModel being cleared mid-save cannot cut it short.
      * Calling it again while a finish is in flight returns the same [Deferred].
+     *
+     * If saving fails the ride is not lost: it returns to [RecordingPhase.Paused] with its
+     * workers running again and its crash-recovery snapshot intact, so Finish can be retried.
+     * The returned [Deferred] then completes with that exception.
      */
     fun finishAsync(): Deferred<FinishResult> {
         finishJob?.let { if (it.isActive) return it }
         rideDebugLogger.log("LIFECYCLE", "finish")
         stopWorkers()
-        return scope.async { saveFinishedRide() }.also { finishJob = it }
+        return scope.async {
+            try {
+                saveFinishedRide()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                rideDebugLogger.log("ERROR", "finish failed: ${e.message}")
+                recoverFromFailedFinish()
+                throw e
+            }
+        }.also { finishJob = it }
+    }
+
+    /** Puts a ride whose save failed back into [RecordingPhase.Paused] so it can be finished again. */
+    private fun recoverFromFailedFinish() {
+        _state.update { it.copy(phase = RecordingPhase.Paused) }
+        startLocationUpdates()
+        startLeanUpdates()
+        carBridge.notify(CarNotice.SAVE_FAILED)
     }
 
     private suspend fun saveFinishedRide(): FinishResult {
@@ -441,7 +495,8 @@ class ActiveRide(
             } else {
                 rideLabel
             }
-            dateEpochMs = timeProvider.nowEpochMs()
+            // The route is dated by when the ride started (as resumed routes keep theirs).
+            dateEpochMs = startMs
         }
 
         val route = Route(
@@ -480,6 +535,8 @@ class ActiveRide(
                 pricePerL = r.pricePerL,
             )
         }
+        // Persisted: a retried Finish after a later failure must not store them twice.
+        _pendingRefuels.clear()
         // K2: refresh per-bike consumption from ledger if any refuels were just saved.
         val bikeId = route.bikeId
         if (refuelsToSave.isNotEmpty() && bikeId != null) {
@@ -567,17 +624,23 @@ class ActiveRide(
         }
     }
 
+    /**
+     * Feeds GPS fixes into the engine while [RecordingPhase.Recording]. Fixes that arrive while
+     * paused (the foreground service keeps GPS running) are ignored, so a paused ride gains no
+     * distance or track. The on-screen track is the engine's own accepted path — an O(1)
+     * snapshot, so it matches the saved route and costs nothing to publish per fix.
+     */
     private fun startLocationUpdates() {
         locationJob?.cancel()
         locationJob = scope.launch {
             rideLocationCollector.samples.collect { sample ->
+                if (_state.value.phase != RecordingPhase.Recording) return@collect
                 rideDebugLogger.log(
                     "GPS",
                     "lat=${sample.lat} lon=${sample.lng} alt=${sample.altitudeM} spd=${sample.speedMps}",
                 )
                 val metrics = engine.onLocation(sample)
-                val pt = TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs)
-                _state.update { it.copy(metrics = metrics, trackPoints = it.trackPoints + pt) }
+                _state.update { it.copy(metrics = metrics, trackPoints = engine.pathPoints) }
                 // K5: Fetch weather once on the first GPS fix when online.
                 if (!weatherFetchedForRide) {
                     weatherFetchedForRide = true

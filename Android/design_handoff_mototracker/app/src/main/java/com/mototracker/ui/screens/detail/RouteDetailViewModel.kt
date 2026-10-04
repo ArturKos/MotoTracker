@@ -181,8 +181,10 @@ class RouteDetailViewModel @Inject constructor(
     }
 
     /**
-     * Enqueues the current route for server sync via [SyncRepository.enqueue] and emits
-     * [RouteDetailEvent.ServerSent].
+     * Enqueues the current route for server sync via [SyncRepository.enqueue], emits
+     * [RouteDetailEvent.ServerSent], then uploads it right away via [SyncRepository.syncNow]
+     * (an explicit request, so it runs even when automatic sync is switched off). Offline,
+     * the route simply stays queued.
      *
      * No-op if the route has not loaded yet.
      */
@@ -191,6 +193,7 @@ class RouteDetailViewModel @Inject constructor(
         viewModelScope.launch {
             syncRepository.enqueue(route.id)
             _events.send(RouteDetailEvent.ServerSent)
+            runCatching { syncRepository.syncNow() }
         }
     }
 

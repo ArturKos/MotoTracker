@@ -138,9 +138,15 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     /** Per-bucket time-in-seconds counts for the lean-angle histogram (Q1). */
     private val leanBucketCounts = IntArray(LeanHistogram.BUCKET_COUNT)
 
-    private val pathPoints = mutableListOf<TrackPoint>()
-    private val speedOverTime = mutableListOf<Pair<Long, Double>>()
-    private val elevOverDist = mutableListOf<Pair<Double, Double>>()
+    private val path = AppendOnlyList<TrackPoint>()
+    private val speedOverTime = AppendOnlyList<Pair<Long, Double>>()
+    private val elevOverDist = AppendOnlyList<Pair<Double, Double>>()
+
+    /**
+     * Accepted track so far (the same points the finished route stores), as an O(1) snapshot
+     * that stays valid while recording continues.
+     */
+    val pathPoints: List<TrackPoint> get() = path.snapshot()
 
     /**
      * Integrates a new GPS [sample] into the session state and returns the updated [RecordingMetrics].
@@ -214,9 +220,9 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
             prevAlt = sample.altitudeM
             prevTimeMs = sample.timeMs
 
-            pathPoints += TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs)
-            speedOverTime += durationSec to speedKmh
-            elevOverDist += distanceKm to sample.altitudeM
+            path.add(TrackPoint(sample.lat, sample.lng, sample.altitudeM, sample.timeMs))
+            speedOverTime.add(durationSec to speedKmh)
+            elevOverDist.add(distanceKm to sample.altitudeM)
         }
 
         return snapshot()
@@ -329,7 +335,18 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         maxLeanLeftDeg = 0.0; maxLeanRightDeg = 0.0
         altitudeM = 0.0; elevGainM = 0.0; headingDeg = 0f
         leanBucketCounts.fill(0)
-        pathPoints.clear(); speedOverTime.clear(); elevOverDist.clear()
+        path.clear(); speedOverTime.clear(); elevOverDist.clear()
+    }
+
+    /**
+     * Ends the current track segment: the next accepted fix starts a fresh segment and no
+     * distance, elevation gain or outlier check bridges the gap to the last fix before it.
+     *
+     * Call when recording resumes after a pause, so ground covered while paused (riding to a
+     * fuel station, pushing the bike) is never added to the ride.
+     */
+    fun breakSegment() {
+        prevLat = null; prevLng = null; prevAlt = null; prevTimeMs = null
     }
 
     /**
@@ -398,7 +415,8 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
      * Exports a full snapshot of all accumulator state as an immutable [RecordingEngineState].
      *
      * Safe to call at any point during a session; the returned object is independent of
-     * the engine's mutable lists (copies are taken). The fuel-model fields
+     * later engine changes. The track lists are O(1) [AppendOnlyList] snapshots rather than
+     * copies, so exporting on every GPS fix does not cost O(ride length). The fuel-model fields
      * ([RecordingEngineState.sessionFuelLper100km], [RecordingEngineState.tankCapacityL],
      * [RecordingEngineState.anchorKm], [RecordingEngineState.anchorLitres]) are included so that
      * a B20-resumed ride keeps its corrected fuel anchor.
@@ -420,9 +438,9 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         altitudeM = altitudeM,
         elevGainM = elevGainM,
         headingDeg = headingDeg,
-        pathPoints = pathPoints.toList(),
-        speedOverTime = speedOverTime.toList(),
-        elevOverDist = elevOverDist.toList(),
+        pathPoints = path.snapshot(),
+        speedOverTime = speedOverTime.snapshot(),
+        elevOverDist = elevOverDist.snapshot(),
         sessionFuelLper100km = sessionFuelLper100km,
         tankCapacityL = tankCapacityL,
         anchorKm = anchorKm,
@@ -464,7 +482,7 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
         sessionStarted = true
         leanBucketCounts.fill(0)
         state.leanBucketCounts.forEachIndexed { i, v -> if (i < leanBucketCounts.size) leanBucketCounts[i] = v }
-        pathPoints.clear(); pathPoints.addAll(state.pathPoints)
+        path.clear(); path.addAll(state.pathPoints)
         speedOverTime.clear(); speedOverTime.addAll(state.speedOverTime)
         elevOverDist.clear(); elevOverDist.addAll(state.elevOverDist)
     }
@@ -482,8 +500,9 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     }
 
     private fun buildPathJson(): String {
-        if (pathPoints.isEmpty()) return "[]"
-        return pathPoints.joinToString(separator = ",", prefix = "[", postfix = "]") { pt ->
+        val points = path.snapshot()
+        if (points.isEmpty()) return "[]"
+        return points.joinToString(separator = ",", prefix = "[", postfix = "]") { pt ->
             buildString {
                 append("""{"lat":${pt.lat},"lng":${pt.lng},"ele":${pt.ele}""")
                 if (pt.t != null) append(""","t":${pt.t}""")
@@ -493,15 +512,17 @@ class RecordingEngine(fuelLper100km: Double = 5.0) {
     }
 
     private fun buildSpeedJson(): String {
-        if (speedOverTime.isEmpty()) return "[]"
-        return speedOverTime.joinToString(separator = ",", prefix = "[", postfix = "]") {
+        val samples = speedOverTime.snapshot()
+        if (samples.isEmpty()) return "[]"
+        return samples.joinToString(separator = ",", prefix = "[", postfix = "]") {
             """{"t":${it.first},"v":${it.second}}"""
         }
     }
 
     private fun buildElevJson(): String {
-        if (elevOverDist.isEmpty()) return "[]"
-        return elevOverDist.joinToString(separator = ",", prefix = "[", postfix = "]") {
+        val samples = elevOverDist.snapshot()
+        if (samples.isEmpty()) return "[]"
+        return samples.joinToString(separator = ",", prefix = "[", postfix = "]") {
             """{"d":${it.first},"a":${it.second}}"""
         }
     }

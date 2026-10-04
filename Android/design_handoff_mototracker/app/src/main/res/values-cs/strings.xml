@@ -543,4 +543,9 @@
     <string name="register_error_email_taken">Tato e-mailová adresa je již zaregistrována.</string>
     <string name="register_error_invalid_input">Neplatné registrační údaje. Zkontroluj e-mail a heslo.</string>
     <string name="register_error_network">Chyba sítě. Zkontroluj připojení a adresu serveru.</string>
+    <string name="car_recording_blocked">Odemkněte telefon a otevřete MotoTracker pro nahrávání — jízda pozastavena</string>
+    <string name="toast_ride_save_failed">Jízdu se nepodařilo uložit — je pozastavena, zkuste znovu Ukončit</string>
+    <string name="notif_channel_recording">Nahrávání jízdy</string>
+    <string name="notif_recording_text">Nahrává se jízda — klepnutím otevřete</string>
+    <string name="notif_action_finish">Ukončit a uložit</string>
 </resources>

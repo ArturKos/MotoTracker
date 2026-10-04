@@ -573,4 +573,9 @@
     <string name="perm_contacts_denied">Contacts permission denied. Grant permission to add recipients.</string>
     <string name="sms_default_template">MotoTracker: I\'m here %s</string>
     <string name="sms_permission_denied">SMS location sharing is enabled, but the SEND_SMS permission was denied. SMS messages will not be sent during this ride.</string>
+    <string name="car_recording_blocked">Unlock the phone and open MotoTracker to record — the ride is paused</string>
+    <string name="toast_ride_save_failed">Could not save the ride — it is paused, try Finish again</string>
+    <string name="notif_channel_recording">Ride recording</string>
+    <string name="notif_recording_text">Recording your ride — tap to open</string>
+    <string name="notif_action_finish">Finish &amp; save</string>
 </resources>

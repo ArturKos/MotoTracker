@@ -12,12 +12,16 @@ import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.SyncRetryPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,6 +56,15 @@ class SyncRepositoryImpl @Inject constructor(
      */
     private val drainMutex = Mutex()
 
+    /** Fired by [enqueue] so a newly queued route is uploaded without waiting for a connectivity change. */
+    private val enqueued = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /** Wakes the retry timer after every drain pass so it re-reads the earliest back-off deadline. */
+    private val rearmRetry = Channel<Unit>(Channel.CONFLATED)
+
     override val pendingCount: Flow<Int> = syncQueueDao.getPendingCount()
 
     /**
@@ -73,6 +86,7 @@ class SyncRepositoryImpl @Inject constructor(
                 lastError = null,
             )
         )
+        enqueued.tryEmit(Unit)
     }
 
     /**
@@ -89,13 +103,18 @@ class SyncRepositoryImpl @Inject constructor(
     /**
      * Launches the background auto-drain coroutines in [scope].
      *
-     * Three tasks are started, all using [Dispatchers.Unconfined]:
+     * Three tasks are started using [Dispatchers.Unconfined]:
      * 1. A one-shot initial [tryDrain] that runs synchronously on the calling thread, so
      *    it fires immediately even when [scope] is backed by a paused test dispatcher.
      * 2. A continuous watcher on [NetworkMonitor.isOnline] that re-evaluates on every
      *    connectivity change after the first emission (drop(1) avoids double-drain with #1).
      * 3. A continuous watcher on [AppSettingsSource.settings] that re-evaluates on every
      *    settings change after the first emission.
+     *
+     * Two more run on [scope]'s own dispatcher:
+     * 4. A watcher on [enqueue] calls, so a route saved while online is uploaded right away.
+     * 5. A retry timer that sleeps until the earliest FAILED entry's back-off deadline and then
+     *    re-evaluates; without it a failed upload waited for the next connectivity change.
      *
      * [Dispatchers.Unconfined] is intentional here: the lightweight [tryDrain] check reads
      * two StateFlows (instant) then delegates all IO work to [Dispatchers.IO] inside
@@ -111,18 +130,54 @@ class SyncRepositoryImpl @Inject constructor(
         }
         scope.launch(Dispatchers.Unconfined) { networkMonitor.isOnline.drop(1).collect { tryDrain() } }
         scope.launch(Dispatchers.Unconfined) { settingsSource.settings.drop(1).collect { tryDrain() } }
+        scope.launch { enqueued.collect { tryDrain() } }
+        scope.launch { runRetryTimer() }
+    }
+
+    /**
+     * Sleeps until the earliest FAILED entry becomes due, then runs [tryDrain]. Every drain pass
+     * re-arms the timer ([rearmRetry]) so a fresh failure shortens the wait; with no failed
+     * entries the timer only waits for the next re-arm. When a due retry cannot run (offline,
+     * sync disabled) the timer also waits for a re-arm instead of polling — the connectivity
+     * and settings watchers drain, and so re-arm it, once conditions allow.
+     */
+    private suspend fun runRetryTimer() {
+        var blocked = false
+        while (true) {
+            val waitMs = if (blocked) null else millisUntilNextRetry()
+            val rearmed = if (waitMs == null) {
+                rearmRetry.receive()
+                true
+            } else {
+                withTimeoutOrNull(waitMs) { rearmRetry.receive() } != null
+            }
+            blocked = if (rearmed) false else !tryDrain()
+        }
+    }
+
+    /** Milliseconds until the earliest FAILED entry is due (at least [MIN_RETRY_WAIT_MS]); null when none. */
+    private suspend fun millisUntilNextRetry(): Long? {
+        val next = syncQueueDao.getPendingSnapshot()
+            .filter { it.state == SyncQueueState.FAILED }
+            .mapNotNull { it.nextRetryEpochMs }
+            .minOrNull()
+            ?: return null
+        return (next - timeProvider.nowEpochMs()).coerceAtLeast(MIN_RETRY_WAIT_MS)
     }
 
     /**
      * Evaluates the current network + settings state and drains the queue if conditions are met.
      *
      * Conditions: online AND NOT [AppSettings.noInternet] AND [AppSettings.syncEnabled].
+     *
+     * @return `true` when a drain pass ran, `false` when the conditions blocked it.
      */
-    private suspend fun tryDrain() {
+    private suspend fun tryDrain(): Boolean {
         val online = networkMonitor.isOnline.first()
         val settings = settingsSource.settings.first()
         val shouldDrain = online && !settings.noInternet && settings.syncEnabled
         if (shouldDrain) drain(settings.serverAddress)
+        return shouldDrain
     }
 
     /**
@@ -144,6 +199,7 @@ class SyncRepositoryImpl @Inject constructor(
             for (entry in due) {
                 if (processEntry(entry, serverAddress)) uploaded++
             }
+            rearmRetry.trySend(Unit)
             uploaded
         }
     }
@@ -187,5 +243,10 @@ class SyncRepositoryImpl @Inject constructor(
             )
             false
         }
+    }
+
+    private companion object {
+        /** Floor for the retry timer so an already-due entry is not re-checked in a busy loop. */
+        const val MIN_RETRY_WAIT_MS = 1_000L
     }
 }

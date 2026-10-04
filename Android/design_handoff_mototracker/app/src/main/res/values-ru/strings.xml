@@ -543,4 +543,9 @@
     <string name="register_error_email_taken">Этот e-mail адрес уже зарегистрирован.</string>
     <string name="register_error_invalid_input">Неверные регистрационные данные. Проверьте e-mail и пароль.</string>
     <string name="register_error_network">Ошибка сети. Проверьте соединение и адрес сервера.</string>
+    <string name="car_recording_blocked">Разблокируйте телефон и откройте MotoTracker для записи — поездка на паузе</string>
+    <string name="toast_ride_save_failed">Не удалось сохранить поездку — она на паузе, нажмите «Завершить» ещё раз</string>
+    <string name="notif_channel_recording">Запись поездки</string>
+    <string name="notif_recording_text">Идёт запись поездки — нажмите, чтобы открыть</string>
+    <string name="notif_action_finish">Завершить и сохранить</string>
 </resources>

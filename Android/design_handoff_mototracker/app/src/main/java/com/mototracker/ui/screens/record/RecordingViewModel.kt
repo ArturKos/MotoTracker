@@ -35,6 +35,7 @@ import com.mototracker.domain.battery.BatteryOptimizationGate
 import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.domain.recording.RouteResumeSeed
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -498,7 +499,16 @@ class RecordingViewModel @Inject constructor(
     private fun doFinish() {
         val finish = ride.finishAsync()
         viewModelScope.launch {
-            val result = finish.await()
+            val result = try {
+                finish.await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The ride already went back to Paused with its snapshot intact.
+                mirrorRide()
+                _effects.emit(RecordingEffect.SaveFailed)
+                return@launch
+            }
             mirrorRide()
             _effects.emit(RecordingEffect.Saved(offline = result.offline))
             _effects.emit(RecordingEffect.NavigateToDetail(result.routeId))

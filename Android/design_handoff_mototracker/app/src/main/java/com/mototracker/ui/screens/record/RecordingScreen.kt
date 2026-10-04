@@ -159,6 +159,8 @@ fun RecordingScreen(
                     snackbarHostState.showSnackbar(msg)
                 }
                 is RecordingEffect.NavigateToDetail -> { /* wired in B4 */ }
+                is RecordingEffect.SaveFailed ->
+                    snackbarHostState.showSnackbar(context.getString(R.string.toast_ride_save_failed))
             }
         }
     }

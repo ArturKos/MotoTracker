@@ -1,8 +1,10 @@
 package com.mototracker.service
 
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
@@ -30,6 +32,7 @@ import com.mototracker.data.repository.BikeRepository
 import com.mototracker.data.settings.SettingsStore
 import com.mototracker.data.sms.SmsSender
 import com.mototracker.domain.recording.LocationSample
+import com.mototracker.ui.screens.record.ActiveRideHolder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,8 +50,10 @@ import javax.inject.Inject
 /**
  * Foreground location service that keeps the GPS lock alive while the app is backgrounded.
  *
- * Started by [com.mototracker.ui.screens.record.RecordingScreen] when recording begins
- * and stopped when the session finishes or is abandoned.
+ * Started and stopped by [com.mototracker.ui.screens.record.ActiveRide] as the ride enters
+ * Recording and returns to Idle. Its notification opens the app and offers "Finish & save"
+ * ([ACTION_FINISH]). If Android refuses the foreground state, the ride is paused via
+ * [com.mototracker.ui.screens.record.ActiveRide.onRecordingServiceBlocked].
  *
  * X1 wiring: instantiates one [EncounterTracker] per session. On each raw BLE sighting
  * the service determines the rider's gap threshold (infinite for in-group members, otherwise
@@ -74,6 +79,7 @@ class RecordingService : Service() {
     @Inject lateinit var rideLocationCollector: RideLocationCollector
     @Inject lateinit var rideSignaler: RideSignaler
     @Inject lateinit var smsSender: SmsSender
+    @Inject lateinit var rideHolder: ActiveRideHolder
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -104,14 +110,26 @@ class RecordingService : Service() {
             stopSelf(startId)
             return START_NOT_STICKY
         }
+        if (intent.action == ACTION_FINISH) {
+            // "Finish & save" from the notification: the ride saves itself and, once Idle,
+            // stops this service through its phase hook.
+            val ride = rideHolder.ride
+            if (ride == null) stopSelf(startId) else ride.finishAsync()
+            return START_NOT_STICKY
+        }
         intent.getStringExtra(EXTRA_ROUTE_ID)?.let { activeRouteId = it }
         ensureChannel()
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(getString(R.string.screen_record))
-            .setOngoing(true)
-            .build()
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (e: Exception) {
+            // Android 12+ refuses a foreground service started from the background, and
+            // Android 14 refuses a location one without a while-in-use grant (e.g. a ride
+            // started from Android Auto with the phone locked). Without the foreground state
+            // there is no GPS, so pause the ride and tell the rider instead of crashing.
+            rideHolder.ride?.onRecordingServiceBlocked()
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
 
         if (wakeLock?.isHeld != true) {
             val pm = getSystemService(PowerManager::class.java)
@@ -175,6 +193,7 @@ class RecordingService : Service() {
                         lastSentMs = lastSentMs,
                         nowMs = nowMs,
                         intervalMinutes = currentSettings.smsIntervalMinutes,
+                        fixTimeMs = sample?.timeMs,
                     )
                 ) {
                     val messages = SmsLocationMessageBuilder.build(
@@ -263,13 +282,45 @@ class RecordingService : Service() {
         return newId
     }
 
-    private fun ensureChannel() {
-        val nm = getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-            nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Recording", NotificationManager.IMPORTANCE_LOW)
+    /**
+     * Ongoing ride notification: tapping it opens the app, and its action finishes and saves
+     * the ride without unlocking into the app.
+     */
+    private fun buildNotification(): Notification {
+        val openApp = packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
+            PendingIntent.getActivity(
+                this,
+                REQUEST_OPEN_APP,
+                launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
         }
+        val finish = PendingIntent.getService(
+            this,
+            REQUEST_FINISH,
+            Intent(this, RecordingService::class.java).setAction(ACTION_FINISH),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(getString(R.string.screen_record))
+            .setContentText(getString(R.string.notif_recording_text))
+            .setContentIntent(openApp)
+            .addAction(0, getString(R.string.notif_action_finish), finish)
+            .setOngoing(true)
+            .build()
+    }
+
+    /** Creates the channel, or renames an existing one to the current language. */
+    private fun ensureChannel() {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.notif_channel_recording),
+                NotificationManager.IMPORTANCE_LOW,
+            )
+        )
     }
 
     companion object {
@@ -277,6 +328,10 @@ class RecordingService : Service() {
         const val NOTIFICATION_ID = 1001
         /** Intent extra key carrying the active route UUID for BLE wave association. */
         const val EXTRA_ROUTE_ID = "extra_route_id"
+        /** Intent action sent by the notification's "Finish & save" button. */
+        const val ACTION_FINISH = "com.mototracker.action.FINISH_RIDE"
+        private const val REQUEST_OPEN_APP = 1
+        private const val REQUEST_FINISH = 2
         private val BLE_DEVICE_ID_KEY = stringPreferencesKey("ble_short_device_id")
     }
 }

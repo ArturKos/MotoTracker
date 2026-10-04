@@ -4,6 +4,7 @@ import androidx.car.app.CarAppService
 import androidx.car.app.Session
 import androidx.car.app.validation.HostValidator
 import dagger.hilt.android.AndroidEntryPoint
+import com.mototracker.ui.screens.record.ActiveRideHolder
 import javax.inject.Inject
 
 /**
@@ -24,6 +25,10 @@ class MotoTrackerCarAppService : CarAppService() {
     @Inject
     lateinit var bridge: CarRecordingBridge
 
+    /** Ensures the process ride exists so car commands work even if the phone UI never opened. */
+    @Inject
+    lateinit var rideHolder: ActiveRideHolder
+
     override fun createHostValidator(): HostValidator =
         HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
 
@@ -31,5 +36,8 @@ class MotoTrackerCarAppService : CarAppService() {
      * Creates a new [RecordingSession] for each head-unit connection, passing the
      * app-scoped [CarRecordingBridge] so the car screen can observe recording state.
      */
-    override fun onCreateSession(): Session = RecordingSession(bridge)
+    override fun onCreateSession(): Session {
+        rideHolder.obtainOrNull()
+        return RecordingSession(bridge)
+    }
 }

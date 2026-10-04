@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +44,13 @@ class SyncRepositoryImpl @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val timeProvider: TimeProvider,
 ) : SyncRepository {
+
+    /**
+     * Serialises [drain] passes. Connectivity changes, settings changes and manual
+     * "sync now" can all trigger a drain at the same moment; without this, two passes could
+     * read the same pending snapshot and upload the same entry twice.
+     */
+    private val drainMutex = Mutex()
 
     override val pendingCount: Flow<Int> = syncQueueDao.getPendingCount()
 
@@ -95,7 +104,11 @@ class SyncRepositoryImpl @Inject constructor(
      * using `backgroundScope` observe the effect synchronously.
      */
     override fun start(scope: CoroutineScope) {
-        scope.launch(Dispatchers.Unconfined) { tryDrain() }
+        scope.launch(Dispatchers.Unconfined) {
+            // Recover entries orphaned in IN_PROGRESS by a process death mid-upload.
+            syncQueueDao.resetInProgress()
+            tryDrain()
+        }
         scope.launch(Dispatchers.Unconfined) { networkMonitor.isOnline.drop(1).collect { tryDrain() } }
         scope.launch(Dispatchers.Unconfined) { settingsSource.settings.drop(1).collect { tryDrain() } }
     }
@@ -120,17 +133,19 @@ class SyncRepositoryImpl @Inject constructor(
      * @return Number of successfully uploaded entries.
      */
     private suspend fun drain(serverAddress: String): Int {
-        val now = timeProvider.nowEpochMs()
-        val pending = syncQueueDao.getPendingSnapshot()
-        val due = pending.filter { entry ->
-            entry.state != SyncQueueState.IN_PROGRESS &&
-                (entry.nextRetryEpochMs == null || entry.nextRetryEpochMs <= now)
+        return drainMutex.withLock {
+            val now = timeProvider.nowEpochMs()
+            val pending = syncQueueDao.getPendingSnapshot()
+            val due = pending.filter { entry ->
+                entry.state != SyncQueueState.IN_PROGRESS &&
+                    (entry.nextRetryEpochMs == null || entry.nextRetryEpochMs <= now)
+            }
+            var uploaded = 0
+            for (entry in due) {
+                if (processEntry(entry, serverAddress)) uploaded++
+            }
+            uploaded
         }
-        var uploaded = 0
-        for (entry in due) {
-            if (processEntry(entry, serverAddress)) uploaded++
-        }
-        return uploaded
     }
 
     /**

@@ -87,9 +87,24 @@ class RecordingService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * Guards the per-session workers (location collector, SMS loop, BLE waves) so they are
+     * launched exactly once per service instance. [onStartCommand] runs again on every
+     * `startForegroundService` call — each Paused→Recording transition and each return to the
+     * Record screen — and previously spawned a duplicate SMS loop and BLE collector each time.
+     */
+    private val workersStarted = StartOnceLatch()
+
     @SuppressLint("WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        activeRouteId = intent?.getStringExtra(EXTRA_ROUTE_ID)
+        if (intent == null) {
+            // START_STICKY restart after the process was killed: the recording engine lives in
+            // the UI process state and is gone, so nothing would be recorded. Don't keep GPS,
+            // BLE and a wakelock alive for nothing — the rider resumes from the saved snapshot.
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        intent.getStringExtra(EXTRA_ROUTE_ID)?.let { activeRouteId = it }
         ensureChannel()
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -104,10 +119,12 @@ class RecordingService : Service() {
             wakeLock?.acquire()
         }
 
-        rideLocationCollector.start()
-        startLocationSampleCollector()
-        startSmsLoop()
-        startBleWaves()
+        if (workersStarted.tryAcquire()) {
+            rideLocationCollector.start()
+            startLocationSampleCollector()
+            startSmsLoop()
+            startBleWaves()
+        }
 
         return START_STICKY
     }

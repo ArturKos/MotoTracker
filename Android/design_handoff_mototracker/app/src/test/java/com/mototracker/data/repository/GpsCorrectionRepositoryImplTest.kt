@@ -89,6 +89,15 @@ private class FakeCorrectionQueueDao : CorrectionQueueDao {
 
     override fun getPending(): Flow<List<CorrectionQueueEntity>> = _pendingFlow
 
+    override suspend fun resetInProgress(): Int {
+        var n = 0
+        _entries.replaceAll { e ->
+            if (e.state == CorrectionQueueState.IN_PROGRESS) { n++; e.copy(state = CorrectionQueueState.PENDING) } else e
+        }
+        refresh()
+        return n
+    }
+
     override suspend fun pruneDone() {
         _entries.removeAll { it.state == CorrectionQueueState.DONE }
         refresh()

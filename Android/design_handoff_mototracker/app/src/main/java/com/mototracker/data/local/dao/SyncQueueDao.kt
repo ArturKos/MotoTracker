@@ -86,4 +86,16 @@ interface SyncQueueDao {
         """
     )
     suspend fun getPendingSnapshot(): List<SyncQueueEntity>
+
+    /**
+     * Returns every `IN_PROGRESS` entry to `PENDING`.
+     *
+     * An entry is marked `IN_PROGRESS` just before its network call; if the process dies
+     * mid-call it would otherwise stay `IN_PROGRESS` forever and be skipped by every drain.
+     * Called once when the sync loop starts, before the first drain.
+     *
+     * @return Number of rows reset.
+     */
+    @Query("UPDATE sync_queue SET state = 'PENDING' WHERE state = 'IN_PROGRESS'")
+    suspend fun resetInProgress(): Int
 }

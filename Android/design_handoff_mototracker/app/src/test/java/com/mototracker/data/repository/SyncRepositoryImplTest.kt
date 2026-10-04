@@ -14,6 +14,9 @@ import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.domain.SyncRetryPolicy
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -115,6 +118,15 @@ private class FakeSyncQueueDao : SyncQueueDao {
             .sortedWith(compareBy(nullsFirst()) { it.nextRetryEpochMs })
         println("DEBUG getPendingSnapshot: ${result.size} entries: ${result.map { "${it.routeId}/${it.state}" }}")
         return result
+    }
+
+    override suspend fun resetInProgress(): Int {
+        var n = 0
+        _entries.replaceAll { e ->
+            if (e.state == SyncQueueState.IN_PROGRESS) { n++; e.copy(state = SyncQueueState.PENDING) } else e
+        }
+        refresh()
+        return n
     }
 
     /** Test helper: returns all stored entries regardless of state. */
@@ -575,5 +587,64 @@ class SyncRepositoryImplTest {
         assertNull(syncQueueDao.find("r1"))
         assertNull(syncQueueDao.find("r2"))
         assertNull(syncQueueDao.find("r3"))
+    }
+
+    // ── Review fixes: orphaned IN_PROGRESS + concurrent drains ──────────────
+
+    @Test
+    fun `start recovers an entry orphaned in IN_PROGRESS and uploads it`() = runTest {
+        routeDao.upsert(routeEntity("r1"))
+        repo.enqueue("r1")
+        // Simulate a process death mid-upload: entry left IN_PROGRESS.
+        val orphan = syncQueueDao.find("r1")!!.copy(state = SyncQueueState.IN_PROGRESS)
+        syncQueueDao.upsert(orphan)
+
+        repo.start(backgroundScope)
+        advanceUntilIdle()
+
+        assertEquals(1, client.calls.size)
+        assertTrue(routeDao.find("r1")!!.synced)
+        assertNull(syncQueueDao.find("r1"))
+    }
+
+    @Test
+    fun `concurrent syncNow calls upload each entry only once`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val uploads = mutableListOf<String>()
+        val slowClient = object : GpStrackClient {
+            override suspend fun login(serverAddress: String, email: String, password: String) =
+                Result.success(Unit)
+            override suspend fun register(serverAddress: String, email: String, password: String) =
+                Result.success(Unit)
+            override suspend fun uploadRoute(serverAddress: String, route: Route): Result<Unit> {
+                uploads += route.id
+                gate.await()
+                return Result.success(Unit)
+            }
+        }
+        // Yield right after reading the snapshot, like a real Room call that hops threads:
+        // without the drain mutex both passes would read the same PENDING entry here.
+        val yieldingDao = object : SyncQueueDao by syncQueueDao {
+            override suspend fun getPendingSnapshot(): List<SyncQueueEntity> =
+                syncQueueDao.getPendingSnapshot().also { yield() }
+        }
+        val slowRepo = SyncRepositoryImpl(
+            syncQueueDao = yieldingDao,
+            routeDao = routeDao,
+            settingsSource = settingsSource,
+            client = slowClient,
+            networkMonitor = networkMonitor,
+            timeProvider = timeProvider,
+        )
+        routeDao.upsert(routeEntity("r1"))
+        slowRepo.enqueue("r1")
+
+        val first = async { slowRepo.syncNow() }
+        val second = async { slowRepo.syncNow() }
+        advanceUntilIdle()
+        gate.complete(Unit)
+
+        assertEquals(1, first.await() + second.await())
+        assertEquals(listOf("r1"), uploads)
     }
 }

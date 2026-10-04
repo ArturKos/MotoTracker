@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -69,7 +70,14 @@ class SettingsDataStore @Inject constructor(
 
     private val defaults = AppSettings()
 
-    /** Live stream of the current [AppSettings], emitting on every change. */
+    /**
+     * Live stream of the current [AppSettings], emitting only when a settings value changes.
+     *
+     * The backing [DataStore] is shared with other stores (session cookie, active-recording
+     * snapshot written on every GPS fix), so [DataStore.data] emits far more often than settings
+     * actually change. [distinctUntilChanged] keeps those unrelated writes from waking every
+     * settings subscriber (sync/correction drain loops, ViewModels) once per second during a ride.
+     */
     override val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             // Migration: prefer new key; fall back to legacy offline_only key, then default false.
@@ -104,7 +112,7 @@ class SettingsDataStore @Inject constructor(
             smsIntervalMinutes = prefs[Keys.SMS_INTERVAL_MINUTES] ?: defaults.smsIntervalMinutes,
             smsRecipients = SmsRecipientCodec.decode(prefs[Keys.SMS_RECIPIENTS] ?: ""),
         )
-    }
+    }.distinctUntilChanged()
 
     /** Persists the master network kill-switch [noInternet] flag (U1). */
     override suspend fun setNoInternet(value: Boolean) {

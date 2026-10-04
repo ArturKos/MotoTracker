@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
@@ -58,6 +60,13 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
 
     private val qualityGate = CorrectionQualityGate()
 
+    /**
+     * Serialises [drain] passes. Connectivity changes, settings changes and manual
+     * "sync now" can all trigger a drain at the same moment; without this, two passes could
+     * read the same pending snapshot and upload the same entry twice.
+     */
+    private val drainMutex = Mutex()
+
     override val pendingCount: Flow<Int> = correctionQueueDao.getPendingCount()
 
     /** Inserts or resets the correction queue entry for [routeId] to [CorrectionQueueState.PENDING]. */
@@ -87,7 +96,11 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
      * Launches background coroutines in [scope] that re-drain when connectivity or settings change.
      */
     override fun start(scope: CoroutineScope) {
-        scope.launch(Dispatchers.Unconfined) { tryDrain() }
+        scope.launch(Dispatchers.Unconfined) {
+            // Recover entries orphaned in IN_PROGRESS by a process death mid-upload.
+            correctionQueueDao.resetInProgress()
+            tryDrain()
+        }
         scope.launch(Dispatchers.Unconfined) { networkMonitor.isOnline.drop(1).collect { tryDrain() } }
         scope.launch(Dispatchers.Unconfined) { settingsSource.settings.drop(1).collect { tryDrain() } }
     }
@@ -99,17 +112,19 @@ class GpsCorrectionRepositoryImpl @Inject constructor(
     }
 
     private suspend fun drain(osrmBaseUrl: String): Int {
-        val now = timeProvider.nowEpochMs()
-        val pending = correctionQueueDao.getPendingSnapshot()
-        val due = pending.filter { entry ->
-            entry.state != CorrectionQueueState.IN_PROGRESS &&
-                (entry.nextRetryEpochMs == null || entry.nextRetryEpochMs <= now)
+        return drainMutex.withLock {
+            val now = timeProvider.nowEpochMs()
+            val pending = correctionQueueDao.getPendingSnapshot()
+            val due = pending.filter { entry ->
+                entry.state != CorrectionQueueState.IN_PROGRESS &&
+                    (entry.nextRetryEpochMs == null || entry.nextRetryEpochMs <= now)
+            }
+            var corrected = 0
+            for (entry in due) {
+                if (processEntry(entry, osrmBaseUrl)) corrected++
+            }
+            corrected
         }
-        var corrected = 0
-        for (entry in due) {
-            if (processEntry(entry, osrmBaseUrl)) corrected++
-        }
-        return corrected
     }
 
     /**

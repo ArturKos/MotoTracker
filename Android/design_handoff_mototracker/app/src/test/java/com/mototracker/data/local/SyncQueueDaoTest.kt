@@ -139,4 +139,20 @@ class SyncQueueDaoTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `resetInProgress returns IN_PROGRESS entries to PENDING only`() = runTest {
+        db.routeDao().upsert(route("r1"))
+        db.routeDao().upsert(route("r2"))
+        db.routeDao().upsert(route("r3"))
+        db.syncQueueDao().upsert(queueEntry("r1", SyncQueueState.IN_PROGRESS))
+        db.syncQueueDao().upsert(queueEntry("r2", SyncQueueState.FAILED, retryMs = 5L))
+        db.syncQueueDao().upsert(queueEntry("r3", SyncQueueState.DONE))
+
+        assertEquals(1, db.syncQueueDao().resetInProgress())
+
+        assertEquals(SyncQueueState.PENDING, db.syncQueueDao().findByRouteId("r1")!!.state)
+        assertEquals(SyncQueueState.FAILED, db.syncQueueDao().findByRouteId("r2")!!.state)
+        assertEquals(SyncQueueState.DONE, db.syncQueueDao().findByRouteId("r3")!!.state)
+    }
 }

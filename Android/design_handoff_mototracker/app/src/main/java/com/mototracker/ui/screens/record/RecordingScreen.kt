@@ -94,7 +94,6 @@ import com.mototracker.domain.location.GnssSignalLevel
 import com.mototracker.domain.recording.RecordingControl
 import com.mototracker.domain.recording.RecordingControls
 import com.mototracker.domain.recording.RecordingMetrics
-import com.mototracker.service.RecordingService
 import com.mototracker.ui.permissions.AppFeaturePermission
 import com.mototracker.ui.permissions.PermissionDeniedBanner
 import com.mototracker.ui.permissions.rememberFeaturePermission
@@ -164,13 +163,8 @@ fun RecordingScreen(
         }
     }
 
-    LaunchedEffect(state.phase) {
-        when (state.phase) {
-            RecordingPhase.Recording -> startRecordingService(context, state.activeRouteId)
-            RecordingPhase.Idle -> stopRecordingService(context)
-            RecordingPhase.Paused -> Unit
-        }
-    }
+    // RecordingService is started/stopped by ActiveRide from the ride phase, so it also follows
+    // rides started or stopped from Android Auto while this screen is not shown.
 
     // Lock orientation to portrait while recording/paused so the accelerometer axes stay
     // consistent with lean-angle calibration.  Released (Unspecified) on Idle or disposal.
@@ -1386,16 +1380,6 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
-private fun startRecordingService(context: Context, routeId: String?) {
-    val intent = Intent(context, RecordingService::class.java).apply {
-        if (routeId != null) putExtra(RecordingService.EXTRA_ROUTE_ID, routeId)
-    }
-    context.startForegroundService(intent)
-}
-
-private fun stopRecordingService(context: Context) {
-    context.stopService(Intent(context, RecordingService::class.java))
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Group roster sheet (X2)

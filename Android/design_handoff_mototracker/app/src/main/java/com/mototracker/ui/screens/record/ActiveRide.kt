@@ -1,6 +1,32 @@
 package com.mototracker.ui.screens.record
 
+import android.content.Context
+import android.content.Intent
+import com.mototracker.R
+import com.mototracker.car.CarRecordingBridge
+import com.mototracker.core.resource.StringResolver
 import com.mototracker.data.diagnostics.RideDebugLogger
+import com.mototracker.data.location.ReverseGeocoder
+import com.mototracker.data.model.Route
+import com.mototracker.data.repository.RefuelRepository
+import com.mototracker.data.repository.RouteRepository
+import com.mototracker.data.repository.SyncRepository
+import com.mototracker.domain.fuel.AutoUpdateBikeConsumptionUseCase
+import com.mototracker.domain.naming.PartOfDay
+import com.mototracker.domain.naming.RouteNameComposer
+import com.mototracker.service.RecordingService
+import com.mototracker.ui.map.GeoCoord
+import com.mototracker.ui.map.TrackGeometry
+import com.mototracker.ui.state.Units
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import java.time.ZoneId
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.WeatherClient
@@ -33,13 +59,92 @@ import javax.inject.Singleton
  *
  * The ride must outlive any one [RecordingViewModel]: when the rider swipes the app away from
  * recents (or Android destroys the Activity to reclaim memory) the ViewModel is cleared, but
- * [com.mototracker.service.RecordingService] keeps the process alive and the ride must keep
- * recording. A freshly created ViewModel picks the same [ActiveRide] up from here.
+ * [RecordingService] keeps the process alive and the ride must keep recording. A freshly created
+ * ViewModel picks the same [ActiveRide] up from here, and the Android Auto service creates it
+ * when the car connects before the phone UI was ever opened.
+ *
+ * @param factory Builds the production ride from injected singletons; null in unit tests, where
+ *                the ViewModel supplies its own fakes through [obtain]'s fallback.
  */
 @Singleton
-class ActiveRideHolder @Inject constructor() {
-    /** The ride for this process; created lazily by the first [RecordingViewModel]. */
+class ActiveRideHolder private constructor(private val factory: (() -> ActiveRide)?) {
+
+    /** Production constructor: the ride is built from [deps]. */
+    @Inject
+    constructor(deps: ActiveRideDeps) : this({ deps.create() })
+
+    /** Test constructor: the first [obtain] caller supplies the ride. */
+    constructor() : this(null)
+
+    /** The ride for this process, once created. */
     var ride: ActiveRide? = null
+        private set
+
+    /** Returns the process ride, creating it on first use (from [factory], else from [fallback]). */
+    fun obtain(fallback: () -> ActiveRide): ActiveRide =
+        ride ?: (factory?.invoke() ?: fallback()).also { ride = it }
+
+    /** Returns the process ride, creating it from the injected factory; null only in tests. */
+    fun obtainOrNull(): ActiveRide? = ride ?: factory?.invoke()?.also { ride = it }
+}
+
+/**
+ * Injected collaborators for the production [ActiveRide].
+ *
+ * Starts and stops [RecordingService] from the ride's phase, so the foreground service follows
+ * the ride whether it was started from the phone screen or from the car.
+ */
+class ActiveRideDeps @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val rideLocationCollector: RideLocationCollector,
+    private val leanSensorSource: LeanSensorSource,
+    private val sessionStore: RecordingSessionStore,
+    private val timeProvider: TimeProvider,
+    private val rideDebugLogger: RideDebugLogger,
+    private val settingsSource: AppSettingsSource,
+    private val networkMonitor: NetworkMonitor,
+    private val weatherClient: WeatherClient,
+    private val routeRepository: RouteRepository,
+    private val syncRepository: SyncRepository,
+    private val refuelRepository: RefuelRepository,
+    private val autoUpdateBikeConsumptionUseCase: AutoUpdateBikeConsumptionUseCase,
+    private val reverseGeocoder: ReverseGeocoder,
+    private val stringResolver: StringResolver,
+    private val carBridge: CarRecordingBridge,
+) {
+    /** Builds the process ride on the main dispatcher. */
+    fun create(): ActiveRide = ActiveRide(
+        rideLocationCollector = rideLocationCollector,
+        leanSensorSource = leanSensorSource,
+        sessionStore = sessionStore,
+        timeProvider = timeProvider,
+        rideDebugLogger = rideDebugLogger,
+        settingsSource = settingsSource,
+        networkMonitor = networkMonitor,
+        weatherClient = weatherClient,
+        routeRepository = routeRepository,
+        syncRepository = syncRepository,
+        refuelRepository = refuelRepository,
+        autoUpdateBikeConsumptionUseCase = autoUpdateBikeConsumptionUseCase,
+        reverseGeocoder = reverseGeocoder,
+        stringResolver = stringResolver,
+        carBridge = carBridge,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+        onPhaseChanged = { phase, routeId -> driveService(phase, routeId) },
+    )
+
+    private fun driveService(phase: RecordingPhase, routeId: String?) {
+        val intent = Intent(context, RecordingService::class.java)
+        when (phase) {
+            RecordingPhase.Recording -> {
+                if (routeId != null) intent.putExtra(RecordingService.EXTRA_ROUTE_ID, routeId)
+                runCatching { context.startForegroundService(intent) }
+                    .onFailure { rideDebugLogger.log("ERROR", "startForegroundService: ${it.message}") }
+            }
+            RecordingPhase.Idle -> context.stopService(intent)
+            RecordingPhase.Paused -> Unit
+        }
+    }
 }
 
 /**
@@ -53,7 +158,13 @@ class ActiveRideHolder @Inject constructor() {
  * Not thread-safe by design: every caller (the ViewModel and the workers launched in [scope])
  * runs on the main dispatcher, so all mutations are serialised on one thread.
  *
- * @param scope Process-lived scope (main dispatcher) that owns the background workers.
+ * It also serves Android Auto directly — it publishes metrics/phase/units to [CarRecordingBridge]
+ * and executes the car's start/pause/resume/stop commands — so the car keeps working when the
+ * phone UI is closed.
+ *
+ * @param scope          Process-lived scope (main dispatcher) that owns the background workers.
+ * @param onPhaseChanged Called on every phase change after creation; production starts/stops
+ *                       [RecordingService] here. Null in unit tests.
  */
 class ActiveRide(
     private val rideLocationCollector: RideLocationCollector,
@@ -64,7 +175,15 @@ class ActiveRide(
     private val settingsSource: AppSettingsSource,
     private val networkMonitor: NetworkMonitor,
     private val weatherClient: WeatherClient,
+    private val routeRepository: RouteRepository,
+    private val syncRepository: SyncRepository,
+    private val refuelRepository: RefuelRepository,
+    private val autoUpdateBikeConsumptionUseCase: AutoUpdateBikeConsumptionUseCase,
+    private val reverseGeocoder: ReverseGeocoder,
+    private val stringResolver: StringResolver,
+    private val carBridge: CarRecordingBridge,
     private val scope: CoroutineScope,
+    private val onPhaseChanged: ((RecordingPhase, String?) -> Unit)? = null,
 ) {
 
     /** Snapshot of the ride fields the Recording screen renders. */
@@ -115,9 +234,51 @@ class ActiveRide(
         private set
 
     private var weatherFetchedForRide = false
+
+    /** Latest fuel model; used when a ride is started from the car without the phone UI. */
+    private var lastFuelLper100km: Double = 5.0
+    private var lastTankCapacityL: Double? = null
+
+    private var finishJob: Deferred<FinishResult>? = null
+
+    /** Outcome of [finishAsync]: the saved route id and whether it was saved while offline. */
+    data class FinishResult(val routeId: String, val offline: Boolean)
     private var tickerJob: Job? = null
     private var locationJob: Job? = null
     private var leanJob: Job? = null
+
+    init {
+        // Android Auto: mirror the ride to the car and keep units in sync.
+        scope.launch { state.collect { carBridge.publish(it.metrics, it.phase) } }
+        scope.launch {
+            settingsSource.settings
+                .map { if (it.units == "imperial") Units.IMPERIAL else Units.METRIC }
+                .distinctUntilChanged()
+                .collect { carBridge.publishUnits(it) }
+        }
+        // Android Auto: the ride itself executes car commands, so they work without the phone UI.
+        scope.launch { carBridge.commands.collect { onCarCommand(it) } }
+        // Foreground service follows the ride phase (skip the initial Idle).
+        onPhaseChanged?.let { hook ->
+            scope.launch {
+                state.map { it.phase to it.activeRouteId }
+                    .distinctUntilChanged { a, b -> a.first == b.first }
+                    .drop(1)
+                    .collect { (phase, routeId) -> hook(phase, routeId) }
+            }
+        }
+    }
+
+    private fun onCarCommand(event: RecordingEvent) {
+        when (event) {
+            is RecordingEvent.Start ->
+                if (_state.value.phase == RecordingPhase.Idle) startNew(lastFuelLper100km, lastTankCapacityL)
+            is RecordingEvent.Pause -> if (_state.value.phase == RecordingPhase.Recording) pause()
+            is RecordingEvent.Resume -> if (_state.value.phase == RecordingPhase.Paused) resume()
+            is RecordingEvent.Finish -> if (_state.value.phase != RecordingPhase.Idle) finishAsync()
+            else -> Unit
+        }
+    }
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -229,6 +390,109 @@ class ActiveRide(
         }
     }
 
+    /**
+     * Ends the ride: stops the workers, names and saves the route, queues it for sync, persists
+     * buffered refuels, clears the crash-recovery snapshot and returns to Idle.
+     *
+     * Runs in the process scope so a ViewModel being cleared mid-save cannot cut it short.
+     * Calling it again while a finish is in flight returns the same [Deferred].
+     */
+    fun finishAsync(): Deferred<FinishResult> {
+        finishJob?.let { if (it.isActive) return it }
+        rideDebugLogger.log("LIFECYCLE", "finish")
+        stopWorkers()
+        return scope.async { saveFinishedRide() }.also { finishJob = it }
+    }
+
+    private suspend fun saveFinishedRide(): FinishResult {
+        val settings = settingsSource.settings.first()
+        val isOnline = networkMonitor.isOnline.first()
+        val offline = settings.noInternet || !isOnline
+
+        val result = engine.buildRoutePayload()
+
+        // J5: When continuing an existing route, keep its original name and start time.
+        val isResume = resumingExistingRoute
+        val routeName: String
+        val dateEpochMs: Long
+        if (isResume) {
+            routeName = existingRouteName
+            dateEpochMs = existingRouteDateEpochMs
+        } else {
+            val startMs = if (recordingStartMs > 0L) recordingStartMs else timeProvider.nowEpochMs()
+            val rideLabelResId = when (RouteNameComposer.partOfDay(startMs, ZoneId.systemDefault())) {
+                PartOfDay.MORNING   -> R.string.route_name_ride_morning
+                PartOfDay.AFTERNOON -> R.string.route_name_ride_afternoon
+                PartOfDay.EVENING   -> R.string.route_name_ride_evening
+                PartOfDay.NIGHT     -> R.string.route_name_ride_night
+            }
+            val rideLabel = stringResolver.getString(rideLabelResId)
+            routeName = if (!offline) {
+                val pts = TrackGeometry.parsePathJson(result.pathJson)
+                val areas = sampleEvenly(pts, maxCount = 5).map { pt ->
+                    try { reverseGeocoder.areaName(pt.lat, pt.lon) } catch (_: Exception) { null }
+                }
+                val area = RouteNameComposer.dominantArea(areas)
+                if (area != null) {
+                    RouteNameComposer.compose(rideLabel, area, stringResolver.getString(R.string.route_name_with_area))
+                } else {
+                    rideLabel
+                }
+            } else {
+                rideLabel
+            }
+            dateEpochMs = timeProvider.nowEpochMs()
+        }
+
+        val route = Route(
+            id = pendingRouteId ?: UUID.randomUUID().toString(),
+            name = routeName,
+            dateEpochMs = dateEpochMs,
+            bikeId = settings.currentBikeId,
+            km = result.metrics.distanceKm,
+            durSec = result.metrics.durationSec,
+            avg = result.metrics.avgSpeedKmh,
+            max = result.metrics.maxSpeedKmh,
+            lean = result.metrics.maxLeanDeg,
+            elev = result.metrics.elevGainM,
+            fuel = result.metrics.fuelL,
+            synced = false,
+            wxJson = if (isResume) null else pendingWxJson,
+            pathJson = result.pathJson,
+            speedJson = result.speedJson,
+            elevProfileJson = result.elevProfileJson,
+            notes = null,
+            maxLeanLeftDeg = result.metrics.maxLeanLeftDeg,
+            maxLeanRightDeg = result.metrics.maxLeanRightDeg,
+            leanHistogramJson = result.leanHistogramJson,
+        )
+
+        routeRepository.save(route)
+        syncRepository.enqueue(route.id)
+
+        // G5: Persist any buffered refuel events now that the route row exists.
+        val refuelsToSave = _pendingRefuels.toList()
+        refuelsToSave.forEach { r ->
+            refuelRepository.addRefuel(
+                routeId = route.id,
+                epochMs = r.epochMs,
+                litres = r.litres,
+                pricePerL = r.pricePerL,
+            )
+        }
+        // K2: refresh per-bike consumption from ledger if any refuels were just saved.
+        val bikeId = route.bikeId
+        if (refuelsToSave.isNotEmpty() && bikeId != null) {
+            runCatching { autoUpdateBikeConsumptionUseCase.run(bikeId) }
+        }
+
+        // B20: Clear snapshot AFTER the route is durably saved.
+        sessionStore.clear()
+        markIdle()
+        rideDebugLogger.endRide()
+        return FinishResult(routeId = route.id, offline = offline)
+    }
+
     /** Forgets the pre-assigned route id when a resumable session is discarded (B20). */
     fun discardPendingRoute() {
         pendingRouteId = null
@@ -239,6 +503,8 @@ class ActiveRide(
 
     /** Feeds a newly resolved fuel model into the engine without touching session anchors (I2). */
     fun updateFuelConfig(fuelLper100km: Double, tankCapacityL: Double?) {
+        lastFuelLper100km = fuelLper100km
+        lastTankCapacityL = tankCapacityL
         engine.updateFuelConfig(fuelLper100km, tankCapacityL)
         publishMetrics()
     }
@@ -333,5 +599,12 @@ class ActiveRide(
                 saveSnapshot(paused = false)
             }
         }
+    }
+
+    /** Returns up to [maxCount] evenly-spaced points sampled from [points]. */
+    private fun sampleEvenly(points: List<GeoCoord>, maxCount: Int): List<GeoCoord> {
+        if (points.size <= maxCount) return points
+        val step = points.size.toDouble() / maxCount
+        return List(maxCount) { i -> points[(i * step).toInt()] }
     }
 }

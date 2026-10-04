@@ -16,7 +16,7 @@ import com.mototracker.data.location.LocationClient
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.recording.ChannelResumeRouteBus
-import com.mototracker.data.recording.DataStoreRecordingSessionStore
+import com.mototracker.data.recording.JournalRecordingSessionStore
 import com.mototracker.data.recording.RecordingSessionStore
 import com.mototracker.data.recording.ResumeRouteBus
 import com.mototracker.data.repository.BikeRepository
@@ -90,10 +90,10 @@ abstract class RecordingModule {
     @Singleton
     abstract fun bindStringResolver(impl: ContextStringResolver): StringResolver
 
-    /** Binds [DataStoreRecordingSessionStore] as the [RecordingSessionStore] singleton (B20). */
+    /** Binds the append-only [JournalRecordingSessionStore] as the [RecordingSessionStore] singleton (B20). */
     @Binds
     @Singleton
-    abstract fun bindRecordingSessionStore(impl: DataStoreRecordingSessionStore): RecordingSessionStore
+    abstract fun bindRecordingSessionStore(impl: JournalRecordingSessionStore): RecordingSessionStore
 
     /** Binds [AndroidBleWaveSource] as the [BleWaveSource] singleton (B21). */
     @Binds

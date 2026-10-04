@@ -1689,6 +1689,42 @@ class RecordingViewModelTest {
             vm2.onEvent(RecordingEvent.Pause) // stop the ride ticker before runTest drains
         }
 
+    /**
+     * Android Auto controls the ride even when no ViewModel exists: the ride itself consumes the
+     * car's commands, publishes to the car, and runs the full finish/save path.
+     */
+    @Test
+    fun `car commands start pause resume and finish a ride without a ViewModel`() =
+        runTest(testDispatcher) {
+            val holder = ActiveRideHolder()
+            val bridge = com.mototracker.car.CarRecordingBridge()
+            val repo = FakeRouteRepository()
+            val vm = buildViewModel(routeRepository = repo, rideHolder = holder, carBridge = bridge)
+            advanceTimeBy(100L)
+            vm.viewModelScope.cancel() // phone UI gone before the car does anything
+            val ride = holder.ride!!
+
+            bridge.start()
+            advanceTimeBy(100L)
+            assertEquals(RecordingPhase.Recording, ride.state.value.phase)
+            assertEquals(RecordingPhase.Recording, bridge.phase.value)
+
+            bridge.pause()
+            advanceTimeBy(100L)
+            assertEquals(RecordingPhase.Paused, ride.state.value.phase)
+
+            bridge.resume()
+            advanceTimeBy(1_500L)
+            assertEquals(RecordingPhase.Recording, ride.state.value.phase)
+            assertTrue(bridge.metrics.value.durationSec >= 1L)
+
+            bridge.stop()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(RecordingPhase.Idle, ride.state.value.phase)
+            assertEquals(1, repo.saved.size)
+            assertTrue(syncRepo.enqueued.contains(repo.saved.single().id))
+        }
+
     private fun buildViewModel(
         online: Boolean = true,
         noInternet: Boolean = false,
@@ -1710,6 +1746,7 @@ class RecordingViewModelTest {
             FakeBatteryOptimizationChecker(exempt = true),
         settingsStore: com.mototracker.data.settings.SettingsStore = FakeSettingsStore(settings),
         rideHolder: ActiveRideHolder = ActiveRideHolder(),
+        carBridge: com.mototracker.car.CarRecordingBridge = com.mototracker.car.CarRecordingBridge(),
     ) = RecordingViewModel(
         rideHolder = rideHolder,
         rideLocationCollector = rideLocationCollector,
@@ -1721,7 +1758,7 @@ class RecordingViewModelTest {
         bikeRepository = bikeRepository,
         networkMonitor = FakeNetworkMonitor(isOnline = online),
         timeProvider = FakeTimeProvider(fixedTimeMs),
-        carBridge = com.mototracker.car.CarRecordingBridge(),
+        carBridge = carBridge,
         rideDebugLogger = rideDebugLogger,
         reverseGeocoder = reverseGeocoder,
         stringResolver = stringResolver,

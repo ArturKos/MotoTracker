@@ -80,6 +80,9 @@ internal fun encode(snapshot: ActiveSessionSnapshot): String {
         put("maxSpdKmh", e.maxSpeedKmh)
         put("leanDeg", e.currentLeanDeg)
         put("maxLeanDeg", e.maxLeanDeg)
+        put("maxLeanL", e.maxLeanLeftDeg)
+        put("maxLeanR", e.maxLeanRightDeg)
+        put("leanBuckets", JSONArray().also { arr -> e.leanBucketCounts.forEach { arr.put(it) } })
         put("altM", e.altitudeM)
         put("elevGainM", e.elevGainM)
         put("hdgDeg", e.headingDeg.toDouble())
@@ -144,6 +147,9 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         maxSpeedKmh = o.getDouble("maxSpdKmh"),
         currentLeanDeg = o.getDouble("leanDeg"),
         maxLeanDeg = o.getDouble("maxLeanDeg"),
+        // Older snapshots did not persist these; default to the pre-crash-unknown zero values.
+        maxLeanLeftDeg = o.optDouble("maxLeanL", 0.0),
+        maxLeanRightDeg = o.optDouble("maxLeanR", 0.0),
         altitudeM = o.getDouble("altM"),
         elevGainM = o.getDouble("elevGainM"),
         headingDeg = o.getDouble("hdgDeg").toFloat(),
@@ -170,6 +176,9 @@ internal fun decode(json: String): ActiveSessionSnapshot? = try {
         // When anchorLitres is absent, default to tankCapacityL (was full at that km).
         anchorKm = o.optDouble("anchorKm", o.optDouble("fillAnchorKm", 0.0)),
         anchorLitres = o.optDouble("anchorLitres", o.optDoubleOrNull("tankCap") ?: 0.0),
+        leanBucketCounts = o.optJSONArray("leanBuckets")
+            ?.let { arr -> (0 until arr.length()).map { arr.getInt(it) } }
+            ?: List(5) { 0 },
     )
     val pendingRefuels = if (o.has("refuels")) {
         val arr = o.getJSONArray("refuels")

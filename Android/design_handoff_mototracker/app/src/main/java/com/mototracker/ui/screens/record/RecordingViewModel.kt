@@ -2,7 +2,6 @@ package com.mototracker.ui.screens.record
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mototracker.R
 import com.mototracker.car.CarRecordingBridge
 import com.mototracker.core.format.CoordFormat
 import com.mototracker.core.resource.StringResolver
@@ -11,7 +10,6 @@ import com.mototracker.data.diagnostics.RideDebugLogger
 import com.mototracker.data.location.ReverseGeocoder
 import com.mototracker.data.location.RideLocationCollector
 import com.mototracker.data.model.Bike
-import com.mototracker.data.model.Route
 import com.mototracker.data.model.RouteSummaryModel
 import com.mototracker.data.network.NetworkMonitor
 import com.mototracker.data.network.WeatherClient
@@ -34,13 +32,8 @@ import com.mototracker.data.settings.AppSettingsSource
 import com.mototracker.data.settings.SettingsStore
 import com.mototracker.domain.battery.BatteryOptimizationChecker
 import com.mototracker.domain.battery.BatteryOptimizationGate
-import com.mototracker.domain.naming.PartOfDay
-import com.mototracker.domain.naming.RouteNameComposer
 import com.mototracker.domain.recording.RecordingEngine
 import com.mototracker.domain.recording.RouteResumeSeed
-import com.mototracker.ui.map.GeoCoord
-import com.mototracker.ui.map.TrackGeometry
-import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,8 +57,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.ZoneId
-import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -147,7 +138,8 @@ class RecordingViewModel @Inject constructor(
      * Process-lived ride state. Reused when this ViewModel is recreated mid-ride (Activity
      * destroyed, app swiped from recents) so recording continues instead of silently stopping.
      */
-    private val ride: ActiveRide = rideHolder.ride ?: ActiveRide(
+    private val ride: ActiveRide = rideHolder.obtain {
+        ActiveRide(
         rideLocationCollector = rideLocationCollector,
         leanSensorSource = leanSensorSource,
         sessionStore = sessionStore,
@@ -156,8 +148,16 @@ class RecordingViewModel @Inject constructor(
         settingsSource = settingsSource,
         networkMonitor = networkMonitor,
         weatherClient = weatherClient,
+        routeRepository = routeRepository,
+        syncRepository = syncRepository,
+        refuelRepository = refuelRepository,
+        autoUpdateBikeConsumptionUseCase = autoUpdateBikeConsumptionUseCase,
+        reverseGeocoder = reverseGeocoder,
+        stringResolver = stringResolver,
+        carBridge = carBridge,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
-    ).also { rideHolder.ride = it }
+        )
+    }
 
     private val engine: RecordingEngine get() = ride.engine
 
@@ -213,17 +213,10 @@ class RecordingViewModel @Inject constructor(
                         smsShareEnabled = s.smsShareEnabled,
                     )
                 }
-                carBridge.publishUnits(if (s.units == "imperial") Units.IMPERIAL else Units.METRIC)
             }
         }
-        // Mirror uiState to the Android Auto bridge so the car screen stays in sync.
-        viewModelScope.launch {
-            uiState.collect { s -> carBridge.publish(s.metrics, s.phase) }
-        }
-        // Handle recording control commands coming from the car screen.
-        viewModelScope.launch {
-            carBridge.commands.collect { event -> onEvent(event) }
-        }
+        // Android Auto publishing and car commands are served by [ActiveRide] itself, so the
+        // car keeps working while this ViewModel does not exist.
         // H4: Resolve per-bike fuel consumption from the refuel ledger; fall back to the
         // configured L/100km value, then to 5.0 when neither is available.
         // Also threads fuelPricePerL and currency into uiState for the live cost readout (G2).
@@ -503,107 +496,12 @@ class RecordingViewModel @Inject constructor(
     }
 
     private fun doFinish() {
-        rideDebugLogger.log("LIFECYCLE", "finish")
-        ride.stopWorkers()
-
+        val finish = ride.finishAsync()
         viewModelScope.launch {
-            val settings = settingsSource.settings.first()
-            val isOnline = networkMonitor.isOnline.first()
-            val offline = settings.noInternet || !isOnline
-
-            val result = engine.buildRoutePayload()
-
-            // J5: When continuing an existing route, keep its original name and start time.
-            val isResume = ride.resumingExistingRoute
-
-            val routeName: String
-            val dateEpochMs: Long
-            if (isResume) {
-                routeName = ride.existingRouteName
-                dateEpochMs = ride.existingRouteDateEpochMs
-            } else {
-                // Compose a sensible default name from part-of-day + optional reverse geocoding.
-                val startMs = if (ride.recordingStartMs > 0L) ride.recordingStartMs else timeProvider.nowEpochMs()
-                val pod = RouteNameComposer.partOfDay(startMs, ZoneId.systemDefault())
-                val rideLabelResId = when (pod) {
-                    PartOfDay.MORNING   -> R.string.route_name_ride_morning
-                    PartOfDay.AFTERNOON -> R.string.route_name_ride_afternoon
-                    PartOfDay.EVENING   -> R.string.route_name_ride_evening
-                    PartOfDay.NIGHT     -> R.string.route_name_ride_night
-                }
-                val rideLabel = stringResolver.getString(rideLabelResId)
-                routeName = if (!offline) {
-                    val pts = TrackGeometry.parsePathJson(result.pathJson)
-                    val sampled = sampleEvenly(pts, maxCount = 5)
-                    val areas = sampled.map { pt ->
-                        try { reverseGeocoder.areaName(pt.lat, pt.lon) } catch (_: Exception) { null }
-                    }
-                    val area = RouteNameComposer.dominantArea(areas)
-                    if (area != null) {
-                        val template = stringResolver.getString(R.string.route_name_with_area)
-                        RouteNameComposer.compose(rideLabel, area, template)
-                    } else {
-                        rideLabel
-                    }
-                } else {
-                    rideLabel
-                }
-                dateEpochMs = timeProvider.nowEpochMs()
-            }
-
-            val routeId = ride.pendingRouteId ?: UUID.randomUUID().toString()
-            val route = Route(
-                id = routeId,
-                name = routeName,
-                dateEpochMs = dateEpochMs,
-                bikeId = settings.currentBikeId,
-                km = result.metrics.distanceKm,
-                durSec = result.metrics.durationSec,
-                avg = result.metrics.avgSpeedKmh,
-                max = result.metrics.maxSpeedKmh,
-                lean = result.metrics.maxLeanDeg,
-                elev = result.metrics.elevGainM,
-                fuel = result.metrics.fuelL,
-                synced = false,
-                wxJson = if (isResume) null else ride.pendingWxJson,
-                pathJson = result.pathJson,
-                speedJson = result.speedJson,
-                elevProfileJson = result.elevProfileJson,
-                notes = null,
-                maxLeanLeftDeg = result.metrics.maxLeanLeftDeg,
-                maxLeanRightDeg = result.metrics.maxLeanRightDeg,
-                leanHistogramJson = result.leanHistogramJson,
-            )
-
-            routeRepository.save(route)
-            syncRepository.enqueue(route.id)
-
-            // G5: Persist any buffered refuel events now that the route row exists.
-            val refuelsToSave = ride.pendingRefuels
-            refuelsToSave.forEach { r ->
-                refuelRepository.addRefuel(
-                    routeId = route.id,
-                    epochMs = r.epochMs,
-                    litres = r.litres,
-                    pricePerL = r.pricePerL,
-                )
-            }
-            // K2: refresh per-bike consumption from ledger if any refuels were just saved.
-            if (refuelsToSave.isNotEmpty()) {
-                val bikeId = route.bikeId
-                if (bikeId != null) {
-                    runCatching { autoUpdateBikeConsumptionUseCase.run(bikeId) }
-                }
-            }
-
-            // B20: Clear snapshot AFTER the route is durably saved.
-            sessionStore.clear()
-
-            ride.markIdle()
+            val result = finish.await()
             mirrorRide()
-            _effects.emit(RecordingEffect.Saved(offline = offline))
-            _effects.emit(RecordingEffect.NavigateToDetail(route.id))
-            rideDebugLogger.endRide()
+            _effects.emit(RecordingEffect.Saved(offline = result.offline))
+            _effects.emit(RecordingEffect.NavigateToDetail(result.routeId))
         }
     }
 
@@ -693,13 +591,6 @@ class RecordingViewModel @Inject constructor(
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
-
-    /** Returns up to [maxCount] evenly-spaced points sampled from [points]. */
-    private fun sampleEvenly(points: List<GeoCoord>, maxCount: Int): List<GeoCoord> {
-        if (points.size <= maxCount) return points
-        val step = points.size.toDouble() / maxCount
-        return List(maxCount) { i -> points[(i * step).toInt()] }
-    }
 
     /** Produces a cold flow that emits [Unit] at [intervalMs] intervals, starting immediately. */
     private fun tickerFlow(intervalMs: Long) = flow {

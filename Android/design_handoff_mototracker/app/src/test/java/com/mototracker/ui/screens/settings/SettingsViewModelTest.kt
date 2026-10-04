@@ -249,7 +249,7 @@ class SettingsViewModelTest {
         logStore = FakeRideLogStore()
         backupRepo = FakeBackupRepository()
         riderRepo = FakeRiderRepository()
-        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo)
+        vm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo, testDispatcher)
     }
 
     @After
@@ -735,8 +735,8 @@ class SettingsViewModelTest {
     @Test
     fun `rideLogUsedBytes reflects store totalBytes on init`() = runTest {
         logStore.setBytes(2048L)
-        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo)
-        // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo, testDispatcher)
+        // The init block loads bytes on the IO dispatcher; intermediate combine emissions may have 0L.
         // Drain until we find the non-zero value emitted after the init block completes.
         localVm.uiState.test {
             var state = awaitItem()
@@ -749,8 +749,8 @@ class SettingsViewModelTest {
     @Test
     fun `clearRideLogs calls store clear and updates rideLogUsedBytes to 0`() = runTest {
         logStore.setBytes(4096L)
-        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo)
-        // The init block loads bytes on Dispatchers.IO; intermediate combine emissions may have 0L.
+        val localVm = SettingsViewModel(store, bikeRepo, routeRepo, syncRepo, logStore, RideLogShareIntentFactory(), backupRepo, riderRepo, testDispatcher)
+        // The init block loads bytes on the IO dispatcher; intermediate combine emissions may have 0L.
         // Drain until we see the init-loaded state (4096L) before testing clear.
         localVm.uiState.test {
             var initialState = awaitItem()

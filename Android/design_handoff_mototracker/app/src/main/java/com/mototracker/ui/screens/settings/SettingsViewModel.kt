@@ -16,6 +16,7 @@ import com.mototracker.data.repository.RouteRepository
 import com.mototracker.data.repository.SyncRepository
 import com.mototracker.data.settings.AppSettings
 import com.mototracker.data.settings.SettingsStore
+import com.mototracker.di.IoDispatcher
 import com.mototracker.domain.backup.RestoreMode
 import com.mototracker.ui.state.Units
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,7 +31,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -74,6 +75,8 @@ internal fun normalizeOsrmUrl(raw: String): String {
  * @param shareIntentFactory Selects the file to share in the Diagnostics section.
  * @param backupRepository   Handles JSON backup export and import.
  * @param riderRepository    Domain repository for BLE-discovered riders (X2).
+ * @param ioDispatcher       Dispatcher for file and database work ([kotlinx.coroutines.Dispatchers.IO]
+ *                           in production; the test dispatcher in unit tests, so no work outlives a test).
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -85,6 +88,7 @@ class SettingsViewModel @Inject constructor(
     private val shareIntentFactory: RideLogShareIntentFactory,
     private val backupRepository: BackupRepository,
     private val riderRepository: RiderRepository,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(SettingsTab.ACCOUNT)
@@ -108,7 +112,7 @@ class SettingsViewModel @Inject constructor(
     private val _rideLogUsedBytes = MutableStateFlow(0L)
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _rideLogUsedBytes.value = rideLogStore.totalBytes()
         }
     }
@@ -451,7 +455,7 @@ class SettingsViewModel @Inject constructor(
      */
     fun clearRideLogs() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 rideLogStore.clear()
                 _rideLogUsedBytes.value = rideLogStore.totalBytes()
             }
@@ -551,14 +555,14 @@ class SettingsViewModel @Inject constructor(
     val restoreEvent: SharedFlow<Result<Unit>> = _restoreEvent.asSharedFlow()
 
     /**
-     * Serialises all local data to a JSON string on [Dispatchers.IO].
+     * Serialises all local data to a JSON string on [ioDispatcher].
      *
      * The Composable calls this, receives the string, and writes it to the SAF
      * [OutputStream] itself — keeping file I/O out of the ViewModel.
      *
      * @return [Result.success] with the JSON payload, or [Result.failure] on error.
      */
-    suspend fun buildBackup(): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun buildBackup(): Result<String> = withContext(ioDispatcher) {
         backupRepository.exportBackup()
     }
 
@@ -566,13 +570,13 @@ class SettingsViewModel @Inject constructor(
      * Parses [json] and merges or replaces local data according to [mode], then emits
      * a [Result] on [restoreEvent] for the Composable to display as a toast.
      *
-     * Runs on [Dispatchers.IO] so Room writes are main-safe.
+     * Runs on [ioDispatcher] so Room writes are main-safe.
      *
      * @param json Raw backup JSON string read from a SAF [InputStream].
      * @param mode [RestoreMode.MERGE] or [RestoreMode.REPLACE].
      */
     fun restore(json: String, mode: RestoreMode) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val result = backupRepository.importBackup(json, mode)
             _restoreEvent.emit(result.map { })
         }
